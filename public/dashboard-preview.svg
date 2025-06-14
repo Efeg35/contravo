@@ -1,0 +1,61 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#f8fafc"/>
+  
+  <!-- Dashboard Header -->
+  <rect x="0" y="0" width="800" height="80" fill="#1e293b"/>
+  <text x="40" y="50" font-family="Inter, sans-serif" font-size="24" font-weight="bold" fill="white">Contravo Dashboard</text>
+  
+  <!-- Sidebar -->
+  <rect x="0" y="80" width="250" height="520" fill="#f1f5f9"/>
+  <rect x="20" y="110" width="210" height="40" rx="8" fill="#3b82f6"/>
+  <text x="40" y="135" font-family="Inter, sans-serif" font-size="14" fill="white">📊 Dashboard</text>
+  
+  <rect x="20" y="160" width="210" height="40" rx="8" fill="#e2e8f0"/>
+  <text x="40" y="185" font-family="Inter, sans-serif" font-size="14" fill="#64748b">📋 Contracts</text>
+  
+  <rect x="20" y="210" width="210" height="40" rx="8" fill="#e2e8f0"/>
+  <text x="40" y="235" font-family="Inter, sans-serif" font-size="14" fill="#64748b">📈 Reports</text>
+  
+  <!-- Main Content -->
+  <rect x="270" y="100" width="510" height="480" fill="white"/>
+  
+  <!-- Stats Cards -->
+  <rect x="290" y="120" width="120" height="80" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/>
+  <text x="315" y="145" font-family="Inter, sans-serif" font-size="12" fill="#1e40af">Total Contracts</text>
+  <text x="330" y="185" font-family="Inter, sans-serif" font-size="24" font-weight="bold" fill="#1e40af">42</text>
+  
+  <rect x="430" y="120" width="120" height="80" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1"/>
+  <text x="455" y="145" font-family="Inter, sans-serif" font-size="12" fill="#166534">Active</text>
+  <text x="470" y="185" font-family="Inter, sans-serif" font-size="24" font-weight="bold" fill="#166534">38</text>
+  
+  <rect x="570" y="120" width="120" height="80" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+  <text x="595" y="145" font-family="Inter, sans-serif" font-size="12" fill="#92400e">Pending</text>
+  <text x="610" y="185" font-family="Inter, sans-serif" font-size="24" font-weight="bold" fill="#92400e">4</text>
+  
+  <!-- Table -->
+  <rect x="290" y="230" width="470" height="320" rx="8" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+  <rect x="290" y="230" width="470" height="40" fill="#f8fafc"/>
+  <text x="310" y="252" font-family="Inter, sans-serif" font-size="12" font-weight="semibold" fill="#374151">Recent Contracts</text>
+  
+  <!-- Table Rows -->
+  <line x1="310" y1="290" x2="740" y2="290" stroke="#e5e7eb"/>
+  <text x="310" y="305" font-family="Inter, sans-serif" font-size="12" fill="#374151">Contract #001 - Web Development</text>
+  <text x="620" y="305" font-family="Inter, sans-serif" font-size="12" fill="#16a34a">Active</text>
+  
+  <line x1="310" y1="330" x2="740" y2="330" stroke="#e5e7eb"/>
+  <text x="310" y="345" font-family="Inter, sans-serif" font-size="12" fill="#374151">Contract #002 - Mobile App</text>
+  <text x="620" y="345" font-family="Inter, sans-serif" font-size="12" fill="#16a34a">Active</text>
+  
+  <line x1="310" y1="370" x2="740" y2="370" stroke="#e5e7eb"/>
+  <text x="310" y="385" font-family="Inter, sans-serif" font-size="12" fill="#374151">Contract #003 - Consulting</text>
+  <text x="620" y="385" font-family="Inter, sans-serif" font-size="12" fill="#d97706">Pending</text>
+  
+  <!-- Chart Area -->
+  <rect x="290" y="420" width="200" height="120" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="360" y="440" font-family="Inter, sans-serif" font-size="12" fill="#6b7280">Revenue Chart</text>
+  
+  <!-- Simple Chart Lines -->
+  <polyline points="310,520 330,500 350,480 370,460 390,450 410,440 430,430 450,420 470,410" 
+            stroke="#3b82f6" stroke-width="2" fill="none"/>
+  
+</svg> 

@@ -1,0 +1,597 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Kullanıcı modeli
+model User {
+  id                String    @id @default(cuid())
+  name              String?
+  email             String?   @unique
+  emailVerified     DateTime?
+  image             String?
+  password          String?
+  passwordChangedAt DateTime? @default(now())
+  role              Role      @default(USER)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  accounts          Account[]
+  sessions          Session[]
+  createdCompanies  Company[] @relation("CreatedCompanies")
+  createdContracts  Contract[] @relation("CreatedContracts")
+  companyUsers      CompanyUser[]
+  companyInvites    CompanyInvite[] @relation("InvitedUser")
+  updatedContracts  Contract[] @relation("UpdatedContracts")
+  uploadedAttachments ContractAttachment[] @relation("UploadedAttachments")
+  createdTemplates  ContractTemplate[] @relation("CreatedTemplates")
+  approvals         ContractApproval[] @relation("ApprovalsByUser")
+  contractVersions  ContractVersion[]
+  notificationSettings NotificationSettings?
+  notifications     Notification[]
+  digitalSignatures DigitalSignature[]
+  createdSignaturePackages SignaturePackage[]
+  userSessions      UserSession[] @relation("UserSessions")
+  passwordHistory   PasswordHistory[]
+
+  // Performance indexes
+  @@index([email])
+  @@index([role])
+  @@index([createdAt])
+}
+
+// Token Blacklist for JWT management
+model TokenBlacklist {
+  id        String   @id @default(cuid())
+  tokenId   String   @unique
+  reason    String   @default("logout")
+  createdAt DateTime @default(now())
+
+  @@index([tokenId])
+  @@index([createdAt])
+}
+
+// Password History for password policy enforcement
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Login Attempts tracking for security
+model LoginAttempt {
+  id            String    @id @default(cuid())
+  identifier    String    @unique // Email or username
+  failedAttempts Int      @default(0)
+  lockedUntil   DateTime?
+  lastAttemptIp String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([identifier])
+  @@index([lockedUntil])
+}
+
+// Enhanced session management models
+model UserSession {
+  id                   String              @id @default(cuid())
+  userId               String
+  deviceInfo           Json                // Store device information
+  isActive             Boolean             @default(true)
+  lastActivity         DateTime            @default(now())
+  createdAt            DateTime            @default(now())
+  expiresAt            DateTime
+  invalidatedAt        DateTime?
+  invalidationReason   String?
+
+  // Relations
+  user                 User                @relation("UserSessions", fields: [userId], references: [id], onDelete: Cascade)
+  activities           SessionActivity[]
+
+  // Performance indexes
+  @@index([userId])
+  @@index([isActive])
+  @@index([expiresAt])
+  @@index([lastActivity])
+  @@index([createdAt])
+}
+
+model SessionActivity {
+  id          String      @id @default(cuid())
+  sessionId   String
+  action      String
+  details     Json?
+  timestamp   DateTime    @default(now())
+  ip          String
+  userAgent   String
+
+  // Relations
+  session     UserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([sessionId])
+  @@index([action])
+  @@index([timestamp])
+}
+
+// Hesap modeli (OAuth için)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// Oturum modeli
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+}
+
+// Şirket modeli
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  address     String?
+  phone       String?
+  website     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation("CreatedCompanies", fields: [createdById], references: [id])
+  createdById String
+  contracts   Contract[]
+  users       CompanyUser[]
+  invites     CompanyInvite[]
+  settings    CompanySettings?
+  templates   ContractTemplate[] @relation("CompanyTemplates")
+
+  // Performance indexes
+  @@index([createdById])
+  @@index([name])
+  @@index([createdAt])
+}
+
+// Şirket üyeliği modeli
+model CompanyUser {
+  id        String   @id @default(cuid())
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id])
+  companyId String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+
+  @@unique([companyId, userId])
+  @@index([companyId])
+  @@index([userId])
+  @@index([role])
+}
+
+// Şirket davet modeli
+model CompanyInvite {
+  id        String   @id @default(cuid())
+  email     String
+  role      Role     @default(USER)
+  status    InviteStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id])
+  companyId String
+  invitedBy User     @relation("InvitedUser", fields: [invitedById], references: [id])
+  invitedById String
+
+  @@unique([companyId, email])
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Şirket ayarları modeli
+model CompanySettings {
+  id                   String   @id @default(cuid())
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId            String   @unique
+  defaultContractType  String?
+  requireApproval      Boolean  @default(true)
+  allowSelfApproval    Boolean  @default(false)
+  notificationSettings Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// Şirket rolleri
+enum CompanyRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+// Şirket üye durumları
+enum CompanyUserStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+// Davet durumları
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+// Kullanıcı rolleri
+enum Role {
+  ADMIN
+  EDITOR
+  APPROVER
+  VIEWER
+  USER
+}
+
+model Contract {
+  id              String      @id @default(cuid())
+  title           String
+  description     String?
+  status          ContractStatus   @default(DRAFT)
+  type            String
+  value           Float?
+  startDate       DateTime?
+  endDate         DateTime?
+  otherPartyName  String?
+  otherPartyEmail String?
+  companyId       String?
+  templateId      String?
+  createdById     String
+  updatedById     String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  company         Company?    @relation(fields: [companyId], references: [id])
+  template        ContractTemplate? @relation("TemplateContracts", fields: [templateId], references: [id])
+  createdBy       User        @relation("CreatedContracts", fields: [createdById], references: [id])
+  updatedBy       User?       @relation("UpdatedContracts", fields: [updatedById], references: [id])
+  attachments     ContractAttachment[]
+  approvals       ContractApproval[]
+  versions        ContractVersion[]
+  notifications   Notification[]
+  digitalSignatures DigitalSignature[]
+  signaturePackage SignaturePackage?
+
+  // Critical performance indexes for contracts
+  @@index([status])
+  @@index([type])
+  @@index([companyId])
+  @@index([createdById])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([status, companyId]) // Composite index for common queries
+  @@index([type, status]) // Composite index for filtering
+  @@index([createdById, status]) // Composite index for user's contracts
+  @@index([title]) // Full-text search support
+  @@index([otherPartyName]) // Search by other party
+}
+
+// Sözleşme ekleri modeli
+model ContractAttachment {
+  id           String   @id @default(cuid())
+  contract     Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contractId   String
+  fileName     String
+  originalName String
+  url          String
+  fileSize     Int
+  mimeType     String
+  uploadedBy   User     @relation("UploadedAttachments", fields: [uploadedById], references: [id])
+  uploadedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Performance indexes
+  @@index([contractId])
+  @@index([uploadedById])
+  @@index([createdAt])
+  @@index([mimeType])
+}
+
+enum ContractStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  SIGNED
+  ARCHIVED
+}
+
+// Sözleşme şablonları modeli
+model ContractTemplate {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  category        TemplateCategory
+  content         String   // Template content with variables
+  variables       Json?    // Template variables configuration
+  isPublic        Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  usageCount      Int      @default(0)
+  createdById     String
+  companyId       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  createdBy       User     @relation("CreatedTemplates", fields: [createdById], references: [id])
+  company         Company? @relation("CompanyTemplates", fields: [companyId], references: [id])
+  contracts       Contract[] @relation("TemplateContracts")
+
+  // Performance indexes
+  @@index([category])
+  @@index([isPublic])
+  @@index([isActive])
+  @@index([createdById])
+  @@index([companyId])
+  @@index([usageCount])
+  @@index([title])
+  @@index([createdAt])
+}
+
+// Şablon kategorileri
+enum TemplateCategory {
+  EMPLOYMENT     // İş sözleşmeleri
+  SERVICE        // Hizmet sözleşmeleri  
+  PARTNERSHIP    // Ortaklık sözleşmeleri
+  SALES          // Satış sözleşmeleri
+  RENTAL         // Kira sözleşmeleri
+  CONSULTING     // Danışmanlık sözleşmeleri
+  NDA            // Gizlilik sözleşmeleri
+  SUPPLY         // Tedarik sözleşmeleri
+  OTHER          // Diğer
+}
+
+// Sözleşme onay süreçleri modeli
+model ContractApproval {
+  id            String         @id @default(cuid())
+  contract      Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contractId    String
+  approver      User           @relation("ApprovalsByUser", fields: [approverId], references: [id])
+  approverId    String
+  status        ApprovalStatus @default(PENDING)
+  comment       String?
+  approvedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([contractId, approverId])
+  @@index([contractId])
+  @@index([approverId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([approvedAt])
+}
+
+// Onay durumları
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VersionChangeType {
+  CREATED
+  UPDATED
+  CONTENT_MODIFIED
+  TERMS_CHANGED
+  STATUS_CHANGED
+  ARCHIVED
+}
+
+model ContractVersion {
+  id                String            @id @default(cuid())
+  contractId        String
+  versionNumber     String            // e.g., "1.0", "1.1", "2.0"
+  title             String
+  description       String?
+  content           String
+  status            String
+  value             Float?
+  currency          String?
+  startDate         DateTime?
+  endDate           DateTime?
+  changeType        VersionChangeType
+  changeDescription String?
+  changeLog         Json?             // Detailed change information
+  
+  // Relations
+  contract          Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdBy         User              @relation(fields: [createdById], references: [id])
+  createdById       String
+  
+  createdAt         DateTime          @default(now())
+
+  // Performance indexes
+  @@index([contractId])
+  @@index([versionNumber])
+  @@index([createdById])
+  @@index([changeType])
+  @@index([createdAt])
+  @@index([contractId, versionNumber]) // Composite index for version lookup
+  
+  @@map("contract_versions")
+}
+
+enum NotificationType {
+  CONTRACT_EXPIRING
+  CONTRACT_EXPIRED
+  CONTRACT_REMINDER
+  APPROVAL_NEEDED
+  APPROVAL_RECEIVED
+  VERSION_CREATED
+}
+
+enum NotificationFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+model NotificationSettings {
+  id                    String                @id @default(cuid())
+  userId                String                @unique
+  contractExpiring      Boolean               @default(true)   // 30 days before
+  contractExpired       Boolean               @default(true)   // On expiration
+  contractReminder      Boolean               @default(true)   // Weekly reminders
+  approvalNeeded        Boolean               @default(true)   // When approval is needed
+  approvalReceived      Boolean               @default(true)   // When approval is received
+  versionCreated        Boolean               @default(true)   // When new version is created
+  emailNotifications    Boolean               @default(true)   // Email notifications
+  dashboardNotifications Boolean              @default(true)   // In-app notifications
+  reminderFrequency     NotificationFrequency @default(WEEKLY)
+  daysBeforeExpiration  Int                   @default(30)     // Days before expiration to notify
+  
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@map("notification_settings")
+}
+
+model Notification {
+  id          String            @id @default(cuid())
+  userId      String
+  contractId  String?
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean           @default(false)
+  emailSent   Boolean           @default(false)
+  metadata    Json?             // Additional data for the notification
+  
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contract    Contract?         @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime          @default(now())
+
+  // Performance indexes
+  @@index([userId])
+  @@index([contractId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([userId, isRead]) // Composite index for unread notifications
+  @@index([userId, type]) // Composite index for notification types
+  
+  @@map("notifications")
+}
+
+// Dijital İmza modeli
+model DigitalSignature {
+  id                String             @id @default(cuid())
+  contractId        String
+  userId            String
+  status            SignatureStatus    @default(PENDING)
+  signedAt          DateTime?
+  expiresAt         DateTime
+  signatureData     String?            // Elektronik imza verisi
+  certificateData   String?            // Sertifika verisi
+  ipAddress         String?
+  userAgent         String?
+  order             Int                @default(1)
+  isRequired        Boolean            @default(true)
+  declineReason     String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  contract          Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id])
+
+  @@unique([contractId, userId])
+  @@index([contractId])
+  @@index([userId])
+  @@index([status])
+  @@index([signedAt])
+  @@index([expiresAt])
+  @@index([order])
+  @@index([contractId, order]) // Composite index for signature order
+  @@map("digital_signatures")
+}
+
+// İmza paketleri modeli
+model SignaturePackage {
+  id                String             @id @default(cuid())
+  contractId        String             @unique
+  title             String
+  description       String?
+  status            PackageStatus      @default(DRAFT)
+  expiresAt         DateTime?
+  completedAt       DateTime?
+  createdById       String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  contract          Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdBy         User               @relation(fields: [createdById], references: [id])
+
+  // Performance indexes
+  @@index([status])
+  @@index([createdById])
+  @@index([expiresAt])
+  @@index([completedAt])
+  @@index([createdAt])
+  @@map("signature_packages")
+}
+
+enum SignatureStatus {
+  PENDING
+  SIGNED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum PackageStatus {
+  DRAFT
+  SENT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
