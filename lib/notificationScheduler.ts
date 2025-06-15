@@ -17,29 +17,9 @@ export async function checkExpiringContracts() {
   try {
     console.log('Checking for expiring contracts...');
 
-    // Get all users with their notification settings
     const users = await prisma.user.findMany({
       include: {
-        notificationSettings: true,
-        createdContracts: {
-          where: {
-            endDate: {
-              not: null
-            },
-            status: {
-              in: ['APPROVED', 'SIGNED'] // Only check active contracts
-            }
-          },
-          include: {
-            createdBy: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          }
-        }
+        notificationSettings: true
       }
     });
 
@@ -51,12 +31,36 @@ export async function checkExpiringContracts() {
         continue;
       }
 
-      const daysBeforeExpiration = settings.daysBeforeExpiration || 30;
-      const targetDate = new Date();
-      targetDate.setDate(targetDate.getDate() + daysBeforeExpiration);
+      const daysBeforeExpiration = settings.daysBeforeExpiration || 7;
 
-      // Find contracts expiring within the notification window
-      const expiringContracts = user.createdContracts.filter(contract => {
+      // Get all contracts for this user
+      const allContracts = await prisma.contract.findMany({
+        where: {
+          OR: [
+            { createdById: user.id },
+            {
+              company: {
+                OR: [
+                  { createdById: user.id },
+                  {
+                    users: {
+                      some: {
+                        userId: user.id
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          status: {
+            in: ['APPROVED', 'SIGNED'] // Only active contracts
+          }
+        }
+      });
+
+      // Filter expiring contracts in memory
+      const expiringContracts = allContracts.filter(contract => {
         if (!contract.endDate) return false;
         
         const endDate = new Date(contract.endDate);
@@ -67,34 +71,41 @@ export async function checkExpiringContracts() {
         return diffDays <= daysBeforeExpiration && diffDays > 0;
       });
 
-      // Create notifications for expiring contracts
-      for (const contract of expiringContracts) {
-        const endDate = new Date(contract.endDate!);
-        const today = new Date();
-        const diffTime = endDate.getTime() - today.getTime();
-        const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (expiringContracts.length === 0) continue;
 
-        // Check if we already sent a notification for this contract recently
-        const existingNotification = await prisma.notification.findFirst({
-          where: {
-            userId: user.id,
-            contractId: contract.id,
-            type: 'CONTRACT_EXPIRING',
-            createdAt: {
-              gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-            }
+      // ✅ BULK QUERY: Get all existing notifications for all expiring contracts
+      const existingNotifications = await prisma.notification.findMany({
+        where: {
+          userId: user.id,
+          contractId: {
+            in: expiringContracts.map(c => c.id)
+          },
+          type: 'CONTRACT_EXPIRING',
+          createdAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
           }
-        });
-
-        if (existingNotification) {
-          continue; // Skip if already notified recently
+        },
+        select: {
+          contractId: true
         }
+      });
 
-        await prisma.notification.create({
-          data: {
+      // Create a Set for O(1) lookup performance
+      const notifiedContractIds = new Set(existingNotifications.map(n => n.contractId));
+
+      // ✅ BULK INSERT: Prepare notifications for contracts that haven't been notified
+      const notificationsToCreate = expiringContracts
+        .filter(contract => !notifiedContractIds.has(contract.id))
+        .map(contract => {
+          const endDate = new Date(contract.endDate!);
+          const today = new Date();
+          const diffTime = endDate.getTime() - today.getTime();
+          const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          return {
             userId: user.id,
             contractId: contract.id,
-            type: 'CONTRACT_EXPIRING',
+            type: 'CONTRACT_EXPIRING' as const,
             title: `Sözleşme ${daysUntilExpiration} gün içinde sona eriyor`,
             message: `"${contract.title}" sözleşmesi ${daysUntilExpiration} gün içinde sona erecek. Gerekli işlemleri yapmayı unutmayın.`,
             metadata: {
@@ -102,10 +113,16 @@ export async function checkExpiringContracts() {
               endDate: contract.endDate,
               contractTitle: contract.title
             }
-          }
+          };
         });
 
-        console.log(`Created expiring notification for contract ${contract.id} (${daysUntilExpiration} days)`);
+      // ✅ SINGLE BULK INSERT instead of individual inserts
+      if (notificationsToCreate.length > 0) {
+        await prisma.notification.createMany({
+          data: notificationsToCreate
+        });
+
+        console.log(`Created ${notificationsToCreate.length} expiring notifications for user ${user.id}`);
       }
     }
 
@@ -114,7 +131,7 @@ export async function checkExpiringContracts() {
     
     console.log('Expiring contracts check completed');
   } catch (error) {
-    console.error('Error checking expiring contracts:');
+    console.error('Error checking expiring contracts:', error);
   }
 }
 
@@ -126,7 +143,7 @@ export async function checkExpiredContracts() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Find contracts that expired today
+    // ✅ OPTIMIZED: Get expired contracts with user data in single query
     const expiredContracts = await prisma.contract.findMany({
       where: {
         endDate: {
@@ -145,6 +162,40 @@ export async function checkExpiredContracts() {
       }
     });
 
+    if (expiredContracts.length === 0) return;
+
+    // ✅ BULK QUERY: Get all existing notifications for all expired contracts
+    const existingNotifications = await prisma.notification.findMany({
+      where: {
+        contractId: {
+          in: expiredContracts.map(c => c.id)
+        },
+        type: 'CONTRACT_EXPIRED',
+        createdAt: {
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        }
+      },
+      select: {
+        contractId: true,
+        userId: true
+      }
+    });
+
+    // Create lookup map for O(1) performance
+    const notifiedMap = new Map<string, Set<string>>();
+    existingNotifications.forEach(n => {
+      if (n.contractId && !notifiedMap.has(n.contractId)) {
+        notifiedMap.set(n.contractId, new Set());
+      }
+      if (n.userId && n.contractId) {
+        notifiedMap.get(n.contractId)!.add(n.userId);
+      }
+    });
+
+    // Prepare bulk operations
+    const notificationsToCreate: any[] = [];
+    const contractsToUpdate: string[] = [];
+
     for (const contract of expiredContracts) {
       const user = contract.createdBy;
       const settings = user.notificationSettings;
@@ -154,49 +205,52 @@ export async function checkExpiredContracts() {
         continue;
       }
 
-      // Check if we already sent an expired notification for this contract
-      const existingNotification = await prisma.notification.findFirst({
-        where: {
-          userId: user.id,
-          contractId: contract.id,
-          type: 'CONTRACT_EXPIRED',
-          createdAt: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
-          }
-        }
-      });
-
-      if (existingNotification) {
-        continue; // Skip if already notified recently
-      }
-
-      await prisma.notification.create({
-        data: {
+      // Check if already notified using our lookup map
+      const userNotified = notifiedMap.get(contract.id)?.has(user.id) || false;
+      
+      if (!userNotified) {
+        notificationsToCreate.push({
           userId: user.id,
           contractId: contract.id,
           type: 'CONTRACT_EXPIRED',
           title: 'Sözleşme süresi doldu',
-          message: `"${contract.title}" sözleşmesinin süresi dolmuştur. Yenileme veya arşivleme işlemlerini değerlendirin.`,
+          message: `"${contract.title || 'Başlıksız sözleşme'}" sözleşmesinin süresi dolmuştur. Yenileme veya arşivleme işlemlerini değerlendirin.`,
           metadata: {
             endDate: contract.endDate,
-            contractTitle: contract.title,
+            contractTitle: contract.title || 'Başlık yok',
             expiredDate: today
           }
-        }
-      });
+        });
+      }
 
-      // Auto-archive expired contracts (optional)
-      await prisma.contract.update({
-        where: { id: contract.id },
-        data: { status: 'ARCHIVED' }
-      });
-
-      console.log(`Created expired notification for contract ${contract.id}`);
+      contractsToUpdate.push(contract.id);
     }
 
+    // ✅ BULK OPERATIONS
+    await Promise.all([
+      // Bulk insert notifications
+      notificationsToCreate.length > 0 && prisma.notification.createMany({
+        data: notificationsToCreate
+      }),
+      
+      // Bulk update contracts to ARCHIVED status
+      contractsToUpdate.length > 0 && prisma.contract.updateMany({
+        where: {
+          id: {
+            in: contractsToUpdate
+          }
+        },
+        data: {
+          status: 'ARCHIVED'
+        }
+      })
+    ]);
+
+    console.log(`Created ${notificationsToCreate.length} expired notifications`);
+    console.log(`Archived ${contractsToUpdate.length} expired contracts`);
     console.log('Expired contracts check completed');
   } catch (error) {
-    console.error('Error checking expired contracts:');
+    console.error('Error checking expired contracts:', error);
   }
 }
 
