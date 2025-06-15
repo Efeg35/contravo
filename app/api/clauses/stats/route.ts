@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/lib/auth-helpers';
 import { prisma } from '@/lib/db';
 
 // GET /api/clauses/stats - Get clause statistics
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const user = await getCurrentUser();
     if (!user) {

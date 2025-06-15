@@ -530,7 +530,7 @@ export class ErrorMonitor {
     try {
       const eventData = await redisCache.get<string>(`${this.REDIS_KEY_PREFIX}event:${eventId}`);
       return eventData ? JSON.parse(eventData) : null;
-    } catch (_error) {
+    } catch {
       console.error('Error retrieving event:');
       return null;
     }
@@ -640,7 +640,7 @@ export class ErrorMonitor {
       if (cachedEventId) {
         return await this.getEventById(cachedEventId);
       }
-    } catch (_error) {
+    } catch {
       console.error('Error checking fingerprint cache:');
     }
 
@@ -684,7 +684,7 @@ export class ErrorMonitor {
         event.id,
         { ttl: this.FINGERPRINT_CACHE_TTL }
       );
-    } catch (_error) {
+    } catch {
       console.error('Error storing event:');
     }
   }
@@ -698,7 +698,7 @@ export class ErrorMonitor {
         JSON.stringify(alert),
         { ttl: 30 * 24 * 60 * 60 } // 30 days
       );
-    } catch (_error) {
+    } catch {
       console.error('Error storing alert:');
     }
   }
@@ -709,7 +709,7 @@ export class ErrorMonitor {
         `${this.REDIS_KEY_PREFIX}rule:${rule.id}`,
         JSON.stringify(rule)
       );
-    } catch (_error) {
+    } catch {
       console.error('Error storing alert rule:');
     }
   }
@@ -820,7 +820,7 @@ export class ErrorMonitor {
           success,
           error: success ? undefined : 'Failed to send notification'
         });
-      } catch (_error) {
+      } catch {
         console.error(`Failed to send ${action.type} notification:`);
         
         alert.notificationsSent.push({

@@ -63,12 +63,12 @@ export class BackupManager {
 
       console.log(`Backup created successfully: ${archivePath}`)
       return archivePath
-    } catch (_error) {
+    } catch {
       console.error('Backup creation failed:', _error)
       // Clean up on failure
       try {
         await fs.rm(backupDir, { recursive: true })
-      } catch (_error) {}
+      } catch {}
       throw _error
     }
   }
@@ -136,7 +136,7 @@ export class BackupManager {
         await fs.copyFile(dbPath, backupDbPath)
         console.log('Database file copied to backup')
       }
-    } catch (_error) {
+    } catch {
       console.warn('Could not copy database file:', _error)
     }
   }
@@ -189,7 +189,7 @@ export class BackupManager {
       }
 
       return backups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    } catch (_error) {
+    } catch {
       console.error('Error listing backups:', _error)
       return []
     }
@@ -238,7 +238,7 @@ export class BackupManager {
       await fs.rm(tempDir, { recursive: true })
 
       console.log('Restore completed successfully')
-    } catch (_error) {
+    } catch {
       console.error('Restore failed:', _error)
       throw _error
     }
@@ -399,7 +399,7 @@ export class BackupManager {
           await fs.unlink(backup.path)
           deletedCount++
           console.log(`Deleted old backup: ${backup.name}`)
-        } catch (_error) {
+        } catch {
           console.error(`Failed to delete backup ${backup.name}:`, _error)
         }
       }
@@ -420,7 +420,7 @@ export class BackupManager {
       await fs.rm(tempDir, { recursive: true })
       
       return metadata
-    } catch (_error) {
+    } catch {
       console.error('Failed to read backup metadata:', _error)
       return null
     }
@@ -451,7 +451,7 @@ export class BackupScheduler {
         
         // Clean up old backups
         await this.backupManager.cleanupOldBackups()
-      } catch (_error) {
+      } catch {
         console.error('Scheduled backup failed:', _error)
       }
     }, intervalMs)

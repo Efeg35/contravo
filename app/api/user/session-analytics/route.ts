@@ -87,7 +87,7 @@ export async function GET() {
     };
 
     return NextResponse.json(response);
-  } catch (_error) {
+  } catch {
     console.error('Error getting session analytics:');
     return NextResponse.json(
       { error: 'Internal server error' },

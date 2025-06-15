@@ -188,7 +188,7 @@ export default function IncidentResponsePage() {
         }
       ]);
 
-    } catch (_) {
+    } catch {
       console.error('Error loading incident data:');
       setMessage({ type: 'error', text: 'Failed to load incident response data' });
     } finally {
@@ -228,7 +228,7 @@ export default function IncidentResponsePage() {
         });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Create incident error:');
       setMessage({ type: 'error', text: 'Failed to create incident' });
     }
@@ -250,7 +250,7 @@ export default function IncidentResponsePage() {
         setMessage({ type: 'success', text: `Incident status updated to ${status}` });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Update status error:');
       setMessage({ type: 'error', text: 'Failed to update incident status' });
     }
@@ -277,7 +277,7 @@ export default function IncidentResponsePage() {
         setNewActionForm({ action: 'ISOLATE_SYSTEM', description: '' });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Execute action error:');
       setMessage({ type: 'error', text: 'Failed to execute response action' });
     }
@@ -313,7 +313,7 @@ export default function IncidentResponsePage() {
         });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Add evidence error:');
       setMessage({ type: 'error', text: 'Failed to add evidence' });
     }

@@ -32,7 +32,7 @@ export async function GET(
 
     // Redirect to original URL
     return NextResponse.redirect(redirectUrl, { status: 302 });
-  } catch (_error) {
+  } catch {
     console.error('❌ Error in click tracking:');
     
     // Try to redirect to the original URL even if tracking fails

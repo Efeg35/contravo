@@ -166,7 +166,7 @@ class NotificationQueue {
 
         // Wait before next iteration
         await this.sleep(1000);
-      } catch (_error) {
+      } catch {
         console.error('❌ Error in queue processing:');
         await this.sleep(5000); // Wait longer on error
       }
@@ -220,7 +220,7 @@ class NotificationQueue {
       
       console.log(`✅ Job completed: ${job.id}`);
       
-    } catch (_error) {
+    } catch {
       console.error(`❌ Job failed: ${job.id}`);
       
       job.error = _error instanceof Error ? _error.message : 'Unknown error';

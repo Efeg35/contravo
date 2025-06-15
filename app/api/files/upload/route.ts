@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       warnings: result.warnings
     });
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Error in file upload API:');
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -125,7 +125,7 @@ export async function GET() {
         ]
       }
     });
-  } catch (_error) {
+  } catch {
     console.error('❌ Error getting upload info:');
     return NextResponse.json(
       { error: 'Internal server error' },

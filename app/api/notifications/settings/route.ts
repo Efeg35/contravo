@@ -42,7 +42,7 @@ export async function GET() {
     }
 
     return NextResponse.json(settings);
-  } catch (_error) {
+  } catch {
     console.error('Error fetching notification settings:');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     return NextResponse.json(settings);
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json({ error: _error.errors }, { status: 400 });
     }

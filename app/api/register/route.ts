@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ message: 'Kayıt başarılı.', user: { id: newUser.id, email: newUser.email, name: newUser.name } }, { status: 201 });
-  } catch (_error) {
+  } catch {
     console.error('Kayıt hatası:');
     return NextResponse.json({ error: 'Sunucu hatası.' }, { status: 500 });
   }

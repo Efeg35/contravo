@@ -108,7 +108,7 @@ export async function POST(
     })
 
     return NextResponse.json(attachment, { status: 201 })
-  } catch (_error) {
+  } catch {
     console.error('Error uploading file:', _error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -173,7 +173,7 @@ export async function GET(
     })
 
     return NextResponse.json(attachments)
-  } catch (_error) {
+  } catch {
     console.error('Error fetching attachments:', _error)
     return NextResponse.json(
       { error: 'Internal server error' },

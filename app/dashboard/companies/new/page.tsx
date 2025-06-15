@@ -57,7 +57,7 @@ export default function NewCompanyPage() {
     if (formData.website && formData.website.trim()) {
       try {
         new URL(formData.website);
-      } catch (_error) {
+      } catch {
         newErrors.website = 'Geçerli bir website URL\'si giriniz';
       }
     }
@@ -109,7 +109,7 @@ export default function NewCompanyPage() {
           toast.error(error.error || 'Şirket oluşturulurken hata oluştu');
         }
       }
-    } catch (_error) {
+    } catch {
       console.error('Error creating company:');
       toast.error('Şirket oluşturulurken hata oluştu');
     } finally {

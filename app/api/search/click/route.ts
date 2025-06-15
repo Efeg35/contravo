@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       message: 'Click tracked successfully'
     });
 
-  } catch (_error) {
+  } catch {
     console.error('Click tracking API error:');
     return NextResponse.json(
       { 
@@ -62,7 +62,7 @@ export async function PUT(request: NextRequest) {
       message: 'Dwell time tracked successfully'
     });
 
-  } catch (_error) {
+  } catch {
     console.error('Dwell time tracking API error:');
     return NextResponse.json(
       { 

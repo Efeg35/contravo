@@ -258,7 +258,7 @@ export async function GET(request: NextRequest) {
         );
     }
 
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json(
         { 
@@ -490,7 +490,7 @@ export async function POST(request: NextRequest) {
         );
     }
 
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json(
         { 

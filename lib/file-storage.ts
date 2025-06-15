@@ -71,7 +71,7 @@ export class FileStorage {
         success: true,
         url: this.getLocalUrl(filePath)
       };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error uploading file:');
       return {
         success: false,
@@ -92,7 +92,7 @@ export class FileStorage {
         success: true,
         data
       };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error downloading file:');
       return {
         success: false,
@@ -115,12 +115,12 @@ export class FileStorage {
       // Delete metadata if exists
       try {
         await fs.unlink(metadataPath);
-      } catch (_error) {
+      } catch {
         // Metadata file might not exist
       }
       
       return { success: true };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error deleting file:');
       return {
         success: false,
@@ -142,7 +142,7 @@ export class FileStorage {
       const fullPath = path.join(this.basePath, filePath);
       await fs.access(fullPath);
       return true;
-    } catch (_error) {
+    } catch {
       return false;
     }
   }
@@ -168,7 +168,7 @@ export class FileStorage {
         const metadataObj = JSON.parse(metadataContent);
         metadata = metadataObj.metadata || {};
         contentType = metadataObj.mimeType || contentType;
-      } catch (_error) {
+      } catch {
         // Metadata file doesn't exist or is invalid
       }
 
@@ -178,7 +178,7 @@ export class FileStorage {
         contentType,
         metadata
       };
-    } catch (_error) {
+    } catch {
       return null;
     }
   }

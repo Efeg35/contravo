@@ -314,7 +314,7 @@ export class SearchEngine {
         suggestions
       };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Search index error:', _error);
       throw _error;
     }
@@ -335,7 +335,7 @@ export class SearchEngine {
       try {
         await this.indexDocument(indexName, document);
         indexed++;
-      } catch (_error) {
+      } catch {
         errors.push({
           id: document.id,
           error: _error instanceof Error ? _error.message : 'Unknown error'

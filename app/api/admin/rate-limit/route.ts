@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
         );
     }
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Error in rate limit admin API:');
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
                 updatedCount++;
                 break;
             }
-          } catch (_error) {
+          } catch {
             console.error(`Failed to ${operation} rule ${ruleId}:`);
           }
         }
@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
         );
     }
 
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json(
         { 
@@ -328,7 +328,7 @@ export async function PUT(request: NextRequest) {
       }
     });
 
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json(
         { 
@@ -374,7 +374,7 @@ export async function DELETE(request: NextRequest) {
       }
     });
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Error deleting rate limit rule:');
     return NextResponse.json(
       { error: 'Internal server error' },

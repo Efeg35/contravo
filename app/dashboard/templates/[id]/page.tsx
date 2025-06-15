@@ -76,7 +76,7 @@ export default function TemplateDetailPage() {
 
         const data = await response.json();
         setTemplate(data);
-      } catch (_error) {
+      } catch {
         console.error('Template fetch error:');
         toast.error('Şablon yüklenirken hata oluştu');
         router.push('/dashboard/templates');

@@ -258,7 +258,7 @@ export class AuditLogger {
       console.log(`📝 Audit log created: ${auditLog.action} by ${auditLog.userId || 'system'}`);
       return auditLog.id;
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Audit logging error:', _error);
       this.stats.errorCount++;
       return '';
@@ -455,7 +455,7 @@ export class AuditLogger {
         }
       };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Audit search error:', _error);
       throw new Error('Audit search failed');
     }
@@ -465,7 +465,7 @@ export class AuditLogger {
     try {
       const logData = await redisCache.get<string>(`${this.REDIS_KEY_PREFIX}${id}`);
       return logData ? JSON.parse(logData) : null;
-    } catch (_error) {
+    } catch {
       console.error('❌ Error retrieving audit log:', _error);
       return null;
     }
@@ -476,7 +476,7 @@ export class AuditLogger {
       const key = `${this.REDIS_KEY_PREFIX}user:${userId}`;
       const logs = await redisCache.get<AuditLog[]>(key) || [];
       return logs.slice(0, limit);
-    } catch (_error) {
+    } catch {
       console.error('Error getting logs by user:', _error);
       return [];
     }
@@ -489,7 +489,7 @@ export class AuditLogger {
         : `${this.REDIS_KEY_PREFIX}resource:${resource}`;
       const logs = await redisCache.get<AuditLog[]>(key) || [];
       return logs.slice(0, limit);
-    } catch (_error) {
+    } catch {
       console.error('Error getting logs by resource:', _error);
       return [];
     }
@@ -523,7 +523,7 @@ export class AuditLogger {
           return JSON.stringify(results, null, 2);
       }
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Report generation error:', _error);
       throw new Error('Report generation failed');
     }
@@ -535,7 +535,7 @@ export class AuditLogger {
       // In real implementation, this would update all logs for the user
       console.log(`🔒 Anonymizing audit logs for user: ${userId}`);
       return 0; // Return count of anonymized logs
-    } catch (_error) {
+    } catch {
       console.error('❌ User data anonymization error:', _error);
       throw new Error('User data anonymization failed');
     }
@@ -546,7 +546,7 @@ export class AuditLogger {
       // In real implementation, this would delete all logs for the user
       console.log(`🗑️ Deleting audit logs for user: ${userId}`);
       return 0; // Return count of deleted logs
-    } catch (_error) {
+    } catch {
       console.error('❌ User data deletion error:', _error);
       throw new Error('User data deletion failed');
     }
@@ -555,7 +555,7 @@ export class AuditLogger {
   async exportUserData(userId: string): Promise<AuditLog[]> {
     try {
       return await this.getLogsByUser(userId, 10000);
-    } catch (_error) {
+    } catch {
       console.error('❌ User data export error:', _error);
       throw new Error('User data export failed');
     }
@@ -693,7 +693,7 @@ export class AuditLogger {
         { ttl: log.compliance.retentionPeriod * 24 * 60 * 60 }
       );
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error writing audit log:', _error);
       throw _error;
     }
@@ -713,7 +713,7 @@ export class AuditLogger {
       this.stats.lastFlush = new Date();
       console.log(`📝 Flushed ${logsToFlush.length} audit logs`);
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Buffer flush error:', _error);
       // Re-add logs to buffer on failure
       this.logBuffer.unshift(...this.logBuffer);
@@ -731,7 +731,7 @@ export class AuditLogger {
       // In real implementation, would send to WebSocket or webhook
       console.log(`🔔 Real-time audit alert: ${log.level} - ${log.action}`);
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Real-time notification error:', _error);
     }
   }
@@ -793,7 +793,7 @@ export class AuditLogger {
     setInterval(async () => {
       try {
         await redisCache.set(this.STATS_KEY, JSON.stringify(this.stats), { ttl: 3600 });
-      } catch (_error) {
+      } catch {
         console.error('❌ Stats collection error:', _error);
       }
     }, 60000); // Update stats every minute

@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
         });
     }
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Incident response API error:');
     
     return NextResponse.json({
@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
               await executeResponseAction(id, data.responseAction, 'admin');
             }
             results.push({ incidentId: id, success: true });
-          } catch (_error) {
+          } catch {
             results.push({ incidentId: id, success: false, error: _error instanceof Error ? _error.message : 'Unknown error' });
           }
         }
@@ -345,7 +345,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Incident response admin POST error:');
     
     return NextResponse.json({
@@ -429,7 +429,7 @@ export async function PUT(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Incident response config update error:');
     
     return NextResponse.json({
@@ -512,7 +512,7 @@ export async function DELETE(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Incident response cleanup error:');
     
     return NextResponse.json({

@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         hasPrev: page > 1
       }
     });
-  } catch (_error) {
+  } catch {
     console.error('Error fetching notifications:');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(notification, { status: 201 });
-  } catch (_error) {
+  } catch {
     console.error('Error creating notification:');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

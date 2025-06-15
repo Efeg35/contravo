@@ -66,7 +66,7 @@ export async function GET(
     delete (transformedCompany as { users?: any }).users
 
     return NextResponse.json(transformedCompany)
-  } catch (_error) {
+  } catch {
     console.error("[COMPANY_GET]", _error)
     return NextResponse.json(
       { error: "Internal server error" },
@@ -126,7 +126,7 @@ export async function PATCH(
     })
 
     return NextResponse.json(company)
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation error', issues: _error.issues },
@@ -175,7 +175,7 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: 'Company deleted successfully' })
-  } catch (_error) {
+  } catch {
     console.error('Error deleting company:', _error)
     return NextResponse.json(
       { error: 'Internal server error' },

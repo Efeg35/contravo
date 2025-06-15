@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       data: suggestions
     });
 
-  } catch (_error) {
+  } catch {
     console.error('Search suggestions API error:');
     return NextResponse.json(
       { 

@@ -73,7 +73,7 @@ export async function PUT(
     })
 
     return NextResponse.json(settings)
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation error', issues: _error.issues },
@@ -128,7 +128,7 @@ export async function GET(
     })
 
     return NextResponse.json(settings || {})
-  } catch (_error) {
+  } catch {
     console.error('Error fetching company settings:', _error)
     return NextResponse.json(
       { error: 'Internal server error' },

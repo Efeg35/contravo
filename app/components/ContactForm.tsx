@@ -41,7 +41,7 @@ export default function ContactForm() {
         message: ''
       })
       setSubmitStatus('success')
-    } catch (_error) {
+    } catch {
       setSubmitStatus('error')
     } finally {
       setIsSubmitting(false)

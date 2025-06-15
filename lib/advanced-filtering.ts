@@ -202,7 +202,7 @@ export class AdvancedFiltering {
 
       return result;
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error applying filters:', _error);
       throw _error;
     }

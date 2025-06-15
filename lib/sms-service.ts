@@ -148,7 +148,7 @@ class SMSService {
         error: result.error
       };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error sending SMS:');
       return {
         success: false,
@@ -185,7 +185,7 @@ class SMSService {
         metadata: { ...options?.metadata, variables }
       });
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error sending templated SMS:');
       return {
         success: false,
@@ -268,7 +268,7 @@ class SMSService {
   async getSMSStatus(messageId: string): Promise<SMSMessage | null> {
     try {
       return await this.getSMSRecord(messageId);
-    } catch (_error) {
+    } catch {
       console.error('❌ Error getting SMS status:');
       return null;
     }
@@ -293,7 +293,7 @@ class SMSService {
       console.log(`📊 SMS stats for user ${userId}:`, stats);
       
       return stats;
-    } catch (_error) {
+    } catch {
       console.error('❌ Error getting user SMS stats:');
       throw _error;
     }
@@ -359,7 +359,7 @@ class SMSService {
         providerId: `twilio_${Date.now()}`,
         cost: 0.05 // Mock cost in USD
       };
-    } catch (_error) {
+    } catch {
       return {
         success: false,
         error: _error instanceof Error ? _error.message : 'Twilio error'
@@ -382,7 +382,7 @@ class SMSService {
         providerId: `vonage_${Date.now()}`,
         cost: 0.04
       };
-    } catch (_error) {
+    } catch {
       return {
         success: false,
         error: _error instanceof Error ? _error.message : 'Vonage error'
@@ -405,7 +405,7 @@ class SMSService {
         providerId: `sns_${Date.now()}`,
         cost: 0.06
       };
-    } catch (_error) {
+    } catch {
       return {
         success: false,
         error: _error instanceof Error ? _error.message : 'AWS SNS error'
@@ -537,7 +537,7 @@ class SMSService {
         default:
           console.log('Unknown SMS provider webhook:', provider);
       }
-    } catch (_error) {
+    } catch {
       console.error('❌ Error processing SMS webhook:');
     }
   }

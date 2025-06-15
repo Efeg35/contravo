@@ -259,7 +259,7 @@ export class DatabaseOptimization {
         fromCache: false
       };
 
-    } catch (_error) {
+    } catch {
       this.poolStats.failedQueries++;
       
       const metrics: QueryMetrics = {
@@ -437,7 +437,7 @@ export class DatabaseOptimization {
         alerts
       };
 
-    } catch (_error) {
+    } catch {
       console.error('Error getting database health:');
       return {
         overall: 'critical',
@@ -533,7 +533,7 @@ export class DatabaseOptimization {
         (this.poolStats.averageConnectionTime * totalConnections + connectionTime) / (totalConnections + 1);
       
       return connection;
-    } catch (_error) {
+    } catch {
       this.poolStats.connectionErrors++;
       throw _error;
     }
@@ -803,7 +803,7 @@ export class DatabaseOptimization {
         console.warn(`⚠️ Connection pool utilization high: ${(utilization * 100).toFixed(1)}%`);
       }
       
-    } catch (_error) {
+    } catch {
       console.error('❌ Database health check failed:');
       this.poolStats.connectionErrors++;
     }

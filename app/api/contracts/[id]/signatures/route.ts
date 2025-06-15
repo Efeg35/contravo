@@ -64,7 +64,7 @@ export async function GET(
       signatures
     });
 
-  } catch (_error) {
+  } catch {
     console.error('İmza getirme hatası:');
     return NextResponse.json(
       { error: 'Sunucu hatası' },
@@ -163,7 +163,7 @@ export async function POST(
       signatures: digitalSignatures
     }, { status: 201 });
 
-  } catch (_error) {
+  } catch {
     console.error('İmza paketi oluşturma hatası:');
     return NextResponse.json(
       { error: 'Sunucu hatası' },

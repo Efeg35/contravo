@@ -74,7 +74,7 @@ export default function RegisterPage() {
         const data = await response.json();
         setError(data.error || 'Kayıt işlemi başarısız');
       }
-    } catch (_) {
+    } catch {
       setError('Bir hata oluştu');
     }
 

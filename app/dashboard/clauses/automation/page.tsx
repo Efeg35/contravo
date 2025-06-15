@@ -17,7 +17,6 @@ import {
   Clock,
   Bell,
   Mail,
-  AlertTriangle,
   CheckCircle,
   Edit,
   Trash2,

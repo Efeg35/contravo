@@ -8,15 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   BarChart3, 
-  TrendingUp, 
-  TrendingDown,
+  TrendingUp,
   Users, 
   BookOpen,
-  Calendar,
   ArrowLeft,
   Download,
   RefreshCw,
-  Eye,
   Star,
   Clock,
   Target

@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (_error) {
+  } catch {
     console.error('Search API error:');
     return NextResponse.json(
       { 
@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-  } catch (_error) {
+  } catch {
     console.error('Search API error:');
     return NextResponse.json(
       { 

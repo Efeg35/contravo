@@ -46,7 +46,7 @@ export async function GET(
     }
 
     return NextResponse.json(invite)
-  } catch (_error) {
+  } catch {
     console.error('Error fetching invite:', _error)
     return NextResponse.json(
       { error: 'Internal server error' },

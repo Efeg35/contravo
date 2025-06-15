@@ -87,7 +87,7 @@ export default function ContractsPage() {
           console.error('Failed to fetch contracts');
           setContracts([]);
         }
-      } catch (_error) {
+      } catch {
         console.error('Error fetching contracts:');
         setContracts([]);
       } finally {
@@ -173,7 +173,7 @@ export default function ContractsPage() {
 
       await downloadContractPDF(contractData);
       toast.success('PDF başarıyla indirildi!');
-    } catch (_error) {
+    } catch {
       console.error('PDF oluşturma hatası:');
       toast.error('PDF oluşturulurken bir hata oluştu');
     }
@@ -219,7 +219,7 @@ export default function ContractsPage() {
           throw new Error(error.error || 'İşlem başarısız');
         }
       }
-    } catch (_error) {
+    } catch {
       console.error('Toplu işlem hatası:');
       toast.error(_error instanceof Error ? _error.message : 'Bir hata oluştu');
     }

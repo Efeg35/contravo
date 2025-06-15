@@ -169,7 +169,7 @@ export class FileVersioning {
 
       return { success: true, version };
 
-    } catch (_error) {
+    } catch {
       console.error('Error creating version', { fileId, error: _error instanceof Error ? _error.message : String(_error) });
       return {
         success: false,
@@ -184,7 +184,7 @@ export class FileVersioning {
       // In real implementation, query database
       console.log(`Getting version ${version} for file: ${fileId}`, { fileId, version });
       return null; // Mock implementation
-    } catch (_error) {
+    } catch {
       console.error('Error getting version', { fileId, version, error: _error instanceof Error ? _error.message : String(_error) });
       return null;
     }
@@ -196,7 +196,7 @@ export class FileVersioning {
       // In real implementation, query database for active version
       console.log(`Getting current version for file: ${fileId}`, { fileId });
       return null; // Mock implementation
-    } catch (_error) {
+    } catch {
       console.error("Error getting current version", { fileId, error: _error instanceof Error ? _error.message : String(_error) });
       return null;
     }
@@ -219,7 +219,7 @@ export class FileVersioning {
         total: 0,
         hasMore: false
       };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error listing versions:');
       throw _error;
     }
@@ -236,7 +236,7 @@ export class FileVersioning {
       // Mock implementation
       console.log(`Restoring file ${fileId} to version ${version} by user ${restoredBy}`);
       return { success: true };
-    } catch (_error) {
+    } catch {
       console.error('Error restoring version:', _error);
       throw _error;
     }
@@ -270,7 +270,7 @@ export class FileVersioning {
 
       return { success: true };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error deleting version:');
       return {
         success: false,
@@ -297,7 +297,7 @@ export class FileVersioning {
 
       return await this.calculateDiff(version1, version2);
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error comparing versions:');
       return null;
     }
@@ -338,7 +338,7 @@ export class FileVersioning {
 
       return { success: true, branch };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error creating branch:');
       return {
         success: false,
@@ -433,7 +433,7 @@ export class FileVersioning {
         error: mergeResult.error
       };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error merging branch:');
       return {
         success: false,
@@ -472,7 +472,7 @@ export class FileVersioning {
           [ChangeType.BRANCH]: 0
         }
       };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error getting version history:');
       throw _error;
     }
@@ -505,7 +505,7 @@ export class FileVersioning {
         },
         similarity
       };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error calculating diff:');
       return null;
     }
@@ -561,7 +561,7 @@ export class FileVersioning {
       // Simplified merge - in reality, this would be much more sophisticated
       const data2 = await this.storage.downloadFile(version2.storagePath);
       return data2.success ? data2.data || null : null;
-    } catch (_error) {
+    } catch {
       console.error('❌ Error performing merge:');
       return null;
     }
@@ -599,7 +599,7 @@ export class FileVersioning {
 
         console.log(`🧹 Cleaned up ${versionsToDelete.length} old versions for file: ${fileId}`);
       }
-    } catch (_error) {
+    } catch {
       console.error('❌ Error cleaning up old versions:');
     }
   }
@@ -609,7 +609,7 @@ export class FileVersioning {
       try {
         console.log('🧹 Running version cleanup...');
         // In real implementation, cleanup old versions across all files
-      } catch (_error) {
+      } catch {
         console.error('❌ Error in cleanup scheduler:');
       }
     }, this.CLEANUP_INTERVAL);

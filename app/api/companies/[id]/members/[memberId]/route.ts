@@ -54,7 +54,7 @@ export async function DELETE(
     });
 
     return new NextResponse(null, { status: 204 });
-  } catch (_error) {
+  } catch {
     console.error("[COMPANY_MEMBER_DELETE]");
     return new NextResponse("Internal error", { status: 500 });
   }

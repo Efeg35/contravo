@@ -78,7 +78,7 @@ export default function RateLimitingPage() {
         setRules(rulesData.data.rules);
       }
 
-    } catch (_) {
+    } catch {
       console.error('Error loading rate limit data:');
       setMessage({ type: 'error', text: 'Failed to load rate limiting data' });
     } finally {
@@ -109,7 +109,7 @@ export default function RateLimitingPage() {
         setNewRule({ name: '', path: '', method: 'GET', limit: '', window: '', description: '' });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Create rule error:');
       setMessage({ type: 'error', text: 'Failed to create rate limit rule' });
     }
@@ -131,7 +131,7 @@ export default function RateLimitingPage() {
         setMessage({ type: 'success', text: `Rate limit rule ${enabled ? 'enabled' : 'disabled'} successfully` });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Toggle rule error:');
       setMessage({ type: 'error', text: 'Failed to toggle rate limit rule' });
     }
@@ -152,7 +152,7 @@ export default function RateLimitingPage() {
         setMessage({ type: 'success', text: 'Rate limits reset successfully' });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Reset limits error:');
       setMessage({ type: 'error', text: 'Failed to reset rate limits' });
     }
@@ -174,7 +174,7 @@ export default function RateLimitingPage() {
         setMessage({ type: 'success', text: 'Violations cleared successfully' });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Clear violations error:');
       setMessage({ type: 'error', text: 'Failed to clear violations' });
     }
@@ -196,7 +196,7 @@ export default function RateLimitingPage() {
         setMessage({ type: 'success', text: 'IP whitelisted successfully' });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Whitelist IP error:');
       setMessage({ type: 'error', text: 'Failed to whitelist IP' });
     }

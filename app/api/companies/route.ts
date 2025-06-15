@@ -38,7 +38,7 @@ export async function GET() {
     })
 
     return NextResponse.json(companies)
-  } catch (_error) {
+  } catch {
     console.error('Error fetching companies:', _error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(company)
-  } catch (_error) {
+  } catch {
     console.error('Error creating company:', _error)
     return NextResponse.json(
       { error: 'Internal server error' },

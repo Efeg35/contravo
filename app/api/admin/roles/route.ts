@@ -29,7 +29,7 @@ export async function GET() {
     ];
 
     return NextResponse.json({ roles, permissions });
-  } catch (_error) {
+  } catch {
     console.error('Error fetching roles:');
     return NextResponse.json(
       { error: 'Failed to fetch roles' },
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       newRole,
     });
 
-  } catch (_error) {
+  } catch {
     if (_error instanceof AuthorizationError) {
       return NextResponse.json(
         { error: _error.message },

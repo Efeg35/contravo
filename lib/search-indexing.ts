@@ -155,7 +155,7 @@ export class SearchIndexing {
       console.log(`✅ Index ${definition.name} created successfully`);
       return { success: true };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error creating index:');
       return {
         success: false,
@@ -191,7 +191,7 @@ export class SearchIndexing {
       console.log(`✅ Index ${indexName} dropped successfully`);
       return { success: true };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error dropping index:');
       return {
         success: false,
@@ -305,7 +305,7 @@ export class SearchIndexing {
         executed++;
         console.log(`✅ Completed: ${action.action} ${action.indexName}`);
 
-      } catch (_error) {
+      } catch {
         failed++;
         const errorMessage = _error instanceof Error ? _error.message : 'Unknown error';
         errors.push({ action: `${action.action} ${action.indexName}`, error: errorMessage });
@@ -599,7 +599,7 @@ export class SearchIndexing {
           indexesUsed: []
         }
       };
-    } catch (_error) {
+    } catch {
       console.error('Error parsing query:');
       return null;
     }

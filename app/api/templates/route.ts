@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit),
       },
     });
-  } catch (_error) {
+  } catch {
     console.error('Templates fetch error:');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(template, { status: 201 });
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation error', details: _error.errors },

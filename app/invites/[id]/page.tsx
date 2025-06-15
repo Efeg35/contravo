@@ -45,7 +45,7 @@ export default function InviteAcceptPage() {
       } else {
         setError('Davet bulunamadı');
       }
-    } catch (_error) {
+    } catch {
       setError('Davet yüklenirken hata oluştu');
     } finally {
       setLoading(false);
@@ -79,7 +79,7 @@ export default function InviteAcceptPage() {
         const errorData = await response.json();
         toast.error(errorData.error || 'Davet kabul edilirken hata oluştu');
       }
-    } catch (_error) {
+    } catch {
       console.error('Error accepting invite:');
       toast.error('Davet kabul edilirken hata oluştu');
     } finally {
@@ -102,7 +102,7 @@ export default function InviteAcceptPage() {
         const errorData = await response.json();
         toast.error(errorData.error || 'Davet reddedilirken hata oluştu');
       }
-    } catch (_error) {
+    } catch {
       console.error('Error rejecting invite:');
       toast.error('Davet reddedilirken hata oluştu');
     }

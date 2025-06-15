@@ -291,7 +291,7 @@ export class DatabaseOptimizer {
           notifications: notificationCount
         }
       }
-    } catch (_error) {
+    } catch {
       return {
         status: 'unhealthy',
         timestamp: new Date(),
@@ -363,7 +363,7 @@ export class QueryPerformanceMonitor {
       }
 
       return result
-    } catch (_error) {
+    } catch {
       const endTime = performance.now()
       const duration = endTime - startTime
       console.error(`Query ${queryName} failed after ${duration.toFixed(2)}ms:`, _error)
@@ -437,7 +437,7 @@ export class ConnectionPoolManager {
       // This is a simplified example - in practice, you'd use Prisma's query methods
       console.log('Testing connection...');
       return;
-    } catch (_error) {
+    } catch {
       console.error('Connection test failed:', _error);
       throw _error;
     }
@@ -452,7 +452,7 @@ export class ConnectionPoolManager {
       // This is a simplified example - in practice, you'd use Prisma's query methods
       console.log('Executing query:', query);
       return [];
-    } catch (_error) {
+    } catch {
       console.error('Query execution failed:', _error);
       throw _error;
     }

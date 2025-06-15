@@ -15,7 +15,7 @@ export class JWTManager {
     try {
       const payload = jwt.verify(token, this.JWT_SECRET);
       return { valid: true, payload };
-    } catch (_error) {
+    } catch {
       if (_error instanceof jwt.TokenExpiredError) {
         return { valid: false, error: 'Token expired' };
       } else if (_error instanceof jwt.JsonWebTokenError) {
@@ -91,7 +91,7 @@ export class JWTManager {
       });
       
       await prisma.$disconnect();
-    } catch (_error) {
+    } catch {
       console.error('Failed to blacklist token:');
     }
   }
@@ -110,7 +110,7 @@ export class JWTManager {
       
       await prisma.$disconnect();
       return !!blacklistedToken;
-    } catch (_error) {
+    } catch {
       console.error('Failed to check token blacklist:');
       return false;
     }
@@ -138,7 +138,7 @@ export class JWTManager {
       
       console.log(`Cleaned up ${deleted.count} expired blacklisted tokens`);
       await prisma.$disconnect();
-    } catch (_error) {
+    } catch {
       console.error('Failed to cleanup expired tokens:');
     }
   }
@@ -226,7 +226,7 @@ export async function validateJWTMiddleware(request: Request): Promise<{
     }
 
     return { valid: true, user: tokenPayload };
-  } catch (_error) {
+  } catch {
     return { valid: false, error: 'Token validation failed' };
   }
 }

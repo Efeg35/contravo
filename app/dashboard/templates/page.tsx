@@ -97,7 +97,7 @@ export default function TemplatesPage() {
       const data: TemplatesResponse = await response.json();
       setTemplates(data.templates);
       setPagination(data.pagination);
-    } catch (_error) {
+    } catch {
       console.error('Templates fetch error:');
       toast.error('Şablonlar yüklenirken hata oluştu');
     } finally {

@@ -57,7 +57,7 @@ export async function GET(
     });
 
     return NextResponse.json({ approvals });
-  } catch (_error) {
+  } catch {
     console.error('Error fetching approvals:');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -142,7 +142,7 @@ export async function POST(
       approvals 
     }, { status: 201 });
 
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json({ 
         error: 'Validation error', 

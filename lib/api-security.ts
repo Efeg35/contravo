@@ -242,7 +242,7 @@ export class APISecurityManager {
         warnings: warnings.length > 0 ? warnings : undefined
       };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ API security validation error:');
       return { allowed: true, warnings: ['Security validation failed'] };
     }
@@ -362,7 +362,7 @@ export class APISecurityManager {
 
       return { allowed: true };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Geolocation validation error:');
       return { allowed: true }; // Fail open
     }
@@ -506,7 +506,7 @@ export class APISecurityManager {
 
       return { allowed: true };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Signature validation error:');
       return { allowed: false, reason: 'Signature validation failed' };
     }
@@ -575,7 +575,7 @@ export class APISecurityManager {
 
       return { allowed: true };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Throttling validation error:');
       return { allowed: true }; // Fail open
     }
@@ -744,7 +744,7 @@ export class APISecurityManager {
           blacklist: this.config.ipControl.blacklist
         })
       );
-    } catch (_error) {
+    } catch {
       console.error('❌ Error persisting IP control:');
     }
   }

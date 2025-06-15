@@ -149,7 +149,7 @@ export class FileCompression {
         algorithm
       };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error compressing file:');
       return {
         success: false,
@@ -190,7 +190,7 @@ export class FileCompression {
         data: decompressedData
       };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error decompressing file:');
       return {
         success: false,

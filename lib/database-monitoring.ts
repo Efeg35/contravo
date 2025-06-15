@@ -28,7 +28,7 @@ export class DatabaseMonitor {
     this.monitoringInterval = setInterval(async () => {
       try {
         await this.performHealthCheck()
-      } catch (_error) {
+      } catch {
         console.error('Monitoring health check failed:', _error)
       }
     }, intervalMs)
@@ -90,7 +90,7 @@ export class DatabaseMonitor {
       }
 
       return report
-    } catch (_error) {
+    } catch {
       return {
         timestamp: new Date(),
         status: 'error',
@@ -116,7 +116,7 @@ export class DatabaseMonitor {
         responseTime: Math.round(responseTime),
         error: null
       }
-    } catch (_error) {
+    } catch {
       return {
         connected: false,
         responseTime: performance.now() - startTime,
@@ -158,7 +158,7 @@ export class DatabaseMonitor {
         recentActivity,
         totalAttachmentSize
       }
-    } catch (_error) {
+    } catch {
       throw new Error(`Failed to get database statistics: ${_error}`)
     }
   }
@@ -173,7 +173,7 @@ export class DatabaseMonitor {
       })
       
       return result._sum.fileSize || 0
-    } catch (_error) {
+    } catch {
       return 0
     }
   }
@@ -210,7 +210,7 @@ export class DatabaseMonitor {
         newContracts,
         newNotifications
       }
-    } catch (_error) {
+    } catch {
       return null
     }
   }
@@ -252,7 +252,7 @@ export class DatabaseMonitor {
         queryResults: results,
         totalTestTime: Math.round(totalTime)
       }
-    } catch (_error) {
+    } catch {
       throw new Error(`Performance check failed: ${_error}`)
     }
   }
@@ -278,7 +278,7 @@ export class DatabaseMonitor {
           usagePercentage: Math.round(usagePercentage * 10000) / 100,
           path: dbPath
         }
-      } catch (_error) {
+      } catch {
         return {
           totalSizeMB: 0,
           usedSizeMB: 0,
@@ -288,7 +288,7 @@ export class DatabaseMonitor {
           error: 'Cannot access database file'
         }
       }
-    } catch (_error) {
+    } catch {
       throw new Error(`Disk usage check failed: ${_error}`)
     }
   }
@@ -339,7 +339,7 @@ export class DatabaseMonitor {
       }
 
       return slowQueries
-    } catch (_error) {
+    } catch {
       return []
     }
   }
@@ -358,7 +358,7 @@ export class DatabaseMonitor {
         maxConnections: 1,
         status: 'healthy'
       }
-    } catch (_error) {
+    } catch {
       return {
         totalConnections: 0,
         activeConnections: 0,
@@ -565,7 +565,7 @@ export function trackPerformance(target: any, propertyName: string, descriptor: 
       console.log(`Performance: ${propertyName} took ${Math.round(duration)}ms`)
       
       return result
-    } catch (_error) {
+    } catch {
       const duration = performance.now() - start
       console.error(`Performance: ${propertyName} failed after ${Math.round(duration)}ms`, _error)
       throw _error

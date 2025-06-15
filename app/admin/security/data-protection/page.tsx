@@ -180,7 +180,7 @@ export default function DataProtectionPage() {
         }
       ]);
 
-    } catch (_) {
+    } catch {
       console.error('Error loading data:');
       setMessage({ type: 'error', text: 'Failed to load data protection information' });
     } finally {
@@ -212,7 +212,7 @@ export default function DataProtectionPage() {
         setNewConsentForm({ dataSubjectId: '', type: 'MARKETING', granted: true, purpose: '' });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Consent error:');
       setMessage({ type: 'error', text: 'Failed to record consent' });
     }
@@ -234,7 +234,7 @@ export default function DataProtectionPage() {
         setMessage({ type: 'success', text: `${rightType} request processed successfully` });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Rights request error:');
       setMessage({ type: 'error', text: 'Failed to process data subject right request' });
     }
@@ -269,7 +269,7 @@ export default function DataProtectionPage() {
         });
         loadData();
       }
-    } catch (_) {
+    } catch {
       console.error('Breach report error:');
       setMessage({ type: 'error', text: 'Failed to report privacy breach' });
     }

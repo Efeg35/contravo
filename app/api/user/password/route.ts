@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       message: 'Password updated successfully',
       strength: passwordValidation.strength 
     })
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation error', issues: _error.issues },

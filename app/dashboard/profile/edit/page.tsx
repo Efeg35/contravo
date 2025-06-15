@@ -46,7 +46,7 @@ export default function EditProfilePage() {
         toast.error('Profil bilgileri yüklenirken hata oluştu');
         router.push('/dashboard/profile');
       }
-    } catch (_error) {
+    } catch {
       console.error('Error fetching profile:');
       toast.error('Profil bilgileri yüklenirken hata oluştu');
     } finally {
@@ -121,7 +121,7 @@ export default function EditProfilePage() {
           toast.error(error.error || 'Profil güncellenirken hata oluştu');
         }
       }
-    } catch (_error) {
+    } catch {
       console.error('Error updating profile:');
       toast.error('Profil güncellenirken hata oluştu');
     } finally {

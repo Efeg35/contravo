@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
-    const visibility = searchParams.get('visibility');
+    // const visibility = searchParams.get('visibility'); // TODO: implement visibility filtering
     const search = searchParams.get('search');
     const companyId = searchParams.get('companyId'); // Company context
     const page = parseInt(searchParams.get('page') || '1');

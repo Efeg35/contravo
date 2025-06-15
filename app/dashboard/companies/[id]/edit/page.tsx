@@ -56,7 +56,7 @@ export default function EditCompanyPage({ params }: PageProps) {
       } else {
         toast.error('Şirket bilgileri yüklenirken hata oluştu');
       }
-    } catch (_error) {
+    } catch {
       console.error('Error fetching company:');
       toast.error('Şirket bilgileri yüklenirken hata oluştu');
     } finally {
@@ -85,7 +85,7 @@ export default function EditCompanyPage({ params }: PageProps) {
     if (formData.website && formData.website.trim()) {
       try {
         new URL(formData.website);
-      } catch (_error) {
+      } catch {
         newErrors.website = 'Geçerli bir website URL\'si giriniz';
       }
     }
@@ -136,7 +136,7 @@ export default function EditCompanyPage({ params }: PageProps) {
           toast.error(error.error || 'Şirket güncellenirken hata oluştu');
         }
       }
-    } catch (_error) {
+    } catch {
       console.error('Error updating company:');
       toast.error('Şirket güncellenirken hata oluştu');
     } finally {

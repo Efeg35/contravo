@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
   BookOpen, 
@@ -13,11 +12,6 @@ import {
   Users, 
   Building2,
   BarChart3,
-  Filter,
-  Search,
-  Eye,
-  Edit,
-  Trash2,
   Copy,
   Star,
   Settings,
@@ -30,7 +24,6 @@ import {
   Zap
 } from 'lucide-react';
 import ClauseLibrary from '@/components/ClauseLibrary';
-import { cn } from '@/lib/utils';
 
 interface ClauseStats {
   totalClauses: number;
@@ -42,10 +35,9 @@ interface ClauseStats {
 }
 
 const ClausesPage = () => {
-  const { data: session } = useSession();
   const [stats, setStats] = useState<ClauseStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
+  const [selectedCompanyId] = useState<string>('');
 
   // Fetch clause statistics
   const fetchStats = async () => {

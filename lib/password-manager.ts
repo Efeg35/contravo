@@ -265,7 +265,7 @@ export class PasswordManager {
         select: { passwordHash: true },
       });
       return history.map(h => h.passwordHash);
-    } catch (_error) {
+    } catch {
       return []; // If password history doesn't exist yet
     }
   }
@@ -297,7 +297,7 @@ export class PasswordManager {
           },
         });
       }
-    } catch (_error) {
+    } catch {
       console.error('Error saving password history:');
     }
   }
@@ -320,7 +320,7 @@ export class PasswordManager {
       expirationDate.setDate(expirationDate.getDate() + this.policy.expirationDays);
 
       return new Date() > expirationDate;
-    } catch (_error) {
+    } catch {
       return false;
     }
   }
@@ -365,7 +365,7 @@ export class PasswordManager {
         allowed: attemptsLeft > 0, 
         attemptsLeft,
       };
-    } catch (_error) {
+    } catch {
       return { allowed: true, attemptsLeft: this.policy.maxAttempts };
     }
   }
@@ -412,7 +412,7 @@ export class PasswordManager {
           },
         });
       }
-    } catch (_error) {
+    } catch {
       console.error('Error recording failed attempt:');
     }
   }
@@ -425,7 +425,7 @@ export class PasswordManager {
       await prisma.loginAttempt.delete({
         where: { identifier },
       });
-    } catch (_error) {
+    } catch {
       // Ignore errors, maybe no attempts recorded
     }
   }
@@ -502,7 +502,7 @@ export class PasswordManager {
         daysUntilExpiration: Math.max(0, daysUntilExpiration),
         lastChanged: user.passwordChangedAt,
       };
-    } catch (_error) {
+    } catch {
       return { isExpired: false };
     }
   }

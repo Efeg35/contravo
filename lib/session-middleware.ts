@@ -29,7 +29,7 @@ export class SessionMiddleware {
       }
 
       return response;
-    } catch (_error) {
+    } catch {
       console.error('Session middleware error:');
       return response;
     }
@@ -44,7 +44,7 @@ export class SessionMiddleware {
       if (cleaned > 0) {
         console.log(`Cleaned up ${cleaned} expired sessions`);
       }
-    } catch (_error) {
+    } catch {
       console.error('Session cleanup error:');
     }
   }
@@ -67,7 +67,7 @@ export class SessionMiddleware {
     try {
       const session = await SessionManager.createSession(userId, deviceInfo);
       return session.id;
-    } catch (_error) {
+    } catch {
       console.error('❌ Session creation error:', _error);
       throw _error;
     }
@@ -79,7 +79,7 @@ export class SessionMiddleware {
   static async invalidateSessionOnLogout(): Promise<void> {
     try {
       await SessionManager.invalidateSession();
-    } catch (_error) {
+    } catch {
       console.error('Failed to invalidate session on logout:');
     }
   }

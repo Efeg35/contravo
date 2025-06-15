@@ -228,7 +228,7 @@ export class InputValidator {
 
       return result;
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Input validation error:');
       result.errors = [{
         field: 'system',
@@ -268,7 +268,7 @@ export class InputValidator {
     // Check for circular references
     try {
       JSON.stringify(data);
-    } catch (_error) {
+    } catch {
       errors.push({
         field: 'input',
         message: 'Geçersiz veri yapısı',
@@ -472,7 +472,7 @@ export class InputValidator {
           errors
         };
       }
-    } catch (_error) {
+    } catch {
       return {
         success: false,
         errors: [{

@@ -276,7 +276,7 @@ class FileManager {
         thumbnailUrl: thumbnailPath ? await this.storage.getFileUrl(thumbnailPath) : undefined
       };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ File operation error:', _error);
       throw _error;
     }
@@ -314,7 +314,7 @@ class FileManager {
       console.log(`📁 Started chunked upload: ${uploadId} (${totalChunks} chunks)`);
 
       return { success: true, uploadId };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error starting chunked upload:');
       return {
         success: false,
@@ -359,7 +359,7 @@ class FileManager {
       }
 
       return { success: true, isComplete };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error uploading chunk:');
       return {
         success: false,
@@ -414,7 +414,7 @@ class FileManager {
         mimeType: fileMetadata.mimeType
       };
 
-    } catch (_error) {
+    } catch {
       console.error('❌ Error downloading file:');
       return {
         success: false,
@@ -461,7 +461,7 @@ class FileManager {
       console.log(`🗑️ File deleted: ${fileId}`);
 
       return { success: true };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error deleting file:');
       return {
         success: false,
@@ -476,7 +476,7 @@ class FileManager {
       // In real implementation, get from database
       console.log(`📂 Getting file metadata: ${fileId}`);
       return null; // Mock implementation
-    } catch (_error) {
+    } catch {
       console.error('❌ Error getting file metadata:');
       return null;
     }
@@ -515,7 +515,7 @@ class FileManager {
         page,
         totalPages: 0
       };
-    } catch (_error) {
+    } catch {
       console.error('❌ Error listing files:', _error);
       throw _error;
     }
@@ -632,7 +632,7 @@ class FileManager {
 
       // Return original buffer as mock thumbnail
       return buffer;
-    } catch (_error) {
+    } catch {
       console.error('❌ Error generating thumbnail:');
       return null;
     }

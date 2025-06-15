@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       file: fileMetadata
     });
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Error getting file metadata:');
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     });
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Error downloading file:');
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -119,7 +119,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'File deleted successfully'
     });
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Error deleting file:');
     return NextResponse.json(
       { error: 'Internal server error' },

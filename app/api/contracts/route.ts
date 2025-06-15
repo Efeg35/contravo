@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authOptions } from '../../../lib/auth'
+// import { authOptions } from '../../../lib/auth' // TODO: implement auth if needed
 import prisma from '../../../lib/prisma'
 import { z } from 'zod'
 import { getCurrentUser, userHasPermission, checkPermissionOrThrow, AuthorizationError } from '../../../lib/auth-helpers'
@@ -19,14 +19,14 @@ const createContractSchema = z.object({
   templateId: z.string().optional(),
 })
 
-const contractQuerySchema = z.object({
-  page: z.string().optional(),
-  limit: z.string().optional(),
-  status: z.string().optional(),
-  type: z.string().optional(),
-  companyId: z.string().optional(),
-  search: z.string().optional(),
-})
+// const contractQuerySchema = z.object({
+//   page: z.string().optional(),
+//   limit: z.string().optional(),
+//   status: z.string().optional(),
+//   type: z.string().optional(),
+//   companyId: z.string().optional(),
+//   search: z.string().optional(),
+// }) // TODO: implement query validation if needed
 
 // GET /api/contracts - List contracts with permission-based filtering
 export async function GET(request: NextRequest) {
@@ -159,8 +159,8 @@ export async function GET(request: NextRequest) {
         canApprove: await userHasPermission(Permission.CONTRACT_APPROVE, query.companyId),
       }
     })
-  } catch (_error) {
-    console.error('Error fetching contracts:', _error)
+  } catch (error) {
+    console.error('Error fetching contracts:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(contract, { status: 201 })
-  } catch (_error) {
+  } catch {
     if (_error instanceof AuthorizationError) {
       return NextResponse.json(
         { error: _error.message },

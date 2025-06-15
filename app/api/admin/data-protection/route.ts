@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
         });
     }
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Data protection API error:');
     
     return NextResponse.json({
@@ -337,7 +337,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Data protection admin POST error:');
     
     return NextResponse.json({
@@ -421,7 +421,7 @@ export async function PUT(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Data protection config update error:');
     
     return NextResponse.json({
@@ -512,7 +512,7 @@ export async function DELETE(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch (_error) {
+  } catch {
     console.error('❌ Data protection cleanup error:');
     
     return NextResponse.json({

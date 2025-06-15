@@ -61,7 +61,7 @@ export default function DashboardPage() {
           console.error('Failed to fetch dashboard stats');
           setLiveMessage('Dashboard yüklenirken hata oluştu.');
         }
-      } catch (_error) {
+      } catch {
         console.error('Error fetching dashboard stats:');
         setLiveMessage('Dashboard yüklenirken hata oluştu.');
       } finally {

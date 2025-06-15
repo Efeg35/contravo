@@ -100,7 +100,7 @@ export async function PATCH(
       message: validatedData.status === 'APPROVED' ? 'Sözleşme onaylandı' : 'Sözleşme reddedildi'
     });
 
-  } catch (_error) {
+  } catch {
     if (_error instanceof z.ZodError) {
       return NextResponse.json({ 
         error: 'Validation error', 

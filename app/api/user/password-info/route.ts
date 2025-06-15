@@ -37,7 +37,7 @@ export async function GET() {
         expirationDays: policy.expirationDays,
       }
     });
-  } catch (_error) {
+  } catch {
     console.error('Error getting password info:');
     return NextResponse.json(
       { error: 'Internal server error' },
