@@ -517,6 +517,272 @@ Gizlilik ihlali durumunda {{PENALTY_AMOUNT}} TL ceza ödenecektir.`,
 
   console.log('✅ Bildirimler oluşturuldu');
 
+  // 11. Smart Clauses (Akıllı Maddeler)
+  const confidentialityClause = await (prisma as any).clause.create({
+    data: {
+      title: 'Gizlilik ve Veri Koruma Maddesi',
+      description: 'Standart gizlilik ve veri koruma yükümlülükleri',
+      content: 'Taraflar, bu sözleşme kapsamında edindikleri tüm gizli bilgileri {{confidentiality_period}} süreyle gizli tutmayı taahhüt ederler. {{company_name}} ve {{other_party}} arasında paylaşılan tüm ticari bilgiler, teknik veriler ve kişisel veriler gizli kabul edilir.',
+      category: 'CONFIDENTIALITY',
+      visibility: 'COMPANY',
+      approvalStatus: 'APPROVED',
+      isActive: true,
+      version: 1,
+      createdById: adminUser.id,
+      companyId: techCorp.id,
+      variables: {
+        create: [
+          {
+            name: 'confidentiality_period',
+            label: 'Gizlilik Süresi',
+            type: 'STRING',
+            defaultValue: '5 yıl',
+            isRequired: true,
+            description: 'Gizlilik yükümlülüğünün süresi'
+          },
+          {
+            name: 'company_name',
+            label: 'Şirket Adı',
+            type: 'STRING',
+            isRequired: true,
+            description: 'Ana şirket adı'
+          },
+          {
+            name: 'other_party',
+            label: 'Karşı Taraf',
+            type: 'STRING',
+            isRequired: true,
+            description: 'Sözleşmenin diğer tarafı'
+          }
+        ]
+      }
+    }
+  });
+
+  const paymentClause = await (prisma as any).clause.create({
+    data: {
+      title: 'Ödeme Koşulları ve Gecikme Faizi',
+      description: 'Standart ödeme koşulları, vadeler ve gecikme faizi hesaplaması',
+      content: 'Ödeme {{payment_days}} gün içinde {{payment_method}} yoluyla yapılacaktır. Geç ödemeler için aylık %{{late_fee_rate}} gecikme faizi uygulanır. Ödemeler {{currency}} olarak gerçekleştirilecektir.',
+      category: 'PAYMENT',
+      visibility: 'COMPANY',
+      approvalStatus: 'APPROVED',
+      isActive: true,
+      version: 1,
+      createdById: adminUser.id,
+      companyId: techCorp.id,
+      variables: {
+        create: [
+          {
+            name: 'payment_days',
+            label: 'Ödeme Vadesi (Gün)',
+            type: 'NUMBER',
+            defaultValue: '30',
+            isRequired: true,
+            description: 'Ödeme için verilen süre'
+          },
+          {
+            name: 'payment_method',
+            label: 'Ödeme Yöntemi',
+            type: 'STRING',
+            defaultValue: 'havale/EFT',
+            isRequired: true,
+            description: 'Kabul edilen ödeme yöntemi'
+          },
+          {
+            name: 'late_fee_rate',
+            label: 'Gecikme Faiz Oranı (%)',
+            type: 'PERCENTAGE',
+            defaultValue: '2',
+            isRequired: true,
+            description: 'Aylık gecikme faiz oranı'
+          },
+          {
+            name: 'currency',
+            label: 'Para Birimi',
+            type: 'CURRENCY',
+            defaultValue: 'TL',
+            isRequired: true,
+            description: 'Ödeme para birimi'
+          }
+        ]
+      }
+    }
+  });
+
+  const terminationClause = await (prisma as any).clause.create({
+    data: {
+      title: 'Sözleşme Feshi ve İhbar Süresi',
+      description: 'Sözleşme feshi koşulları ve ihbar süreleri',
+      content: 'Bu sözleşme {{notice_period}} önceden yazılı bildirimde bulunarak feshedilebilir. Haklı sebeplerle derhal fesih mümkündür. Fesih durumunda {{company_name}} tamamlanan işler için ödeme yapmakla yükümlüdür.',
+      category: 'TERMINATION',
+      visibility: 'PUBLIC',
+      approvalStatus: 'APPROVED',
+      isActive: true,
+      version: 1,
+      createdById: adminUser.id,
+      companyId: null, // Public clause
+      variables: {
+        create: [
+          {
+            name: 'notice_period',
+            label: 'İhbar Süresi',
+            type: 'STRING',
+            defaultValue: '30 gün',
+            isRequired: true,
+            description: 'Fesih için gerekli ihbar süresi'
+          },
+          {
+            name: 'company_name',
+            label: 'Şirket Adı',
+            type: 'STRING',
+            isRequired: true,
+            description: 'Ödeme yükümlüsü şirket'
+          }
+        ]
+      }
+    }
+  });
+
+  const liabilityClause = await (prisma as any).clause.create({
+    data: {
+      title: 'Sorumluluk Sınırlaması',
+      description: 'Sorumluluk sınırları ve tazminat kuralları',
+      content: 'Tarafların sorumluluğu {{liability_limit}} ile sınırlıdır. Dolaylı zararlar, kar kaybı ve fırsat maliyetleri tazmin kapsamı dışındadır. Kasıt ve ağır kusur durumlarında bu sınırlama geçerli değildir.',
+      category: 'LIABILITY',
+      visibility: 'COMPANY',
+      approvalStatus: 'APPROVED',
+      isActive: true,
+      version: 1,
+      createdById: managerUser.id,
+      companyId: digitalAgency.id,
+      variables: {
+        create: [
+          {
+            name: 'liability_limit',
+            label: 'Sorumluluk Sınırı',
+            type: 'CURRENCY',
+            defaultValue: '100.000 TL',
+            isRequired: true,
+            description: 'Maksimum sorumluluk tutarı'
+          }
+        ]
+      }
+    }
+  });
+
+  const intellectualPropertyClause = await (prisma as any).clause.create({
+    data: {
+      title: 'Fikri Mülkiyet Hakları',
+      description: 'Fikri mülkiyet sahipliği ve kullanım hakları',
+      content: 'Proje kapsamında üretilen tüm fikri mülkiyet hakları {{ip_owner}} ait olacaktır. {{other_party}} sadece belirlenen amaçla kullanım hakkına sahiptir. Telif hakları {{copyright_period}} süreyle korunur.',
+      category: 'INTELLECTUAL_PROPERTY',
+      visibility: 'COMPANY',
+      approvalStatus: 'APPROVED',
+      isActive: true,
+      version: 1,
+      createdById: adminUser.id,
+      companyId: techCorp.id,
+      variables: {
+        create: [
+          {
+            name: 'ip_owner',
+            label: 'Fikri Mülkiyet Sahibi',
+            type: 'STRING',
+            isRequired: true,
+            description: 'Fikri mülkiyetin sahibi'
+          },
+          {
+            name: 'other_party',
+            label: 'Kullanım Hakkı Sahibi',
+            type: 'STRING',
+            isRequired: true,
+            description: 'Kullanım hakkına sahip taraf'
+          },
+          {
+            name: 'copyright_period',
+            label: 'Telif Hakkı Süresi',
+            type: 'STRING',
+            defaultValue: 'yasal süre',
+            isRequired: false,
+            description: 'Telif hakkı koruma süresi'
+          }
+        ]
+      }
+    }
+  });
+
+  const forceMarjeureClause = await (prisma as any).clause.create({
+    data: {
+      title: 'Mücbir Sebep (Force Majeure)',
+      description: 'Doğal afet, savaş ve benzeri olağanüstü durumlar',
+      content: 'Doğal afet, savaş, pandemi, hükümet kararları gibi mücbir sebep durumlarında taraflar yükümlülüklerinden {{suspension_period}} süreyle muaf tutulur. Mücbir sebep {{notification_period}} içinde karşı tarafa bildirilmelidir.',
+      category: 'FORCE_MAJEURE',
+      visibility: 'PUBLIC',
+      approvalStatus: 'APPROVED',
+      isActive: true,
+      version: 1,
+      createdById: adminUser.id,
+      companyId: null,
+      variables: {
+        create: [
+          {
+            name: 'suspension_period',
+            label: 'Askıya Alma Süresi',
+            type: 'STRING',
+            defaultValue: 'mücbir sebep süresi boyunca',
+            isRequired: true,
+            description: 'Yükümlülüklerin askıya alınma süresi'
+          },
+          {
+            name: 'notification_period',
+            label: 'Bildirim Süresi',
+            type: 'STRING',
+            defaultValue: '7 gün',
+            isRequired: true,
+            description: 'Mücbir sebebin bildirilmesi gereken süre'
+          }
+        ]
+      }
+    }
+  });
+
+  // Clause kullanım istatistikleri
+  await (prisma as any).clauseUsage.createMany({
+    data: [
+      {
+        clauseId: confidentialityClause.id,
+        contractId: softwareContract.id,
+        userId: adminUser.id,
+        contractType: 'Yazılım Geliştirme',
+        position: 1
+      },
+      {
+        clauseId: paymentClause.id,
+        contractId: softwareContract.id,
+        userId: adminUser.id,
+        contractType: 'Yazılım Geliştirme',
+        position: 2
+      },
+      {
+        clauseId: paymentClause.id,
+        contractId: marketingContract.id,
+        userId: managerUser.id,
+        contractType: 'Pazarlama Hizmetleri',
+        position: 1
+      },
+      {
+        clauseId: terminationClause.id,
+        contractId: consultingContract.id,
+        userId: adminUser.id,
+        contractType: 'Danışmanlık',
+        position: 3
+      }
+    ]
+  });
+
+  console.log('✅ Smart Clauses oluşturuldu');
+
   // İstatistikler yazdır
   const userCount = await prisma.user.count();
   const companyCount = await prisma.company.count();
@@ -524,6 +790,14 @@ Gizlilik ihlali durumunda {{PENALTY_AMOUNT}} TL ceza ödenecektir.`,
   const templateCount = await prisma.contractTemplate.count();
   const inviteCount = await prisma.companyInvite.count();
   const notificationCount = await prisma.notification.count();
+  
+  // Smart Clauses count (try-catch for compatibility)
+  let clauseCount = 0;
+  try {
+    clauseCount = await (prisma as any).clause.count();
+  } catch (e) {
+    // Ignore if clause model not available yet
+  }
 
   console.log('\n📊 Test verisi özeti:');
   console.log(`👥 Kullanıcılar: ${userCount}`);
@@ -532,6 +806,9 @@ Gizlilik ihlali durumunda {{PENALTY_AMOUNT}} TL ceza ödenecektir.`,
   console.log(`📋 Şablonlar: ${templateCount}`);
   console.log(`✉️ Davetler: ${inviteCount}`);
   console.log(`🔔 Bildirimler: ${notificationCount}`);
+  if (clauseCount > 0) {
+    console.log(`📝 Smart Clauses: ${clauseCount}`);
+  }
 
   console.log('\n🔑 Test hesapları:');
   console.log('Admin: admin@contravo.com / 123456');

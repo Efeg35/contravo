@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ status: 'ok' }, { status: 204 });
 
-  } catch (_error) {
-    console.error('❌ Error processing CSP report:');
+  } catch (error) {
+    console.error('❌ Error processing CSP report:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -102,8 +102,8 @@ export async function GET() {
       }
     });
 
-  } catch (_error) {
-    console.error('❌ Error getting CSP statistics:');
+  } catch (error) {
+    console.error('❌ Error getting CSP statistics:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

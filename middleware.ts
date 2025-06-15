@@ -6,6 +6,12 @@ import { applySecurityHeaders } from '@/lib/security-headers'
 
 export default withAuth(
   async function middleware(req) {
+    // Rate limiting geçici olarak devre dışı
+    // const rateLimitResponse = await rateLimitMiddleware(req)
+    // if (rateLimitResponse) {
+    //   return applySecurityHeaders(req, rateLimitResponse)
+    // }
+
     const token = req.nextauth.token
     const { pathname } = req.nextUrl
 
@@ -25,30 +31,34 @@ export default withAuth(
 
     // Allow public routes
     if (publicRoutes.includes(pathname)) {
-      return NextResponse.next()
+      const response = NextResponse.next()
+      return applySecurityHeaders(req, response)
     }
 
     // Handle API routes with JWT validation
     if (apiRoutes && !publicRoutes.includes(pathname)) {
       // Skip auth API routes
       if (pathname.startsWith('/api/auth/')) {
-        return NextResponse.next()
+        const response = NextResponse.next()
+        return applySecurityHeaders(req, response)
       }
 
       // For other API routes, validate token
       if (!token) {
-        return NextResponse.json(
+        const response = NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
         )
+        return applySecurityHeaders(req, response)
       }
 
       // Enhanced token validation
       if (token.exp && token.exp < Math.floor(Date.now() / 1000)) {
-        return NextResponse.json(
+        const response = NextResponse.json(
           { error: 'Token expired' },
           { status: 401 }
         )
+        return applySecurityHeaders(req, response)
       }
 
       // Add user info to request headers for API routes
@@ -56,22 +66,25 @@ export default withAuth(
       requestHeaders.set('x-user-id', token.id as string)
       requestHeaders.set('x-user-role', token.role as string)
 
-      return NextResponse.next({
+      const response = NextResponse.next({
         request: {
           headers: requestHeaders,
         },
       })
+      return applySecurityHeaders(req, response)
     }
 
     // Handle protected dashboard routes
     if (protectedRoutes) {
       if (!token) {
-        return NextResponse.redirect(new URL('/auth/login', req.url))
+        const response = NextResponse.redirect(new URL('/auth/login', req.url))
+        return applySecurityHeaders(req, response)
       }
 
       // Check token expiry for dashboard routes
       if (token.exp && token.exp < Math.floor(Date.now() / 1000)) {
-        return NextResponse.redirect(new URL('/auth/login', req.url))
+        const response = NextResponse.redirect(new URL('/auth/login', req.url))
+        return applySecurityHeaders(req, response)
       }
 
       // Check if token needs refresh (this will be handled by NextAuth automatically)
@@ -80,10 +93,12 @@ export default withAuth(
         console.log('Token needs refresh for user:', token.id)
       }
 
-      return NextResponse.next()
+      const response = NextResponse.next()
+      return applySecurityHeaders(req, response)
     }
 
-    return NextResponse.next()
+    const response = NextResponse.next()
+    return applySecurityHeaders(req, response)
   },
   {
     callbacks: {
@@ -120,17 +135,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|public|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
-
-export async function middleware(request: NextRequest) {
-  // Apply rate limiting first
-  const rateLimitResponse = await rateLimitMiddleware(request)
-  if (rateLimitResponse) {
-    // Apply security headers even to rate limited responses
-    return applySecurityHeaders(request, rateLimitResponse)
-  }
-
-  // Create response and apply security headers
-  const response = NextResponse.next()
-  return applySecurityHeaders(request, response)
 } 

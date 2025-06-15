@@ -42,6 +42,9 @@ model User {
   createdSignaturePackages SignaturePackage[]
   userSessions      UserSession[] @relation("UserSessions")
   passwordHistory   PasswordHistory[]
+  createdClauses    Clause[]        @relation("CreatedClauses")
+  clauseUsages      ClauseUsage[]   @relation("ClauseUsages")  
+  clauseApprovals   ClauseApproval[] @relation("ClauseApprovals")
 
   // Performance indexes
   @@index([email])
@@ -178,6 +181,7 @@ model Company {
   invites     CompanyInvite[]
   settings    CompanySettings?
   templates   ContractTemplate[] @relation("CompanyTemplates")
+  clauses     Clause[]        @relation("CompanyClauses")
 
   // Performance indexes
   @@index([createdById])
@@ -270,6 +274,7 @@ model Contract {
   id              String      @id @default(cuid())
   title           String
   description     String?
+  content         String?     // Real-time collaboration için sözleşme içeriği
   status          ContractStatus   @default(DRAFT)
   type            String
   value           Float?
@@ -294,6 +299,7 @@ model Contract {
   notifications   Notification[]
   digitalSignatures DigitalSignature[]
   signaturePackage SignaturePackage?
+  clauseUsages    ClauseUsage[]
 
   // Critical performance indexes for contracts
   @@index([status])
@@ -594,4 +600,163 @@ enum PackageStatus {
   COMPLETED
   CANCELLED
   EXPIRED
+}
+
+// Clause categories
+enum ClauseCategory {
+  LEGAL           // Yasal maddeler
+  COMMERCIAL      // Ticari koşullar
+  TECHNICAL       // Teknik gereksinimler
+  CONFIDENTIALITY // Gizlilik maddeleri
+  TERMINATION     // Fesih koşulları
+  LIABILITY       // Sorumluluk
+  INTELLECTUAL_PROPERTY // Fikri mülkiyet
+  PAYMENT         // Ödeme koşulları
+  DELIVERY        // Teslimat
+  COMPLIANCE      // Uyumluluk
+  DISPUTE         // Uyuşmazlık çözümü
+  FORCE_MAJEURE   // Mücbir sebep
+  OTHER          // Diğer
+}
+
+// Clause visibility levels
+enum ClauseVisibility {
+  PUBLIC    // Herkes görebilir
+  COMPANY   // Sadece şirket üyeleri
+  PRIVATE   // Sadece oluşturan
+}
+
+// Clause approval status
+enum ClauseApprovalStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+// Variable types for placeholders
+enum VariableType {
+  STRING
+  NUMBER
+  DATE
+  BOOLEAN
+  EMAIL
+  PHONE
+  CURRENCY
+  PERCENTAGE
+}
+
+// Smart Clause model
+model Clause {
+  id            String              @id @default(cuid())
+  title         String
+  description   String?
+  content       String              // Clause content with placeholders
+  category      ClauseCategory
+  visibility    ClauseVisibility    @default(COMPANY)
+  approvalStatus ClauseApprovalStatus @default(DRAFT)
+  isActive      Boolean             @default(true)
+  version       Int                 @default(1)
+  
+  // Relationships
+  createdBy     User                @relation("CreatedClauses", fields: [createdById], references: [id])
+  createdById   String
+  company       Company?            @relation("CompanyClauses", fields: [companyId], references: [id])
+  companyId     String?
+  
+  // Parent-child relationship for inheritance
+  parentClause  Clause?             @relation("ClauseInheritance", fields: [parentClauseId], references: [id])
+  parentClauseId String?
+  childClauses  Clause[]            @relation("ClauseInheritance")
+  
+  // Variables/placeholders
+  variables     ClauseVariable[]
+  
+  // Usage tracking
+  usageStats    ClauseUsage[]
+  
+  // Approval tracking
+  approvals     ClauseApproval[]
+  
+  // Timestamps
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  
+  // Performance indexes
+  @@index([category])
+  @@index([visibility])
+  @@index([companyId])
+  @@index([createdById])
+  @@index([approvalStatus])
+  @@index([isActive])
+}
+
+// Clause variables/placeholders
+model ClauseVariable {
+  id            String         @id @default(cuid())
+  name          String         // Variable name (e.g., "company_name")
+  label         String         // Display label (e.g., "Company Name")
+  type          VariableType   @default(STRING)
+  defaultValue  String?        // Default value
+  isRequired    Boolean        @default(false)
+  description   String?        // Help text
+  validation    Json?          // Validation rules (regex, min/max, etc.)
+  
+  // Relationship
+  clause        Clause         @relation(fields: [clauseId], references: [id], onDelete: Cascade)
+  clauseId      String
+  
+  // Timestamps
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  @@index([clauseId])
+  @@index([name])
+}
+
+// Clause usage analytics
+model ClauseUsage {
+  id            String         @id @default(cuid())
+  
+  // Relationships
+  clause        Clause         @relation(fields: [clauseId], references: [id])
+  clauseId      String
+  contract      Contract       @relation(fields: [contractId], references: [id])
+  contractId    String
+  user          User           @relation("ClauseUsages", fields: [userId], references: [id])
+  userId        String
+  
+  // Usage context
+  contractType  String?        // Which type of contract used this clause
+  position      Int?           // Position in contract (order)
+  
+  // Timestamps
+  usedAt        DateTime       @default(now())
+  
+  @@index([clauseId])
+  @@index([contractId])
+  @@index([userId])
+  @@index([usedAt])
+}
+
+// Clause approval workflow
+model ClauseApproval {
+  id            String              @id @default(cuid())
+  status        ApprovalStatus
+  comments      String?
+  
+  // Relationships
+  clause        Clause              @relation(fields: [clauseId], references: [id])
+  clauseId      String
+  approver      User                @relation("ClauseApprovals", fields: [approverId], references: [id])
+  approverId    String
+  
+  // Timestamps
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  
+  @@index([clauseId])
+  @@index([approverId])
+  @@index([status])
 }

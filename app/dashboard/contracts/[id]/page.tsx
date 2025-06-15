@@ -11,11 +11,13 @@ import AttachmentList from '../../../../components/AttachmentList';
 import ContractApproval from '../../../../components/ContractApproval';
 import ContractVersions from '../../../../components/ContractVersions';
 import DigitalSignatures from '../../../../components/DigitalSignatures';
+import ContractEditor from '../../../../components/ContractEditor';
 
 interface ContractDetail {
   id: string;
   title: string;
   description?: string;
+  content?: string;
   status: 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SIGNED' | 'ARCHIVED';
   type: string;
   value?: number;
@@ -216,20 +218,38 @@ export default function ContractDetailPage({ params }: PageProps) {
   };
 
   const handleContractUpdate = () => {
-    // Refresh contract data when approval status changes
+    setRefreshTrigger(prev => prev + 1);
     const fetchContract = async () => {
       try {
         const response = await fetch(`/api/contracts/${id}`);
         if (response.ok) {
           const data = await response.json();
           setContract(data);
-          setEditData(data);
         }
-      } catch (_error) {
-        console.error('Error refreshing contract:');
+      } catch (error) {
+        console.error('Error fetching updated contract:', error);
       }
     };
     fetchContract();
+  };
+
+  const handleContentChange = async (newContent: string) => {
+    try {
+      const response = await fetch(`/api/contracts/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: newContent }),
+      });
+
+      if (response.ok) {
+        const updatedContract = await response.json();
+        setContract(updatedContract);
+      }
+    } catch (error) {
+      console.error('Error updating contract content:', error);
+    }
   };
 
   if (status === 'loading' || loading) {
@@ -509,6 +529,22 @@ export default function ContractDetailPage({ params }: PageProps) {
                     <span className="font-medium">Oluşturulma:</span> {new Date(contract.createdAt).toLocaleString('tr-TR')}
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Collaborative Contract Editor */}
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+            <div className="px-6 py-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                📝 Sözleşme İçeriği - Canlı İşbirliği
+              </h3>
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                <ContractEditor
+                  contractId={contract.id}
+                  initialContent={contract.content || '# Sözleşme İçeriği\n\nSözleşme içeriğinizi buraya yazın...'}
+                  onSave={handleContentChange}
+                />
               </div>
             </div>
           </div>

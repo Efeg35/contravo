@@ -31,6 +31,7 @@ export interface CSPDirectives {
   defaultSrc?: string[];
   scriptSrc?: string[];
   styleSrc?: string[];
+  styleSrcAttr?: string[];
   imgSrc?: string[];
   fontSrc?: string[];
   connectSrc?: string[];
@@ -316,6 +317,13 @@ export class SecurityHeadersManager {
     columnNumber?: number;
   }): Promise<void> {
     try {
+      // Chrome extension'lardan gelen violation'ları filtrele
+      if (violation.blockedUri.includes('chrome-extension:') || 
+          violation.blockedUri.includes('moz-extension:') ||
+          violation.sourceFile?.includes('chrome-extension:')) {
+        return; // Sessizce ignore et
+      }
+
       this.stats.cspViolations++;
       this.stats.violationsReported++;
       this.stats.lastViolation = new Date();
@@ -341,10 +349,18 @@ export class SecurityHeadersManager {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
-      console.error('🚨 CSP Violation reported:');
+      // Sadece development'ta log et
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('🚨 CSP Violation:', {
+          directive: violation.violatedDirective,
+          blockedUri: violation.blockedUri,
+          sourceFile: violation.sourceFile
+        });
+      }
 
-    } catch (_error) {
-      console.error('❌ Error reporting CSP violation:');
+    } catch (error) {
+      // Hata durumunda sadece log et, throw etme
+      console.error('❌ Error reporting CSP violation:', error);
     }
   }
 
@@ -579,24 +595,25 @@ export class SecurityHeadersManager {
 export const defaultSecurityHeadersConfig: SecurityHeadersConfig = {
   contentSecurityPolicy: {
     enabled: true,
-    reportOnly: false,
-    nonce: true,
-    upgradeInsecureRequests: true,
+    reportOnly: true,
+    nonce: false,
+    upgradeInsecureRequests: false,
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      imgSrc: ["'self'", 'data:', 'https:'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      connectSrc: ["'self'"],
-      mediaSrc: ["'self'"],
+      defaultSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'", 'data:', 'blob:', 'https:', 'chrome-extension:', 'moz-extension:', 'ms-browser-extension:'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'data:', 'blob:', 'https:', 'chrome-extension:', 'moz-extension:', 'ms-browser-extension:'],
+      styleSrcAttr: ["'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:', 'chrome-extension:', 'moz-extension:', 'ms-browser-extension:'],
+      fontSrc: ["'self'", 'data:', 'blob:', 'https:', 'chrome-extension:', 'moz-extension:', 'ms-browser-extension:'],
+      connectSrc: ["'self'", 'ws:', 'wss:', 'https:', 'chrome-extension:', 'moz-extension:', 'ms-browser-extension:'],
+      mediaSrc: ["'self'", 'data:', 'blob:', 'chrome-extension:', 'moz-extension:', 'ms-browser-extension:'],
       objectSrc: ["'none'"],
-      frameSrc: ["'none'"],
-      workerSrc: ["'self'"],
+      frameSrc: ["'self'"],
+      workerSrc: ["'self'", 'blob:', 'data:', 'chrome-extension:', 'moz-extension:', 'ms-browser-extension:'],
       manifestSrc: ["'self'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
-      frameAncestors: ["'none'"],
+      frameAncestors: ["'self'"],
       sandbox: []
     },
     reportUri: '/api/security/csp-report'
@@ -665,17 +682,17 @@ export const defaultSecurityHeadersConfig: SecurityHeadersConfig = {
   customHeaders: [
     {
       name: 'X-Request-ID',
-      value: '{{requestId}}',
-      enabled: true
+      value: crypto.randomUUID(),
+      enabled: false // Geçici olarak kapatılıyor
     },
     {
-      name: 'X-Response-Time',
-      value: '{{responseTime}}',
-      enabled: true
+      name: 'X-Response-Time', 
+      value: Date.now().toString(),
+      enabled: false // Geçici olarak kapatılıyor
     }
   ],
   enabled: true,
-  reportOnly: false
+  reportOnly: true // Development için report-only mode
 };
 
 // Export singleton instance

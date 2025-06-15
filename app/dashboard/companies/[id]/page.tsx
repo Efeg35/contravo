@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Settings } from "lucide-react";
+import { Loader2, Plus, Trash2, Settings, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import Link from "next/link";
 import Image from "next/image";
@@ -104,6 +104,15 @@ export default function CompanyDetailPage() {
 
   return (
     <div className="container mx-auto py-8">
+      <div className="mb-6">
+        <Button variant="ghost" asChild>
+          <Link href="/dashboard/companies" className="flex items-center">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Şirketlere Geri Dön
+          </Link>
+        </Button>
+      </div>
+
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center space-x-4">
           {company.logo && (

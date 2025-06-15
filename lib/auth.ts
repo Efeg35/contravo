@@ -2,7 +2,7 @@ import { type NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from './prisma';
-// import { SessionMiddleware } from './session-middleware';
+import { SessionMiddleware } from './session-middleware';
 import { passwordManager } from './password-manager';
 
 
@@ -171,8 +171,7 @@ export const authOptions: NextAuthOptions = {
       
       try {
         if (token && (token as any).sessionId) {
-          // await SessionMiddleware.invalidateSessionOnLogout();
-          console.log('Session invalidated');
+          await SessionMiddleware.invalidateSessionOnLogout();
         }
       } catch (_error) {
         console.error('Failed to invalidate session on logout:');

@@ -80,6 +80,7 @@ export async function PUT(
     const {
       title,
       description,
+      content,
       status,
       type,
       value,
@@ -106,6 +107,7 @@ export async function PUT(
       data: {
         title,
         description,
+        content,
         status,
         type,
         value: value ? parseFloat(value) : null,
