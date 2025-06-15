@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { getCurrentUser, userHasPermission, checkPermissionOrThrow, AuthorizationError } from '../../../lib/auth-helpers'
 import { Permission } from '../../../lib/permissions'
 import { Prisma } from '@prisma/client'
+import { handleApiError, createSuccessResponse, commonErrors, withErrorHandler } from '@/lib/api-error-handler'
 
 const createContractSchema = z.object({
   title: z.string().min(1, 'Contract title is required'),
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      throw commonErrors.unauthorized()
     }
 
     // Check if user can view all contracts
@@ -162,11 +163,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Error fetching contracts:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return handleApiError(error, 'GET /api/contracts')
   }
 }
 
@@ -175,7 +172,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      throw commonErrors.unauthorized()
     }
 
     const body = await request.json()
@@ -203,10 +200,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (!hasCompanyAccess) {
-        return NextResponse.json(
-          { error: 'Company access denied' },
-          { status: 403 }
-        )
+        throw commonErrors.forbidden('Şirket')
       }
     }
 
@@ -226,10 +220,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (!template) {
-        return NextResponse.json(
-          { error: 'Template not found or access denied' },
-          { status: 404 }
-        )
+        throw commonErrors.notFound('Şablon')
       }
     }
 
@@ -274,24 +265,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(contract, { status: 201 })
   } catch (error) {
-    if (error instanceof AuthorizationError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.statusCode }
-      )
-    }
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
-        { status: 400 }
-      )
-    }
-
-    console.error('Error creating contract:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return handleApiError(error, 'POST /api/contracts')
   }
 } 
