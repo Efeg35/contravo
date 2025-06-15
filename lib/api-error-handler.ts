@@ -235,6 +235,13 @@ export const commonErrors = {
     404
   ),
   
+  validation: (message: string) => new ApiError(
+    ErrorType.VALIDATION,
+    message,
+    'VALIDATION_FAILED',
+    400
+  ),
+  
   validationFailed: (field: string, reason: string) => new ApiError(
     ErrorType.VALIDATION,
     `${field} alanı geçersiz: ${reason}`,

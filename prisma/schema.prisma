@@ -17,12 +17,14 @@ datasource db {
 model User {
   id                String    @id @default(cuid())
   name              String?
-  email             String?   @unique
+  email             String   @unique
   emailVerified     DateTime?
   image             String?
   password          String?
   passwordChangedAt DateTime? @default(now())
   role              Role      @default(USER)
+  department        Department? // Department user belongs to
+  departmentRole    String?   // Role within the department (HR_MANAGER, FINANCE_ANALYST, etc.)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   accounts          Account[]
@@ -759,4 +761,16 @@ model ClauseApproval {
   @@index([clauseId])
   @@index([approverId])
   @@index([status])
+}
+
+enum Department {
+  HR
+  FINANCE
+  LEGAL
+  SALES
+  IT
+  PROCUREMENT
+  GENERAL
+
+  @@map("departments")
 }

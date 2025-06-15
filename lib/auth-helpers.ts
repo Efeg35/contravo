@@ -19,6 +19,8 @@ export async function getCurrentUser() {
       email: true,
       role: true,
       image: true,
+      department: true,
+      departmentRole: true,
       createdAt: true,
     }
   });
@@ -95,13 +97,19 @@ export async function userHasPermission(permission: Permission, companyId?: stri
     return PermissionManager.userHasPermission(
       userWithCompanyRole.role,
       userWithCompanyRole.companyRole,
+      null, // TODO: Add department role support to company context
       permission
     );
   } else {
     const user = await getCurrentUser();
     if (!user) return false;
     
-    return PermissionManager.hasPermission(user.role, permission);
+    return PermissionManager.userHasPermission(
+      user.role,
+      null,
+      user.departmentRole,
+      permission
+    );
   }
 }
 
@@ -113,14 +121,18 @@ export async function userHasAnyPermission(permissions: Permission[], companyId?
     return PermissionManager.hasAnyPermission(
       userWithCompanyRole.role,
       userWithCompanyRole.companyRole,
+      null, // TODO: Add department role support to company context
       permissions
     );
   } else {
     const user = await getCurrentUser();
     if (!user) return false;
     
-    return permissions.some(permission => 
-      PermissionManager.hasPermission(user.role, permission)
+    return PermissionManager.hasAnyPermission(
+      user.role,
+      null,
+      user.departmentRole,
+      permissions
     );
   }
 }
@@ -133,14 +145,18 @@ export async function userHasAllPermissions(permissions: Permission[], companyId
     return PermissionManager.hasAllPermissions(
       userWithCompanyRole.role,
       userWithCompanyRole.companyRole,
+      null, // TODO: Add department role support to company context
       permissions
     );
   } else {
     const user = await getCurrentUser();
     if (!user) return false;
     
-    return permissions.every(permission => 
-      PermissionManager.hasPermission(user.role, permission)
+    return PermissionManager.hasAllPermissions(
+      user.role,
+      null,
+      user.departmentRole,
+      permissions
     );
   }
 }
