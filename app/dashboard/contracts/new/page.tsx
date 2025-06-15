@@ -29,6 +29,9 @@ export default function NewContractPage() {
     value: '',
     startDate: '',
     endDate: '',
+  renewalDate: '',
+  reminderDays: [90, 60, 30, 7],
+  autoRenewal: false,
     otherPartyName: '',
     otherPartyEmail: '',
     content: ''
@@ -326,6 +329,38 @@ export default function NewContractPage() {
                         onChange={handleChange}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       />
+                    </div>
+
+                    {/* 🚀 YENİLEME TARİHİ - "Kör Depolama" Probleminin Çözümü */}
+                    <div>
+                      <label htmlFor="renewalDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        🔄 Yenileme Tarihi
+                        <span className="text-gray-500 text-xs block">Proaktif takip için kritik</span>
+                      </label>
+                      <input
+                        type="date"
+                        id="renewalDate"
+                        name="renewalDate"
+                        value={formData.renewalDate}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* 🔄 OTOMATİK YENİLEME */}
+                    <div>
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.autoRenewal}
+                          onChange={(e) => setFormData({...formData, autoRenewal: e.target.checked})}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">🔄 Otomatik Yenileme</span>
+                          <p className="text-xs text-gray-500">Süre dolduğunda otomatik yenilensin</p>
+                        </div>
+                      </label>
                     </div>
                   </div>
                 </div>

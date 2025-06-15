@@ -282,6 +282,11 @@ model Contract {
   value           Float?
   startDate       DateTime?
   endDate         DateTime?
+  renewalDate     DateTime?   // 🚀 YENILEME TARİHİ - Kritik Proaktif Takip İçin
+  reminderDays    Json?       @default("[90, 60, 30, 7]")  // 🔔 ÇOKLİ HATIRLATMA GÜNLERİ
+  autoRenewal     Boolean     @default(false)  // 🔄 OTOMATİK YENİLEME KONTROLÜ
+  renewalStatus   RenewalStatus @default(PENDING)  // 🎯 YENİLEME DURUMU
+  lastReminderSent DateTime?  // 📅 SON HATIRLATMA TARİHİ
   otherPartyName  String?
   otherPartyEmail String?
   companyId       String?
@@ -312,9 +317,14 @@ model Contract {
   @@index([updatedAt])
   @@index([startDate])
   @@index([endDate])
+  @@index([renewalDate])     // 🚀 YENİLEME TARİHİ İNDEXİ
+  @@index([renewalStatus])   // 🎯 YENİLEME DURUMU İNDEXİ
+  @@index([autoRenewal])     // 🔄 OTOMATİK YENİLEME İNDEXİ
   @@index([status, companyId]) // Composite index for common queries
   @@index([type, status]) // Composite index for filtering
   @@index([createdById, status]) // Composite index for user's contracts
+  @@index([endDate, renewalStatus]) // 🔔 HATIRLATMA SORGUSU İÇİN
+  @@index([renewalDate, renewalStatus]) // 🚀 YENİLEME SORGUSU İÇİN
   @@index([title]) // Full-text search support
   @@index([otherPartyName]) // Search by other party
 }
@@ -348,6 +358,15 @@ enum ContractStatus {
   REJECTED
   SIGNED
   ARCHIVED
+}
+
+// 🚀 YENİLEME DURUMU ENUM'U - Proaktif Sözleşme Takibi İçin
+enum RenewalStatus {
+  PENDING       // Yenileme bekliyor
+  RENEWAL_DUE   // Yenileme zamanı geldi
+  RENEWED       // Yenilendi
+  EXPIRED       // Süresi doldu
+  NO_RENEWAL    // Yenilenmeyecek
 }
 
 // Sözleşme şablonları modeli

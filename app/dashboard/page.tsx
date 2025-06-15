@@ -11,6 +11,7 @@ import DashboardWidgets, { CustomizationToggle } from '../../components/ui/dashb
 import RealtimeNotifications, { NotificationBell } from '../../components/ui/realtime-notifications';
 import MobileNavigation, { MobileHeader, TouchButton } from '../../components/ui/mobile-navigation';
 import AnalyticsCharts from '../../components/ui/analytics-charts';
+import ProactiveContractWidget from '../../components/ProactiveContractWidget';
 
 interface Contract {
   id: string;
@@ -371,6 +372,11 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* 🚀 PROAKTIF SÖZLEŞME TAKİP SİSTEMİ - "Kör Depolama" Probleminin Çözümü */}
+              <div className="mb-8">
+                <ProactiveContractWidget />
               </div>
 
               {/* Stats Grid */}
