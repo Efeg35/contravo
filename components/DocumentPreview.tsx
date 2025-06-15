@@ -334,7 +334,7 @@ export default function DocumentPreview({
                </button>
 
                {/* Rotate - Available for PDF and Images */}
-               {(mimeType === 'application/pdf' || mimeType.indexOf('image/') === 0) && (
+               {(mimeType === 'application/pdf' || String(mimeType).includes('image/')) && (
                  <button
                    onClick={handleRotate}
                    className="p-2 rounded-md hover:bg-gray-700"
