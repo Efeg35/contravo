@@ -1,7 +1,7 @@
 export interface FilterCondition {
   field: string;
   operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'nin' | 'like' | 'ilike' | 'regex' | 'exists' | 'between' | 'contains' | 'startsWith' | 'endsWith';
-  value: any;
+  value: unknown;
   type?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
 }
 
@@ -58,11 +58,11 @@ export interface FilterResult<T = unknown> {
   page?: number;
   limit?: number;
   hasMore: boolean;
-  aggregations?: { [key: string]: any };
+  aggregations?: Record<string, unknown>;
   executionTime: number;
   query: {
     sql: string;
-    parameters: any[];
+    parameters: unknown[];
   };
 }
 
@@ -80,9 +80,9 @@ export interface FilterSchema {
         min?: number;
         max?: number;
         pattern?: string;
-        enum?: any[];
+        enum?: unknown[];
       };
-      transform?: (value: any) => unknown;
+      transform?: (value: unknown) => unknown;
     };
   };
   relations?: {
@@ -212,7 +212,7 @@ export class AdvancedFiltering {
   buildDynamicFilter(
     userInput: {
       search?: string;
-      filters?: { [field: string]: any };
+      filters?: Record<string, unknown>;
       sort?: string;
       page?: number;
       limit?: number;
@@ -351,7 +351,7 @@ export class AdvancedFiltering {
     field: string,
     query?: string,
     limit = 10
-  ): Promise<Array<{ value: any; count: number; label?: string }>> {
+  ): Promise<Array<{ value: unknown; count: number; label?: string }>> {
     const schema = this.schemas.get(table);
     if (!schema) {
       throw new Error(`Schema not found for table: ${table}`);
@@ -621,7 +621,7 @@ export class AdvancedFiltering {
     }
   }
 
-  private isValidValueType(value: any, expectedType: string, operator: string): boolean {
+  private isValidValueType(value: unknown, expectedType: string, operator: string): boolean {
     if (operator === 'in' || operator === 'nin' || operator === 'between') {
       return Array.isArray(value);
     }
@@ -645,7 +645,7 @@ export class AdvancedFiltering {
     }
   }
 
-  private validateFieldValue(value: any, validation: NonNullable<FilterSchema['fields'][string]['validation']>, fieldName: string): void {
+  private validateFieldValue(value: unknown, validation: NonNullable<FilterSchema['fields'][string]['validation']>, fieldName: string): void {
     if (validation.enum && !validation.enum.includes(value)) {
       throw new Error(`Invalid value for field ${fieldName}: must be one of ${validation.enum.join(', ')}`);
     }

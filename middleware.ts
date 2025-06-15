@@ -1,8 +1,8 @@
 import { withAuth } from "next-auth/middleware"
 import { NextResponse } from "next/server"
 import { NextRequest } from 'next/server'
-import { rateLimitMiddleware } from '@/lib/rate-limiter-middleware'
-import { applySecurityHeaders } from '@/lib/security-headers'
+// import { rateLimitMiddleware } from './lib/rate-limiter-middleware'
+import { applySecurityHeaders } from './lib/security-headers'
 
 export default withAuth(
   async function middleware(req) {
@@ -53,7 +53,7 @@ export default withAuth(
       }
 
       // Enhanced token validation
-      if (token.exp && token.exp < Math.floor(Date.now() / 1000)) {
+      if (token.exp && (token.exp as number) < Math.floor(Date.now() / 1000)) {
         const response = NextResponse.json(
           { error: 'Token expired' },
           { status: 401 }
@@ -82,7 +82,7 @@ export default withAuth(
       }
 
       // Check token expiry for dashboard routes
-      if (token.exp && token.exp < Math.floor(Date.now() / 1000)) {
+      if (token.exp && (token.exp as number) < Math.floor(Date.now() / 1000)) {
         const response = NextResponse.redirect(new URL('/auth/login', req.url))
         return applySecurityHeaders(req, response)
       }
