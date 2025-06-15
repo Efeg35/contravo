@@ -92,7 +92,7 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
     try {
       const url = clauseId 
         ? `/api/clauses/${clauseId}/approvals`
-        : '/api/clauses/approvals';
+        : '/api/contracts/approvals';
       
       const response = await fetch(url);
       const data = await response.json();
@@ -110,7 +110,7 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
   // Fetch comments for approval
   const fetchComments = async (approvalId: string) => {
     try {
-      const response = await fetch(`/api/clauses/approvals/${approvalId}/comments`);
+      const response = await fetch(`/api/contracts/approvals/${approvalId}/comments`);
       const data = await response.json();
       
       if (response.ok) {
@@ -128,7 +128,7 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
   // Handle approval action
   const handleApprovalAction = async (approvalId: string, action: 'approve' | 'reject' | 'request_revision', comment?: string) => {
     try {
-      const response = await fetch(`/api/clauses/approvals/${approvalId}`, {
+      const response = await fetch(`/api/contracts/approvals/${approvalId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -138,7 +138,26 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
       });
       
       if (response.ok) {
-        fetchApprovals();
+        const data = await response.json();
+        console.log('Approval action successful:', data);
+        console.log('Updating approval with status:', data.approval.status);
+        
+        // Update the approval in the list
+        setApprovals(prev => {
+          const updated = prev.map(approval => 
+            approval.id === approvalId 
+              ? { 
+                  ...approval, 
+                  status: data.approval.status,
+                  respondedAt: data.approval.respondedAt,
+                  comments: comment || approval.comments
+                }
+              : approval
+          );
+          console.log('Updated approvals:', updated);
+          return updated;
+        });
+        
         setShowCommentModal(false);
         setNewComment('');
         setSelectedApproval(null);
@@ -147,6 +166,8 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
         if (onApprovalUpdate) {
           onApprovalUpdate();
         }
+      } else {
+        console.error('Onay işlemi başarısız:', await response.text());
       }
     } catch (error) {
       console.error('Onay işlemi başarısız:', error);
@@ -155,15 +176,27 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
 
   // Handle comment submission
   const handleCommentSubmit = async () => {
-    if (!selectedApproval || !newComment.trim()) return;
+    if (!selectedApproval) return;
+    
+    console.log('handleCommentSubmit called with actionType:', actionType);
+    console.log('newComment:', newComment);
+    
+    // For actions, comment is required except for approve
+    if (actionType && actionType !== 'approve' && !newComment.trim()) {
+      console.log('Comment required but empty, returning');
+      return;
+    }
     
     if (actionType) {
       // Submit approval action with comment
+      console.log('Submitting approval action:', actionType);
       await handleApprovalAction(selectedApproval.id, actionType, newComment);
     } else {
       // Submit just comment
+      if (!newComment.trim()) return;
+      
       try {
-        const response = await fetch(`/api/clauses/approvals/${selectedApproval.id}/comments`, {
+        const response = await fetch(`/api/contracts/approvals/${selectedApproval.id}/comments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -172,8 +205,12 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
         });
         
         if (response.ok) {
-          fetchComments(selectedApproval.id);
+          const data = await response.json();
+          // Add new comment to existing comments
+          setComments(prev => [...prev, data.comment]);
           setNewComment('');
+        } else {
+          console.error('Yorum eklenemedi:', await response.text());
         }
       } catch (error) {
         console.error('Yorum eklenemedi:', error);
@@ -312,6 +349,7 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
                       size="sm"
                       onClick={() => {
                         setSelectedApproval(approval);
+                        setActionType(null); // Reset action type for comments
                         fetchComments(approval.id);
                         setShowCommentModal(true);
                       }}
@@ -338,6 +376,7 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
                         onClick={() => {
                           setSelectedApproval(approval);
                           setActionType('request_revision');
+                          fetchComments(approval.id);
                           setShowCommentModal(true);
                         }}
                         className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
@@ -352,6 +391,7 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
                         onClick={() => {
                           setSelectedApproval(approval);
                           setActionType('reject');
+                          fetchComments(approval.id);
                           setShowCommentModal(true);
                         }}
                         className="text-red-600 border-red-600 hover:bg-red-50"
@@ -384,7 +424,10 @@ const ClauseApprovalWorkflow: React.FC<ClauseApprovalWorkflowProps> = ({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>
-                  {actionType ? 'Onay İşlemi' : 'Yorumlar'} - {selectedApproval.clause.title}
+                  {actionType === 'approve' ? 'Clause Onaylama' :
+                   actionType === 'reject' ? 'Clause Reddetme' :
+                   actionType === 'request_revision' ? 'Revizyon İsteme' :
+                   'Yorumlar'} - {selectedApproval.clause.title}
                 </CardTitle>
                 <Button
                   variant="ghost"

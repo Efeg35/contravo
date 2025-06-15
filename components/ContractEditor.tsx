@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import toast from 'react-hot-toast';
 import { 
   Plus, 
   BookOpen, 
@@ -86,7 +87,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
   const [filteredClauses, setFilteredClauses] = useState<Clause[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [showClauseLibrary, setShowClauseLibrary] = useState(false);
   
   // Variable filling state
@@ -124,7 +125,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
       );
     }
     
-    if (selectedCategory) {
+    if (selectedCategory && selectedCategory !== "all") {
       filtered = filtered.filter(clause => clause.category === selectedCategory);
     }
     
@@ -190,9 +191,11 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
     try {
       if (onSave) {
         await onSave(content);
+        toast.success('Sözleşme içeriği başarıyla kaydedildi!');
       }
     } catch (error) {
       console.error('Kaydetme hatası:', error);
+      toast.error('Kaydetme sırasında bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setSaving(false);
     }
@@ -209,6 +212,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
         
         <div className="flex items-center gap-2">
           <Button
+            type="button"
             variant="outline"
             onClick={() => setShowClauseLibrary(!showClauseLibrary)}
             className="flex items-center gap-2"
@@ -218,6 +222,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
           </Button>
           
           <Button
+            type="button"
             onClick={handleSave}
             disabled={saving}
             className="bg-blue-600 hover:bg-blue-700"
@@ -285,7 +290,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
                       <SelectValue placeholder="Kategori seçin" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tüm Kategoriler</SelectItem>
+                      <SelectItem value="all">Tüm Kategoriler</SelectItem>
                       {Object.entries(categoryLabels).map(([key, label]) => (
                         <SelectItem key={key} value={key}>
                           {label}
@@ -356,6 +361,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
                   </CardDescription>
                 </div>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowVariableModal(false)}
@@ -388,12 +394,14 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
               
               <div className="flex items-center justify-end gap-2 pt-4">
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={() => setShowVariableModal(false)}
                 >
                   İptal
                 </Button>
                 <Button
+                  type="button"
                   onClick={handleVariableSubmit}
                   className="bg-blue-600 hover:bg-blue-700"
                 >

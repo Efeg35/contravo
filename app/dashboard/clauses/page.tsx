@@ -206,15 +206,6 @@ const ClausesPage = () => {
               <Button 
                 variant="outline" 
                 className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/clauses/approvals'}
-              >
-                <CheckCheck className="h-4 w-4 mr-2" />
-                Onay İş Akışı
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
                 onClick={() => window.location.href = '/dashboard/clauses/templates'}
               >
                 <Copy className="h-4 w-4 mr-2" />
@@ -255,33 +246,6 @@ const ClausesPage = () => {
               >
                 <Tag className="h-4 w-4 mr-2" />
                 Etiket Yönetimi
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/clauses/workflows'}
-              >
-                <Workflow className="h-4 w-4 mr-2" />
-                İş Akışı Tasarımı
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/clauses/tracking'}
-              >
-                <Activity className="h-4 w-4 mr-2" />
-                İş Akışı Takibi
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/clauses/automation'}
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                Otomasyon Kuralları
               </Button>
             </CardContent>
           </Card>

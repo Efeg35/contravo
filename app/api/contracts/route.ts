@@ -10,13 +10,14 @@ const createContractSchema = z.object({
   title: z.string().min(1, 'Contract title is required'),
   description: z.string().optional(),
   type: z.string().min(1, 'Contract type is required'),
-  value: z.number().positive().optional(),
+  value: z.union([z.number().positive(), z.string().transform(val => val === '' ? undefined : parseFloat(val))]).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  otherPartyName: z.string().min(1, 'Other party name is required'),
-  otherPartyEmail: z.string().email().optional(),
+  otherPartyName: z.string().optional(),
+  otherPartyEmail: z.string().email().optional().or(z.literal('')),
   companyId: z.string().optional(),
   templateId: z.string().optional(),
+  status: z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'SIGNED', 'ARCHIVED']).optional(),
 })
 
 // const contractQuerySchema = z.object({
@@ -76,11 +77,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply filters
-    if (query.status) {
+    if (query.status && query.status !== 'all') {
       whereClause.status = query.status as any
     }
 
-    if (query.type) {
+    if (query.type && query.type !== 'all') {
       whereClause.type = query.type as any
     }
 
@@ -240,12 +241,12 @@ export async function POST(request: NextRequest) {
         value: validatedData.value,
         startDate: validatedData.startDate ? new Date(validatedData.startDate) : undefined,
         endDate: validatedData.endDate ? new Date(validatedData.endDate) : undefined,
-        otherPartyName: validatedData.otherPartyName,
-        otherPartyEmail: validatedData.otherPartyEmail,
+        otherPartyName: validatedData.otherPartyName || undefined,
+        otherPartyEmail: validatedData.otherPartyEmail || undefined,
         companyId: validatedData.companyId,
         templateId: validatedData.templateId,
         createdById: user.id,
-        status: 'DRAFT',
+        status: validatedData.status || 'DRAFT',
       },
       include: {
         company: {

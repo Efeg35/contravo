@@ -1,12 +1,34 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
-import { downloadContractPDF, ContractData } from '../../../lib/pdfGenerator';
-import BulkOperations from '../../../src/components/BulkOperations';
+import { useSession } from 'next-auth/react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Plus, 
+  FileText, 
+  TrendingUp, 
+  Users, 
+  Building2,
+  BarChart3,
+  Settings,
+  CheckCheck,
+  GitBranch,
+  Heart,
+  Tag,
+  Workflow,
+  Activity,
+  Zap,
+  Star,
+  MessageSquare,
+  Edit3,
+  UserPlus,
+  Brain,
+  Globe
+} from 'lucide-react';
+// import BulkOperations from '@/components/BulkOperations';
 
 interface Contract {
   id: string;
@@ -29,157 +51,141 @@ interface Contract {
   };
 }
 
+interface ContractStats {
+  totalContracts: number;
+  signedContracts: number;
+  inReviewContracts: number;
+  draftContracts: number;
+  totalValue: number;
+}
+
 export default function ContractsPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session } = useSession();
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [stats, setStats] = useState<ContractStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showBulkMode, setShowBulkMode] = useState(false);
+  const [selectedContractIds, setSelectedContractIds] = useState<string[]>([]);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 25,
+    limit: 10,
     total: 0,
     totalPages: 0,
     hasNext: false,
     hasPrev: false
   });
-  const [selectedContractIds, setSelectedContractIds] = useState<string[]>([]);
-  const [showBulkMode, setShowBulkMode] = useState(false);
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    }
-  }, [status, router]);
-
-  // Simple fetch function with useCallback
-  const fetchContractsData = useCallback(async (page = 1) => {
-      try {
-      setLoading(true);
-        const url = new URL('/api/contracts', window.location.origin);
-      
-      // API parameters
-      if (filter !== 'all') url.searchParams.set('status', filter);
-      if (typeFilter !== 'all') url.searchParams.set('type', typeFilter);
-      if (searchTerm.trim()) url.searchParams.set('search', searchTerm.trim());
-      if (sortBy) url.searchParams.set('sortBy', sortBy);
-      if (sortOrder) url.searchParams.set('sortOrder', sortOrder);
-      url.searchParams.set('page', page.toString());
-      url.searchParams.set('limit', '25');
-
-        const response = await fetch(url.toString());
-        if (response.ok) {
-          const data = await response.json();
-        setContracts(data.data || []);
-        setPagination(data.pagination || {
-          page: 1,
-          limit: 25,
-          total: 0,
-          totalPages: 0,
-          hasNext: false,
-          hasPrev: false
-        });
-        } else {
-          console.error('Failed to fetch contracts');
-          setContracts([]);
-        }
-      } catch (error) {
-        console.error('Error fetching contracts:');
-        setContracts([]);
-      } finally {
-        setLoading(false);
-      }
-  }, [filter, typeFilter, searchTerm, sortBy, sortOrder]);
-
-  // Simple effect for all changes
-  useEffect(() => {
-    if (!session) return;
-    fetchContractsData(1);
-  }, [session, fetchContractsData]);
-
-  // For pagination only
+  // Fetch contracts
   const fetchContracts = async (page = 1) => {
-    await fetchContractsData(page);
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/contracts?page=${page}&limit=${pagination.limit}&search=${searchTerm}&status=${filter}&type=${typeFilter}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setContracts(data.contracts || []);
+        setPagination(data.pagination || pagination);
+      }
+    } catch (error) {
+      console.error('Sözleşmeler yüklenemedi:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Fetch stats
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/contracts/stats');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('İstatistikler yüklenemedi:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchContracts();
+    fetchStats();
+  }, [searchTerm, filter, typeFilter]);
+
+  // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'SIGNED':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'IN_REVIEW':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'APPROVED':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'REJECTED':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       case 'DRAFT':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+      case 'IN_REVIEW':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-300';
+      case 'APPROVED':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-300';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-300';
+      case 'SIGNED':
+        return 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-300';
       case 'ARCHIVED':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-700 dark:text-purple-300';
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
 
+  // Get status text
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'SIGNED': return 'İmzalandı';
+      case 'DRAFT': return 'Taslak';
       case 'IN_REVIEW': return 'İncelemede';
       case 'APPROVED': return 'Onaylandı';
       case 'REJECTED': return 'Reddedildi';
-      case 'DRAFT': return 'Taslak';
+      case 'SIGNED': return 'İmzalandı';
       case 'ARCHIVED': return 'Arşivlendi';
       default: return status;
     }
   };
 
+  // Get type text
   const getTypeText = (type: string) => {
     switch (type) {
-      case 'general': return 'Genel Sözleşme';
-      case 'procurement': return 'Tedarik Sözleşmesi';
-      case 'service': return 'Hizmet Sözleşmesi';
-      case 'sales': return 'Satış Sözleşmesi';
-      case 'employment': return 'İş Sözleşmesi';
-      case 'partnership': return 'Ortaklık Sözleşmesi';
-      case 'nda': return 'Gizlilik Sözleşmesi (NDA)';
-      case 'rental': return 'Kira Sözleşmesi';
+      case 'NDA': return 'Gizlilik Sözleşmesi';
+      case 'SERVICE': return 'Hizmet Sözleşmesi';
+      case 'EMPLOYMENT': return 'İş Sözleşmesi';
+      case 'PARTNERSHIP': return 'Ortaklık Sözleşmesi';
+      case 'SALES': return 'Satış Sözleşmesi';
+      case 'LEASE': return 'Kira Sözleşmesi';
+      case 'OTHER': return 'Diğer';
       default: return type;
     }
   };
 
-  // Server-side filtering kullandığımız için filteredContracts artık sadece contracts
-  const filteredContracts = contracts;
-
+  // Handle PDF download
   const handleDownloadPDF = async (contract: Contract) => {
     try {
-      const contractData: ContractData = {
-        id: contract.id,
-        title: contract.title,
-        description: contract.description,
-        status: contract.status,
-        type: contract.type,
-        value: contract.value,
-        startDate: contract.startDate,
-        endDate: contract.endDate,
-        otherPartyName: contract.otherPartyName,
-        otherPartyEmail: contract.otherPartyEmail,
-        createdAt: contract.createdAt,
-        createdBy: contract.createdBy
-      };
-
-      await downloadContractPDF(contractData);
-      toast.success('PDF başarıyla indirildi!');
+      const response = await fetch(`/api/contracts/${contract.id}/pdf`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `${contract.title}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('PDF indirilemedi');
+      }
     } catch (error) {
-      console.error('PDF oluşturma hatası:');
-      toast.error('PDF oluşturulurken bir hata oluştu');
+      console.error('PDF indirme hatası:', error);
     }
   };
 
-  // Toplu işlemler
+  // Handle bulk actions
   const handleBulkAction = async (action: string, data?: Record<string, unknown>) => {
     try {
       const response = await fetch('/api/contracts/bulk', {
@@ -190,475 +196,409 @@ export default function ContractsPage() {
         body: JSON.stringify({
           action,
           contractIds: selectedContractIds,
-          data
-        }),
+          ...data
+        })
       });
 
-      if (action === 'EXPORT') {
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'export.csv';
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          toast.success('Dosya başarıyla indirildi!');
-        } else {
-          throw new Error('Export işlemi başarısız');
-        }
-      } else {
-        if (response.ok) {
-          const result = await response.json();
-          toast.success(result.message || 'İşlem başarılı');
-          fetchContracts(); // Listeyi yenile
-        } else {
-          const error = await response.json();
-          throw new Error(error.error || 'İşlem başarısız');
-        }
+      if (response.ok) {
+        fetchContracts(pagination.page);
+        setSelectedContractIds([]);
+        setShowBulkMode(false);
       }
     } catch (error) {
-      console.error('Toplu işlem hatası:');
-      toast.error(error instanceof Error ? error.message : 'Bir hata oluştu');
+      console.error('Toplu işlem hatası:', error);
     }
   };
 
-  if (status === 'loading' || loading) {
+  // Filter contracts
+  const filteredContracts = contracts.filter(contract => {
+    const matchesSearch = contract.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         contract.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         contract.otherPartyName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filter === 'all' || contract.status === filter;
+    const matchesType = typeFilter === 'all' || contract.type === typeFilter;
+    
+    return matchesSearch && matchesFilter && matchesType;
+  });
+
+  if (loading && contracts.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">Sözleşmeler yükleniyor...</p>
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
+          <p className="text-gray-500 mt-4">Sözleşmeler yükleniyor...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/dashboard"
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              >
-                ← Dashboard
-              </Link>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Sözleşmelerim</h1>
-            </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowBulkMode(!showBulkMode)}
-                className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium ${
-                  showBulkMode 
-                    ? 'border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20'
-                    : 'border-gray-300 text-gray-700 bg-white dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
-                } hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-              >
-                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                {showBulkMode ? 'Normal Görünüm' : 'Toplu İşlemler'}
-              </button>
-              <Link
-                href="/dashboard/contracts/new"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Yeni Sözleşme
-              </Link>
-            </div>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <FileText className="h-8 w-8 text-blue-600" />
+            Sözleşme Yönetimi
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Sözleşmelerinizi oluşturun, yönetin ve takip edin
+          </p>
         </div>
-      </header>
+        
+        <Button 
+          size="lg"
+          onClick={() => window.location.href = '/dashboard/contracts/new'}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Yeni Sözleşme Oluştur
+        </Button>
+      </div>
+
+      {/* Statistics Cards */}
+      {!loading && stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Toplam Sözleşme</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalContracts}</div>
+              <p className="text-xs text-muted-foreground">
+                Aktif sözleşme sayısı
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">İmzalanan</CardTitle>
+              <CheckCheck className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{stats.signedContracts}</div>
+              <p className="text-xs text-muted-foreground">
+                Tamamlanan sözleşmeler
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">İncelemede</CardTitle>
+              <Users className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{stats.inReviewContracts}</div>
+              <p className="text-xs text-muted-foreground">
+                Onay bekleyen sözleşmeler
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Toplam Değer</CardTitle>
+              <TrendingUp className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">
+                {stats.totalValue ? `₺${stats.totalValue.toLocaleString('tr-TR')}` : '₺0'}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sözleşme toplam değeri
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* Advanced Filters */}
-        <div className="px-4 py-6 sm:px-0">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Filtreler ve Arama</h3>
-            
-            {/* Search Bar */}
-            <div className="mb-6">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Sözleşme başlığı, açıklama veya diğer taraf ara..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    <svg className="h-5 w-5 text-gray-400 hover:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Filter Chips */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {/* Status Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Durum</label>
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="all">Tümü</option>
-                  <option value="DRAFT">Taslak</option>
-                  <option value="IN_REVIEW">İncelemede</option>
-                  <option value="APPROVED">Onaylandı</option>
-                  <option value="SIGNED">İmzalandı</option>
-                  <option value="REJECTED">Reddedildi</option>
-                  <option value="ARCHIVED">Arşivlendi</option>
-                </select>
-              </div>
-
-              {/* Type Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tür</label>
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="all">Tüm Türler</option>
-                  <option value="general">Genel Sözleşme</option>
-                  <option value="procurement">Tedarik Sözleşmesi</option>
-                  <option value="service">Hizmet Sözleşmesi</option>
-                  <option value="sales">Satış Sözleşmesi</option>
-                  <option value="employment">İş Sözleşmesi</option>
-                  <option value="partnership">Ortaklık Sözleşmesi</option>
-                  <option value="nda">Gizlilik Sözleşmesi (NDA)</option>
-                  <option value="rental">Kira Sözleşmesi</option>
-                </select>
-              </div>
-
-              {/* Sort Options */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sıralama</label>
-                <div className="flex space-x-2">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="createdAt">Oluşturulma Tarihi</option>
-                    <option value="title">Başlık</option>
-                    <option value="status">Durum</option>
-                    <option value="type">Tür</option>
-                    <option value="value">Değer</option>
-                  </select>
-                  <button
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <svg className={`h-5 w-5 transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Active Filters Display */}
-            {(searchTerm || filter !== 'all' || typeFilter !== 'all') && (
-            <div className="flex flex-wrap gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Aktif filtreler:</span>
-                {searchTerm && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                    Arama: &quot;{searchTerm}&quot;
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      className="ml-1 h-3 w-3 text-blue-600 hover:text-blue-800"
-                    >
-                      <svg fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </span>
-                )}
-                {filter !== 'all' && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                    Durum: {getStatusText(filter)}
-                    <button
-                      onClick={() => setFilter('all')}
-                      className="ml-1 h-3 w-3 text-green-600 hover:text-green-800"
-                    >
-                      <svg fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </span>
-                )}
-                {typeFilter !== 'all' && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                    Tür: {getTypeText(typeFilter)}
-                    <button
-                      onClick={() => setTypeFilter('all')}
-                      className="ml-1 h-3 w-3 text-purple-600 hover:text-purple-800"
-                    >
-                      <svg fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </span>
-                )}
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setFilter('all');
-                    setTypeFilter('all');
-                  }}
-                  className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  Tümünü temizle
-                </button>
-              </div>
-            )}
-          </div>
-            </div>
-
-        {/* Results Counter */}
-        <div className="px-4 sm:px-0">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              <span className="font-medium">{pagination.total}</span> sözleşme bulundu
-              {pagination.totalPages > 1 && (
-                <span className="text-gray-500"> • Sayfa {pagination.page}/{pagination.totalPages}</span>
-              )}
-            </p>
-          </div>
-        </div>
-
-        {/* Bulk Operations */}
-        {showBulkMode && (
-          <div className="px-4 py-6 sm:px-0">
-            <BulkOperations
-              contracts={filteredContracts}
-              selectedIds={selectedContractIds}
-              onSelectionChange={setSelectedContractIds}
-              onBulkAction={handleBulkAction}
-            />
-          </div>
-        )}
-
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Contracts List */}
-        <div className="px-4 py-6 sm:px-0">
-          {filteredContracts.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-              <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Sözleşme bulunamadı</h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {filter === 'all' ? 'Henüz hiç sözleşme oluşturmamışsınız.' : 'Bu filtreye uygun sözleşme bulunamadı.'}
-              </p>
-              <div className="mt-6">
-                <Link
-                  href="/dashboard/contracts/new"
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  İlk sözleşmenizi oluşturun
-                </Link>
+        <div className="lg:col-span-2">
+          <Card className="h-[700px]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Sözleşme Listesi
+              </CardTitle>
+              <CardDescription>
+                Mevcut sözleşmelerinizi görüntüleyin ve yönetin
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[600px] overflow-auto">
+              {/* Search and Filters */}
+              <div className="space-y-4 mb-6">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="Sözleşme ara..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">Tüm Durumlar</option>
+                      <option value="DRAFT">Taslak</option>
+                      <option value="IN_REVIEW">İncelemede</option>
+                      <option value="APPROVED">Onaylandı</option>
+                      <option value="SIGNED">İmzalandı</option>
+                      <option value="ARCHIVED">Arşivlendi</option>
+                    </select>
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">Tüm Türler</option>
+                      <option value="NDA">Gizlilik</option>
+                      <option value="SERVICE">Hizmet</option>
+                      <option value="EMPLOYMENT">İş</option>
+                      <option value="PARTNERSHIP">Ortaklık</option>
+                      <option value="SALES">Satış</option>
+                      <option value="LEASE">Kira</option>
+                      <option value="OTHER">Diğer</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
-              <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredContracts.map((contract) => (
-                  <li key={contract.id}>
-                    <div className="px-4 py-4 sm:px-6 hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <div className="flex items-center justify-between">
-                        <Link href={`/dashboard/contracts/${contract.id}`} className="flex items-center flex-1 min-w-0">
+
+              {/* Contracts List */}
+              {filteredContracts.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium mb-2">Sözleşme bulunamadı</h3>
+                  <p className="text-gray-500">
+                    {filter === 'all' ? 'Henüz hiç sözleşme oluşturmamışsınız.' : 'Bu filtreye uygun sözleşme bulunamadı.'}
+                  </p>
+                  <Link
+                    href="/dashboard/contracts/new"
+                    className="inline-flex items-center px-4 py-2 mt-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    İlk sözleşmenizi oluşturun
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredContracts.map((contract) => (
+                    <div key={contract.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <Link href={`/dashboard/contracts/${contract.id}`} className="flex-1 min-w-0">
+                          <div className="flex items-start gap-3">
                             <div className="flex-shrink-0">
-                              <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
-                                <svg className="h-5 w-5 text-indigo-600 dark:text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
+                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <FileText className="h-5 w-5 text-blue-600" />
                               </div>
                             </div>
-                          <div className="ml-4 min-w-0 flex-1">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">
                                 {contract.title}
                               </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                              <div className="text-sm text-gray-500 truncate">
                                 {contract.description}
                               </div>
-                              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                              {getTypeText(contract.type)} • {contract.otherPartyName || 'Diğer Taraf Belirtilmemiş'} • {contract.createdBy.name || contract.createdBy.email} • {new Date(contract.createdAt).toLocaleDateString('tr-TR')}
+                              <div className="text-xs text-gray-400 mt-1">
+                                {getTypeText(contract.type)} • {contract.otherPartyName || 'Diğer Taraf Belirtilmemiş'} • {new Date(contract.createdAt).toLocaleDateString('tr-TR')}
+                              </div>
                             </div>
                           </div>
                         </Link>
-                        <div className="flex items-center space-x-2 ml-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
-                              {getStatusText(contract.status)}
-                            </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownloadPDF(contract);
-                            }}
-                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                            title="PDF İndir"
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </button>
-                            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Badge className={getStatusColor(contract.status)}>
+                            {getStatusText(contract.status)}
+                          </Badge>
                         </div>
                       </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="px-4 py-6 sm:px-0">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => fetchContracts(pagination.page - 1)}
-                  disabled={!pagination.hasPrev}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Hızlı İşlemler</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/dashboard/contracts/new'}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Yeni Sözleşme Oluştur
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/dashboard/contracts/collaboration'}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Gerçek Zamanlı İşbirliği
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/dashboard/contracts/workflows'}
+              >
+                <Workflow className="h-4 w-4 mr-2" />
+                İş Akışı Tasarımı
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/dashboard/contracts/approvals'}
+              >
+                <CheckCheck className="h-4 w-4 mr-2" />
+                Onay İş Akışı
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/dashboard/contracts/tracking'}
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                İş Akışı Takibi
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/dashboard/contracts/automation'}
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Otomasyon Kuralları
+              </Button>
+              
+              <div className="border-t pt-3 mt-3">
+                <p className="text-sm font-medium text-gray-700 mb-2">Advanced Contract Authoring</p>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start mb-2"
+                  onClick={() => window.location.href = '/dashboard/contracts/editor'}
                 >
-                  Önceki
-                </button>
-                <button
-                  onClick={() => fetchContracts(pagination.page + 1)}
-                  disabled={!pagination.hasNext}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  Collaborative Editor
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start mb-2"
+                  onClick={() => window.location.href = '/dashboard/contracts/smart-clauses'}
                 >
-                  Sonraki
-                </button>
+                  <Brain className="h-4 w-4 mr-2" />
+                  Smart Clauses
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start mb-2"
+                  onClick={() => window.location.href = '/dashboard/contracts/conditional-logic'}
+                >
+                  <GitBranch className="h-4 w-4 mr-2" />
+                  Conditional Logic
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => window.location.href = '/dashboard/contracts/language-support'}
+                >
+                  <Globe className="h-4 w-4 mr-2" />
+                  Language Support
+                </Button>
               </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Toplam <span className="font-medium">{pagination.total}</span> sözleşmeden{' '}
-                    <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> -{' '}
-                    <span className="font-medium">
-                      {Math.min(pagination.page * pagination.limit, pagination.total)}
-                    </span> arası gösteriliyor
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    <button
-                      onClick={() => fetchContracts(pagination.page - 1)}
-                      disabled={!pagination.hasPrev}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    
-                    {/* Page numbers */}
-                    {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (pagination.totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (pagination.page <= 3) {
-                        pageNum = i + 1;
-                      } else if (pagination.page >= pagination.totalPages - 2) {
-                        pageNum = pagination.totalPages - 4 + i;
-                      } else {
-                        pageNum = pagination.page - 2 + i;
-                      }
-                      
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => fetchContracts(pageNum)}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            pageNum === pagination.page
-                              ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
-                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                    
-                    <button
-                      onClick={() => fetchContracts(pagination.page + 1)}
-                      disabled={!pagination.hasNext}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+            </CardContent>
+          </Card>
 
-        {/* Stats */}
-        <div className="px-4 py-6 sm:px-0">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">İstatistikler</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{contracts.length}</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Toplam</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {contracts.filter(c => c.status === 'SIGNED').length}
+          {/* Popular Contract Types */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Popüler Sözleşme Türleri</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Badge variant="secondary">Gizlilik</Badge>
+                  <span className="text-sm text-gray-500">8 sözleşme</span>
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">İmzalanan</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                  {contracts.filter(c => c.status === 'IN_REVIEW').length}
+                <div className="flex items-center justify-between">
+                  <Badge variant="secondary">Hizmet</Badge>
+                  <span className="text-sm text-gray-500">6 sözleşme</span>
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">İncelemede</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">
-                  {contracts.filter(c => c.status === 'DRAFT').length}
+                <div className="flex items-center justify-between">
+                  <Badge variant="secondary">İş</Badge>
+                  <span className="text-sm text-gray-500">4 sözleşme</span>
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Taslak</div>
+                <div className="flex items-center justify-between">
+                  <Badge variant="secondary">Ortaklık</Badge>
+                  <span className="text-sm text-gray-500">3 sözleşme</span>
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Son Aktiviteler</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-600">Gizlilik sözleşmesi imzalandı</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-gray-600">Hizmet sözleşmesi oluşturuldu</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                  <span className="text-gray-600">İş sözleşmesi incelemede</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Help & Tips */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Star className="h-4 w-4 text-yellow-500" />
+                İpuçları
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-gray-600 space-y-2">
+              <p>• Sözleşmeleri türlerine göre kategorilere ayırın</p>
+              <p>• İş akışları ile onay süreçlerini otomatikleştirin</p>
+              <p>• Gerçek zamanlı işbirliği ile ekibinizle çalışın</p>
+              <p>• Şablonlar kullanarak hızlı sözleşme oluşturun</p>
+            </CardContent>
+          </Card>
         </div>
-      </main>
+      </div>
     </div>
   );
 } 

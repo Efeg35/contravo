@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,10 @@ interface WorkflowTemplate {
 
 const WorkflowDesignerPage = () => {
   const router = useRouter();
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [draggedNode, setDraggedNode] = useState<WorkflowNode | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   
   // State
   const [workflows, setWorkflows] = useState<WorkflowTemplate[]>([]);
@@ -113,6 +117,73 @@ const WorkflowDesignerPage = () => {
     { id: '3', name: 'Mehmet Kaya', role: 'İK Uzmanı' },
     { id: '4', name: 'Fatma Özkan', role: 'Mali İşler' }
   ];
+
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, nodeType: string) => {
+    e.dataTransfer.setData('nodeType', nodeType);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleNodeDragStart = (e: React.DragEvent, node: WorkflowNode) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+    setDraggedNode(node);
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleCanvasDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const nodeType = e.dataTransfer.getData('nodeType');
+    
+    if (nodeType && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const newNode: WorkflowNode = {
+        id: `node_${Date.now()}`,
+        type: nodeType as any,
+        title: nodeTemplates.find(t => t.type === nodeType)?.title || 'Yeni Node',
+        position: { x: x - 64, y: y - 40 }, // Center the node
+        config: {},
+        connections: []
+      };
+      
+      setNodes(prev => [...prev, newNode]);
+    }
+    
+    // Handle existing node movement
+    if (draggedNode && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left - dragOffset.x;
+      const y = e.clientY - rect.top - dragOffset.y;
+      
+      setNodes(prev => prev.map(node => 
+        node.id === draggedNode.id 
+          ? { ...node, position: { x: Math.max(0, x), y: Math.max(0, y) } }
+          : node
+      ));
+    }
+    
+    setDraggedNode(null);
+    setIsDragging(false);
+  };
+
+  const handleCanvasDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleNodeDelete = (nodeId: string) => {
+    setNodes(prev => prev.filter(node => node.id !== nodeId));
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null);
+    }
+  };
 
   // Fetch workflows
   const fetchWorkflows = async () => {
@@ -360,7 +431,9 @@ const WorkflowDesignerPage = () => {
                 return (
                   <div
                     key={template.type}
-                    className={`p-3 rounded-lg border-2 border-dashed cursor-pointer hover:border-solid transition-all ${template.color}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, template.type)}
+                    className={`p-3 rounded-lg border-2 border-dashed cursor-grab hover:cursor-grabbing hover:border-solid transition-all ${template.color} active:scale-95`}
                   >
                     <div className="flex items-center gap-2">
                       <Icon className="h-4 w-4" />
@@ -371,10 +444,25 @@ const WorkflowDesignerPage = () => {
                 );
               })}
             </div>
+            
+            {/* Instructions */}
+            <div className="mt-6 p-3 bg-blue-50 rounded-lg">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">Nasıl Kullanılır?</h4>
+              <ul className="text-xs text-blue-700 space-y-1">
+                <li>• Bileşenleri sürükleyip canvas'a bırakın</li>
+                <li>• Node'ları hareket ettirmek için sürükleyin</li>
+                <li>• Özellikleri düzenlemek için tıklayın</li>
+              </ul>
+            </div>
           </div>
 
           {/* Canvas */}
-          <div className="flex-1 relative overflow-auto">
+          <div 
+            ref={canvasRef}
+            className="flex-1 relative overflow-auto min-h-[600px]"
+            onDrop={handleCanvasDrop}
+            onDragOver={handleCanvasDragOver}
+          >
             {/* Grid Background */}
             <div 
               className="absolute inset-0 opacity-20"
@@ -387,24 +475,49 @@ const WorkflowDesignerPage = () => {
               }}
             />
 
+            {/* Drop Zone Indicator */}
+            {nodes.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-gray-400">
+                  <Workflow className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Workflow Canvas</p>
+                  <p className="text-sm">Sol panelden bileşenleri sürükleyip buraya bırakın</p>
+                </div>
+              </div>
+            )}
+
             {/* Nodes */}
             {nodes.map((node) => {
               const Icon = getNodeIcon(node.type);
               return (
                 <div
                   key={node.id}
-                  className={`absolute w-32 h-20 rounded-lg border-2 cursor-pointer transition-all hover:shadow-lg ${getNodeColor(node.type)} ${
+                  draggable
+                  onDragStart={(e) => handleNodeDragStart(e, node)}
+                  className={`absolute w-32 h-20 rounded-lg border-2 cursor-grab hover:cursor-grabbing transition-all hover:shadow-lg group ${getNodeColor(node.type)} ${
                     selectedNode?.id === node.id ? 'ring-2 ring-blue-500' : ''
-                  }`}
+                  } ${isDragging && draggedNode?.id === node.id ? 'opacity-50' : ''}`}
                   style={{
                     left: node.position.x,
-                    top: node.position.y
+                    top: node.position.y,
+                    zIndex: selectedNode?.id === node.id ? 10 : 1
                   }}
                   onClick={() => setSelectedNode(node)}
                 >
-                  <div className="p-2 h-full flex flex-col items-center justify-center text-center">
+                  <div className="p-2 h-full flex flex-col items-center justify-center text-center relative">
                     <Icon className="h-5 w-5 mb-1" />
                     <span className="text-xs font-medium">{node.title}</span>
+                    
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNodeDelete(node.id);
+                      }}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs hover:bg-red-600"
+                    >
+                      ×
+                    </button>
                   </div>
                 </div>
               );
