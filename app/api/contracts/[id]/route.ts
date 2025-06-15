@@ -30,7 +30,23 @@ export async function GET(
     const contract = await prisma.contract.findFirst({
       where: {
         id: id,
-        createdById: user.id
+        OR: [
+          { createdById: user.id },
+          {
+            company: {
+              OR: [
+                { createdById: user.id },
+                {
+                  users: {
+                    some: {
+                      userId: user.id
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
       },
       include: {
         createdBy: {
@@ -94,7 +110,23 @@ export async function PUT(
     const existingContract = await prisma.contract.findFirst({
       where: {
         id: id,
-        createdById: user.id
+        OR: [
+          { createdById: user.id },
+          {
+            company: {
+              OR: [
+                { createdById: user.id },
+                {
+                  users: {
+                    some: {
+                      userId: user.id
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
       }
     })
 
@@ -162,7 +194,23 @@ export async function DELETE(
     const existingContract = await prisma.contract.findFirst({
       where: {
         id: id,
-        createdById: user.id
+        OR: [
+          { createdById: user.id },
+          {
+            company: {
+              OR: [
+                { createdById: user.id },
+                {
+                  users: {
+                    some: {
+                      userId: user.id
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
       }
     })
 
