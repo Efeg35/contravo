@@ -65,6 +65,10 @@ export default withAuth(
       const requestHeaders = new Headers(req.headers)
       requestHeaders.set('x-user-id', token.id as string)
       requestHeaders.set('x-user-role', token.role as string)
+      if (token.companyId) {
+        requestHeaders.set('x-company-id', token.companyId as string)
+      }
+      requestHeaders.set('x-is-admin', (token.role === 'ADMIN').toString())
 
       const response = NextResponse.next({
         request: {

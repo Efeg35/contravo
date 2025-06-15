@@ -26,6 +26,31 @@ export const authOptions: NextAuthOptions = {
           },
           include: {
             accounts: true,
+            createdCompanies: {
+              select: {
+                id: true,
+                name: true,
+              },
+              take: 1,
+              orderBy: {
+                createdAt: 'desc'
+              }
+            },
+            companyUsers: {
+              select: {
+                companyId: true,
+                company: {
+                  select: {
+                    id: true,
+                    name: true,
+                  }
+                }
+              },
+              take: 1,
+              orderBy: {
+                createdAt: 'desc'
+              }
+            }
           }
         });
 
@@ -63,11 +88,21 @@ export const authOptions: NextAuthOptions = {
           }
         });
 
+        // Determine default company (prioritize owned companies)
+        let defaultCompanyId: string | undefined;
+        
+        if (user.createdCompanies.length > 0) {
+          defaultCompanyId = user.createdCompanies[0].id;
+        } else if (user.companyUsers.length > 0) {
+          defaultCompanyId = user.companyUsers[0].companyId;
+        }
+
         return {
           id: user.id,
           name: user.name,
           email: user.email,
           role: user.role,
+          companyId: defaultCompanyId,
         };
       },
     }),
@@ -86,6 +121,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.companyId = (user as any).companyId;
         token.iat = Math.floor(Date.now() / 1000);
         token.exp = Math.floor(Date.now() / 1000) + (24 * 60 * 60); // 1 day
       }
@@ -119,6 +155,7 @@ export const authOptions: NextAuthOptions = {
             token.name = freshUser.name;
             token.email = freshUser.email;
             token.role = freshUser.role;
+            // Keep existing companyId - don't change mid-session
             token.iat = now;
             token.exp = now + (24 * 60 * 60);
           }
@@ -134,6 +171,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.companyId = token.companyId as string;
         
         // Add token metadata to session
         session.tokenIssuedAt = token.iat as number;

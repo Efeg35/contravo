@@ -10,6 +10,19 @@ export interface TenantContext {
   companyRole?: string;
 }
 
+// Global context storage for middleware access
+let globalTenantContext: TenantContext | null = null;
+
+// Set the current tenant context globally
+export function setGlobalTenantContext(context: TenantContext | null) {
+  globalTenantContext = context;
+}
+
+// Get the current tenant context safely (for middleware use)
+export function getGlobalTenantContext(): TenantContext | null {
+  return globalTenantContext;
+}
+
 // Get tenant context from session
 export async function getTenantContext(): Promise<TenantContext | null> {
   const session = await getServerSession(authOptions);

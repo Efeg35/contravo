@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { applyMultiTenantMiddleware } from './prisma-middleware';
 
 // Multi-tenant context interface
 interface TenantContext {
@@ -36,8 +37,8 @@ const USER_FILTERED_MODELS = [
 const prismaClientSingleton = () => {
   const client = new PrismaClient();
   
-  // Multi-tenant middleware will be added later to avoid circular dependencies
-  // For now, basic client without middleware
+  // Apply multi-tenant middleware for data isolation
+  applyMultiTenantMiddleware(client);
 
   return client;
 };
