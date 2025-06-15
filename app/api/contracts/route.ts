@@ -14,6 +14,18 @@ const createContractSchema = z.object({
   value: z.union([z.number().positive(), z.string().transform(val => val === '' ? undefined : parseFloat(val))]).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  // 📅 ANAHTAR TARİH TAKİBİ - Yeni Doğrulama Alanları
+  expirationDate: z.string().optional().refine(
+    (val) => !val || !isNaN(Date.parse(val)), 
+    { message: 'Geçerli bir bitiş tarihi giriniz' }
+  ),
+  noticePeriodDays: z.union([
+    z.number().int().min(0).max(365),
+    z.string().transform(val => val === '' ? undefined : parseInt(val, 10))
+  ]).optional().refine(
+    (val) => val === undefined || (Number.isInteger(val) && val >= 0 && val <= 365),
+    { message: 'İhbar süresi 0-365 gün arasında olmalıdır' }
+  ),
   otherPartyName: z.string().optional(),
   otherPartyEmail: z.string().email().optional().or(z.literal('')),
   companyId: z.string().optional(),
@@ -329,7 +341,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create the contract with department tracking
+    // Create the contract with department tracking and key date tracking
     const contract = await prisma.contract.create({
       data: {
         title: validatedData.title,
@@ -338,6 +350,9 @@ export async function POST(request: NextRequest) {
         value: validatedData.value,
         startDate: validatedData.startDate ? new Date(validatedData.startDate) : undefined,
         endDate: validatedData.endDate ? new Date(validatedData.endDate) : undefined,
+        // 📅 ANAHTAR TARİH TAKİBİ - Kritik Tarih Verilerini Kaydet
+        expirationDate: validatedData.expirationDate ? new Date(validatedData.expirationDate) : undefined,
+        noticePeriodDays: validatedData.noticePeriodDays,
         otherPartyName: validatedData.otherPartyName || undefined,
         otherPartyEmail: validatedData.otherPartyEmail || undefined,
         companyId: validatedData.companyId,
