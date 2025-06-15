@@ -29,9 +29,11 @@ export default function NewContractPage() {
     value: '',
     startDate: '',
     endDate: '',
-  renewalDate: '',
-  reminderDays: [90, 60, 30, 7],
-  autoRenewal: false,
+    expirationDate: '',     // 📅 SONA ERİŞ TARİHİ - Anahtar Tarih Takibi
+    noticePeriodDays: '',   // 📢 FESİH İHBAR SÜRESİ - Kritik Tarih Hesaplaması
+    renewalDate: '',
+    reminderDays: [90, 60, 30, 7],
+    autoRenewal: false,
     otherPartyName: '',
     otherPartyEmail: '',
     content: ''
@@ -328,6 +330,41 @@ export default function NewContractPage() {
                         value={formData.endDate}
                         onChange={handleChange}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* 📅 SONA ERİŞ TARİHİ - Anahtar Tarih Takibi */}
+                    <div>
+                      <label htmlFor="expirationDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        📅 Bitiş Tarihi
+                        <span className="text-gray-500 text-xs block">Sözleşmenin sona ereceği kritik tarih</span>
+                      </label>
+                      <input
+                        type="date"
+                        id="expirationDate"
+                        name="expirationDate"
+                        value={formData.expirationDate}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* 📢 FESİH İHBAR SÜRESİ - Kritik Tarih Hesaplaması */}
+                    <div>
+                      <label htmlFor="noticePeriodDays" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        📢 İhbar Süresi (gün)
+                        <span className="text-gray-500 text-xs block">Fesih için gerekli önceden bildirim süresi</span>
+                      </label>
+                      <input
+                        type="number"
+                        id="noticePeriodDays"
+                        name="noticePeriodDays"
+                        value={formData.noticePeriodDays}
+                        onChange={handleChange}
+                        min="0"
+                        max="365"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Örn: 30"
                       />
                     </div>
 

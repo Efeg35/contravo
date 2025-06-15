@@ -282,6 +282,8 @@ model Contract {
   value           Float?
   startDate       DateTime?
   endDate         DateTime?
+  expirationDate  DateTime?   // 📅 SONA ERİŞ TARİHİ - Anahtar Tarih Takibi İçin
+  noticePeriodDays Int?        // 📢 FESİH İHBAR SÜRESİ (gün) - Kritik Tarih Hesaplaması İçin
   renewalDate     DateTime?   // 🚀 YENILEME TARİHİ - Kritik Proaktif Takip İçin
   reminderDays    Json?       @default("[90, 60, 30, 7]")  // 🔔 ÇOKLİ HATIRLATMA GÜNLERİ
   autoRenewal     Boolean     @default(false)  // 🔄 OTOMATİK YENİLEME KONTROLÜ
@@ -317,6 +319,7 @@ model Contract {
   @@index([updatedAt])
   @@index([startDate])
   @@index([endDate])
+  @@index([expirationDate])  // 📅 SONA ERİŞ TARİHİ İNDEXİ - Anahtar Tarih Takibi İçin
   @@index([renewalDate])     // 🚀 YENİLEME TARİHİ İNDEXİ
   @@index([renewalStatus])   // 🎯 YENİLEME DURUMU İNDEXİ
   @@index([autoRenewal])     // 🔄 OTOMATİK YENİLEME İNDEXİ
@@ -324,6 +327,7 @@ model Contract {
   @@index([type, status]) // Composite index for filtering
   @@index([createdById, status]) // Composite index for user's contracts
   @@index([endDate, renewalStatus]) // 🔔 HATIRLATMA SORGUSU İÇİN
+  @@index([expirationDate, status]) // 📅 ANAHTAR TARİH TAKİBİ İÇİN
   @@index([renewalDate, renewalStatus]) // 🚀 YENİLEME SORGUSU İÇİN
   @@index([title]) // Full-text search support
   @@index([otherPartyName]) // Search by other party

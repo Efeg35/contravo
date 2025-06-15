@@ -23,6 +23,8 @@ interface ContractDetail {
   value?: number;
   startDate?: string;
   endDate?: string;
+  expirationDate?: string;    // 📅 SONA ERİŞ TARİHİ - Anahtar Tarih Takibi
+  noticePeriodDays?: number;  // 📢 FESİH İHBAR SÜRESİ - Kritik Tarih Hesaplaması
   otherPartyName?: string;
   otherPartyEmail?: string;
   createdAt: string;
@@ -486,6 +488,28 @@ export default function ContractDetailPage({ params }: PageProps) {
                           {contract.endDate ? new Date(contract.endDate).toLocaleDateString('tr-TR') : 'Belirtilmemiş'}
                         </p>
                       )}
+                    </div>
+
+                    {/* 📅 SONA ERİŞ TARİHİ - Anahtar Tarih Takibi */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        📅 Bitiş Tarihi
+                        <span className="text-xs text-gray-500 block">Sözleşmenin sona ereceği kritik tarih</span>
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                        {contract.expirationDate ? new Date(contract.expirationDate).toLocaleDateString('tr-TR') : 'Henüz belirlenmemiş'}
+                      </p>
+                    </div>
+
+                    {/* 📢 FESİH İHBAR SÜRESİ - Kritik Tarih Hesaplaması */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        📢 İhbar Süresi
+                        <span className="text-xs text-gray-500 block">Fesih için gerekli önceden bildirim süresi</span>
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                        {contract.noticePeriodDays ? `${contract.noticePeriodDays} gün` : 'Henüz belirlenmemiş'}
+                      </p>
                     </div>
 
                     <div>
