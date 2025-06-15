@@ -20,6 +20,8 @@ const createContractSchema = z.object({
   status: z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'SIGNED', 'ARCHIVED']).optional(),
 })
 
+type ContractStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SIGNED' | 'ARCHIVED'
+
 // const contractQuerySchema = z.object({
 //   page: z.string().optional(),
 //   limit: z.string().optional(),
@@ -78,11 +80,11 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (query.status && query.status !== 'all') {
-      whereClause.status = query.status as any
+      whereClause.status = query.status as ContractStatus
     }
 
     if (query.type && query.type !== 'all') {
-      whereClause.type = query.type as any
+      whereClause.type = query.type
     }
 
     if (query.companyId) {
