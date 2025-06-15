@@ -92,7 +92,16 @@ export class BackupManager {
       digitalSignatures,
       signaturePackages
     ] = await Promise.all([
-      this.prisma.user.findMany(),
+      this.prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+        }
+      }),
       this.prisma.company.findMany(),
       this.prisma.companySettings.findMany(),
       this.prisma.companyUser.findMany(),

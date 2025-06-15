@@ -52,7 +52,6 @@ export async function GET(
         createdBy: {
           select: {
             name: true,
-            email: true
           }
         }
       }
@@ -154,7 +153,6 @@ export async function PUT(
         createdBy: {
           select: {
             name: true,
-            email: true
           }
         }
       }
