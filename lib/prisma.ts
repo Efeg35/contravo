@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { applyMultiTenantMiddleware } from './prisma-middleware';
+import { applyMultiTenantMiddleware } from './prisma-middleware-safe';
 
 // Multi-tenant context interface
 interface TenantContext {
