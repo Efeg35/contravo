@@ -324,7 +324,7 @@ model ContractAttachment {
   contractId   String
   fileName     String
   originalName String
-  url          String
+  url          String   // File URL for access
   fileSize     Int
   mimeType     String
   uploadedBy   User     @relation("UploadedAttachments", fields: [uploadedById], references: [id])

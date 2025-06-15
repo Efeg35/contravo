@@ -28,6 +28,17 @@ const nextConfig = {
   experimental: {
     // Enable experimental features if needed
   },
+  webpack: (config, { isServer }) => {
+    // PDF.js worker file konfigürasyonu
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        canvas: false,
+      };
+    }
+    
+    return config;
+  },
 }
 
 export default nextConfig; 
