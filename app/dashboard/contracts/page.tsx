@@ -113,7 +113,7 @@ export default function ContractsPage() {
   useEffect(() => {
     fetchContracts();
     fetchStats();
-  }, [searchTerm, filter, typeFilter]);
+  }, [searchTerm, filter, typeFilter, fetchContracts]);
 
   // Get status color
   const getStatusColor = (status: string) => {

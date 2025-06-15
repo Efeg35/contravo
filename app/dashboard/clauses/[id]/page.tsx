@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,7 +55,7 @@ const ClauseDetailPage = () => {
   const [loading, setLoading] = useState(true);
 
   // Fetch clause details
-  const fetchClauseDetails = async () => {
+  const fetchClauseDetails = useCallback(async () => {
     setLoading(true);
     try {
       // Mock data for now
@@ -145,13 +145,13 @@ Bu madde, Türk Hukuku'na tabi olup, İstanbul Mahkemeleri yetkilidir.`,
     } finally {
       setLoading(false);
     }
-  };
+  }, [clauseId]);
 
   useEffect(() => {
     if (clauseId) {
       fetchClauseDetails();
     }
-  }, [clauseId]);
+  }, [clauseId, fetchClauseDetails]);
 
   // Get status color
   const getStatusColor = (status: string) => {

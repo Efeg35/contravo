@@ -150,7 +150,7 @@ const ClauseLibrary: React.FC<ClauseLibraryProps> = ({
 
   useEffect(() => {
     fetchClauses();
-  }, [companyId, selectedCategory, selectedVisibility, searchTerm, sortBy, sortOrder]);
+  }, [companyId, selectedCategory, selectedVisibility, searchTerm, sortBy, sortOrder, fetchClauses]);
 
   // Handle clause expansion
   const toggleClauseExpansion = (clauseId: string) => {

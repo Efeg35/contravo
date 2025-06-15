@@ -137,7 +137,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
     if (showClauseLibrary && clauses.length === 0) {
       fetchClauses();
     }
-  }, [showClauseLibrary]);
+  }, [showClauseLibrary, clauses.length, fetchClauses]);
 
   // Handle clause selection
   const handleClauseSelect = (clause: Clause) => {

@@ -70,7 +70,7 @@ export default function ContractApproval({
     }
   };
 
-  const fetchApprovalsCallback = useCallback(fetchApprovals, [contractId]);
+  const fetchApprovalsCallback = useCallback(fetchApprovals, [contractId, fetchApprovals]);
 
   useEffect(() => {
     fetchApprovalsCallback();

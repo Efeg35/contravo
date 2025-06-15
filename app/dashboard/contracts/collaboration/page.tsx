@@ -203,7 +203,7 @@ const CollaborationPage = () => {
       setSessions(mockSessions);
       setLoading(false);
     }, 1000);
-  }, []);
+  }, [mockSessions]);
 
   // Handle session selection
   const handleSessionSelect = (session: CollaborativeSession) => {
