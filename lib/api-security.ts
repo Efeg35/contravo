@@ -242,7 +242,7 @@ export class APISecurityManager {
         warnings: warnings.length > 0 ? warnings : undefined
       };
 
-    } catch (error) {
+    } catch (_error) {
       console.error('❌ API security validation error:');
       return { allowed: true, warnings: ['Security validation failed'] };
     }
@@ -362,7 +362,7 @@ export class APISecurityManager {
 
       return { allowed: true };
 
-    } catch (error) {
+    } catch (_error) {
       console.error('❌ Geolocation validation error:');
       return { allowed: true }; // Fail open
     }
@@ -384,8 +384,8 @@ export class APISecurityManager {
     // Extract version based on strategy
     switch (this.config.versioning.strategy) {
       case 'header':
-        version = (request as any).headers.get('X-API-Version') || 
-                 (request as any).headers.get('API-Version') || 
+        version = request.headers.get('X-API-Version') || 
+                 request.headers.get('API-Version') || 
                  this.config.versioning.defaultVersion;
         break;
       case 'path':
@@ -439,9 +439,9 @@ export class APISecurityManager {
     reason?: string;
   }> {
     try {
-      const signature = (request as any).headers.get('X-Signature');
-      const timestamp = (request as any).headers.get('X-Timestamp');
-      const nonce = (request as any).headers.get('X-Nonce');
+      const signature = request.headers.get('X-Signature');
+      const timestamp = request.headers.get('X-Timestamp');
+      const nonce = request.headers.get('X-Nonce');
 
       if (!signature || !timestamp) {
         return { allowed: false, reason: 'Missing required signature headers' };
@@ -490,7 +490,7 @@ export class APISecurityManager {
 
       // Include specified headers
       for (const headerName of this.config.requestSigning.includeHeaders) {
-        const headerValue = (request as any).headers.get(headerName);
+        const headerValue = request.headers.get(headerName);
         if (headerValue) {
           payload += `\n${headerName.toLowerCase()}:${headerValue}`;
         }
@@ -506,7 +506,7 @@ export class APISecurityManager {
 
       return { allowed: true };
 
-    } catch (error) {
+    } catch (_error) {
       console.error('❌ Signature validation error:');
       return { allowed: false, reason: 'Signature validation failed' };
     }
@@ -520,7 +520,7 @@ export class APISecurityManager {
     try {
       this.getClientIP(request);
       const endpoint = request.nextUrl.pathname;
-      const userId = (request as any).headers.get('X-User-ID');
+      const userId = request.headers.get('X-User-ID');
 
       // Check global rate limit
       const globalKey = `${this.REDIS_KEY_PREFIX}throttle:global`;
@@ -575,7 +575,7 @@ export class APISecurityManager {
 
       return { allowed: true };
 
-    } catch (error) {
+    } catch (_error) {
       console.error('❌ Throttling validation error:');
       return { allowed: true }; // Fail open
     }
@@ -686,9 +686,9 @@ export class APISecurityManager {
 
   // Private helper methods
   private getClientIP(request: NextRequest): string {
-    return (request as any).headers.get('x-forwarded-for')?.split(',')[0] ||
-           (request as any).headers.get('x-real-ip') ||
-           (request as any).headers.get('cf-connecting-ip') ||
+    return request.headers.get('x-forwarded-for')?.split(',')[0] ||
+           request.headers.get('x-real-ip') ||
+           request.headers.get('cf-connecting-ip') ||
            '127.0.0.1';
   }
 
@@ -744,7 +744,7 @@ export class APISecurityManager {
           blacklist: this.config.ipControl.blacklist
         })
       );
-    } catch (error) {
+    } catch (_error) {
       console.error('❌ Error persisting IP control:');
     }
   }
