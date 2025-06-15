@@ -28,7 +28,7 @@ export async function GET(
         'Expires': '0'
       }
     });
-  } catch {
+  } catch (error) {
     console.error('❌ Error in pixel tracking:');
     
     // Still return a pixel even on error to avoid broken images

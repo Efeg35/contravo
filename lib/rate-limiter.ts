@@ -183,7 +183,7 @@ export class RateLimiter {
 
       return results;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Rate limit check error:');
       // Fail open - allow request if rate limiter fails
       return [{

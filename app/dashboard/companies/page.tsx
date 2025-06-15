@@ -46,7 +46,7 @@ export default function CompaniesPage() {
       } else {
         toast.error('Şirketler yüklenirken hata oluştu');
       }
-    } catch {
+    } catch (error) {
       console.error('Error fetching companies:');
       toast.error('Şirketler yüklenirken hata oluştu');
     } finally {
@@ -71,7 +71,7 @@ export default function CompaniesPage() {
         const error = await response.json();
         toast.error(error.error || 'Şirket silinirken hata oluştu');
       }
-    } catch {
+    } catch (error) {
       console.error('Error deleting company:');
       toast.error('Şirket silinirken hata oluştu');
     }

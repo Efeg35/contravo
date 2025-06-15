@@ -664,9 +664,9 @@ export class IncidentResponseManager {
       console.log(`🚨 Incident created: ${incident.id} (${incident.severity})`);
       return incident.id;
 
-    } catch {
-      console.error('❌ Error creating incident:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ Error creating incident:', error);
+      throw error;
     }
   }
 
@@ -721,7 +721,7 @@ export class IncidentResponseManager {
       console.log(`📊 Incident ${incidentId} status updated: ${oldStatus} → ${status}`);
       return true;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error updating incident status:');
       return false;
     }
@@ -772,7 +772,7 @@ export class IncidentResponseManager {
       console.log(`⚡ Response action executed: ${action} for incident ${incidentId}`);
       return success;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error executing response action:');
       return false;
     }
@@ -833,9 +833,9 @@ export class IncidentResponseManager {
       console.log(`🔍 Evidence added to incident ${incidentId}: ${evidence.name}`);
       return evidence.id;
 
-    } catch {
-      console.error('❌ Error adding evidence:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ Error adding evidence:', error);
+      throw error;
     }
   }
 
@@ -1020,7 +1020,7 @@ export class IncidentResponseManager {
         this.incidents.set(incidentId, incident!);
         return incident!;
       }
-    } catch {
+    } catch (error) {
       console.error('Error loading incident from cache:');
     }
 
@@ -1038,7 +1038,7 @@ export class IncidentResponseManager {
         JSON.stringify(incident),
         { ttl: 365 * 24 * 60 * 60 } // 1 year
       );
-    } catch {
+    } catch (error) {
       console.error('Error storing incident:');
     }
   }

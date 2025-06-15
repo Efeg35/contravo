@@ -39,7 +39,7 @@ export async function GET() {
       })),
       total: sessions.length,
     });
-  } catch {
+  } catch (error) {
     console.error('Error getting sessions:');
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -78,7 +78,7 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       );
     }
-  } catch {
+  } catch (error) {
     console.error('Error invalidating sessions:');
     return NextResponse.json(
       { error: 'Internal server error' },

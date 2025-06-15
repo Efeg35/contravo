@@ -202,7 +202,7 @@ export class PerformanceMonitoring {
     if (statusCode >= 400) {
       this.recordMetric({
         type: 'error_rate',
-        name: 'http_errors_total',
+        name: 'httperrors_total',
         value: 1,
         unit: 'count',
         tags: {

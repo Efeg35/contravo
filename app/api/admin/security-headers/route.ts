@@ -258,12 +258,12 @@ export async function GET(request: NextRequest) {
         );
     }
 
-  } catch {
-    if (_error instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
         { 
           error: 'Validation error',
-          details: _error.errors
+          details: error.errors
         },
         { status: 400 }
       );
@@ -490,12 +490,12 @@ export async function POST(request: NextRequest) {
         );
     }
 
-  } catch {
-    if (_error instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
         { 
           error: 'Validation error',
-          details: _error.errors
+          details: error.errors
         },
         { status: 400 }
       );

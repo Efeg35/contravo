@@ -113,7 +113,7 @@ export async function checkExpiringContracts() {
     await checkExpiredContracts();
     
     console.log('Expiring contracts check completed');
-  } catch {
+  } catch (error) {
     console.error('Error checking expiring contracts:');
   }
 }
@@ -195,7 +195,7 @@ export async function checkExpiredContracts() {
     }
 
     console.log('Expired contracts check completed');
-  } catch {
+  } catch (error) {
     console.error('Error checking expired contracts:');
   }
 }
@@ -233,7 +233,7 @@ export async function createApprovalNotification(contractId: string, approverIds
         }
       });
     }
-  } catch {
+  } catch (error) {
     console.error('Error creating approval notification:');
   }
 }
@@ -273,7 +273,7 @@ export async function createVersionNotification(contractId: string, versionNumbe
         }
       }
     });
-  } catch {
+  } catch (error) {
     console.error('Error creating version notification:');
   }
 } 

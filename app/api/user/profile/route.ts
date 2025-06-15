@@ -45,8 +45,8 @@ export async function GET() {
     console.log('Profile API - Full user:', JSON.stringify(user, null, 2))
 
     return NextResponse.json(user)
-  } catch {
-    console.error('Error fetching user profile:', _error)
+  } catch (error) {
+    console.error('Error fetching user profile:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -111,15 +111,15 @@ export async function PATCH(request: NextRequest) {
     })
 
     return NextResponse.json(user)
-  } catch {
-    if (_error instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', issues: _error.issues },
+        { error: 'Validation error', issues: error.issues },
         { status: 400 }
       )
     }
     
-    console.error('Error updating user profile:', _error)
+    console.error('Error updating user profile:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -171,8 +171,8 @@ export async function PUT(request: NextRequest) {
     })
 
     return NextResponse.json(updatedUser)
-  } catch {
-    console.error('Error updating user profile:', _error)
+  } catch (error) {
+    console.error('Error updating user profile:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

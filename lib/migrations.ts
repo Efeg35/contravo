@@ -69,9 +69,9 @@ export class MigrationManager {
       `
 
       console.log(`Migration ${migrationName} completed successfully`)
-    } catch {
-      console.error('❌ Error running migration:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ Error running migration:', error);
+      throw error;
     }
   }
 
@@ -252,7 +252,7 @@ export class MigrationManager {
       const pending = allMigrations.filter(m => !executed.includes(m))
 
       return { executed, pending }
-    } catch {
+    } catch (error) {
       return {
         executed: [],
         pending: [
@@ -289,9 +289,9 @@ export class MigrationManager {
       `
 
       console.log(`Migration ${migrationName} rolled back successfully`)
-    } catch {
-      console.error('❌ Error during rollback:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ Error during rollback:', error);
+      throw error;
     }
   }
 

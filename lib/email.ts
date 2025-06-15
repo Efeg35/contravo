@@ -58,9 +58,9 @@ class EmailService {
       }
 
       return { success: true, messageId: info.messageId };
-    } catch {
+    } catch (error) {
       console.error('❌ Email send failed:');
-      return { success: false, error: _error instanceof Error ? _error.message : 'Unknown error' };
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 

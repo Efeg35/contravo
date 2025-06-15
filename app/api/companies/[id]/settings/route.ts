@@ -73,15 +73,15 @@ export async function PUT(
     })
 
     return NextResponse.json(settings)
-  } catch {
-    if (_error instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', issues: _error.issues },
+        { error: 'Validation error', issues: error.issues },
         { status: 400 }
       )
     }
     
-    console.error('Error updating company settings:', _error)
+    console.error('Error updating company settings:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -128,8 +128,8 @@ export async function GET(
     })
 
     return NextResponse.json(settings || {})
-  } catch {
-    console.error('Error fetching company settings:', _error)
+  } catch (error) {
+    console.error('Error fetching company settings:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

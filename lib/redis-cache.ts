@@ -194,7 +194,7 @@ export class RedisCache {
         } else {
           deserializedValue = this.deserializeValue<T>(value);
         }
-      } catch {
+      } catch (error) {
         console.error(`Cache deserialization error for key ${key}:`);
         return null;
       }
@@ -212,7 +212,7 @@ export class RedisCache {
 
       return deserializedValue;
 
-    } catch {
+    } catch (error) {
       console.error(`Cache get error for key ${key}:`);
       if (updateStats) {
         this.stats.misses++;
@@ -285,7 +285,7 @@ export class RedisCache {
       this.updateHitRate();
       return true;
 
-    } catch {
+    } catch (error) {
       console.error(`Cache set error for key ${key}:`);
       return false;
     }
@@ -310,7 +310,7 @@ export class RedisCache {
       this.updateHitRate();
       return deletedCount;
 
-    } catch {
+    } catch (error) {
       console.error(`Cache delete error:`);
       return 0;
     }
@@ -351,7 +351,7 @@ export class RedisCache {
               deletedCount++;
             }
           }
-        } catch {
+        } catch (error) {
           console.error(`Error checking key ${key} for tags:`);
         }
       }
@@ -359,7 +359,7 @@ export class RedisCache {
       console.log(`🗑️ Invalidated ${deletedCount} cache entries by tags: ${tags.join(', ')}`);
       return deletedCount;
 
-    } catch {
+    } catch (error) {
       console.error('Tag-based invalidation error:');
       return deletedCount;
     }
@@ -385,7 +385,7 @@ export class RedisCache {
       console.log(`🗑️ Invalidated ${deletedCount} cache entries by pattern: ${pattern}`);
       return deletedCount;
 
-    } catch {
+    } catch (error) {
       console.error('Pattern-based invalidation error:');
       return 0;
     }
@@ -407,7 +407,7 @@ export class RedisCache {
     try {
       const exists = await this.client.exists(fullKey);
       return exists === 1;
-    } catch {
+    } catch (error) {
       console.error(`Cache exists error for key ${key}:`);
       return false;
     }
@@ -418,7 +418,7 @@ export class RedisCache {
     
     try {
       return await this.client.ttl(fullKey);
-    } catch {
+    } catch (error) {
       console.error(`Cache TTL error for key ${key}:`);
       return -1;
     }
@@ -437,7 +437,7 @@ export class RedisCache {
       }
       
       return result === 1;
-    } catch {
+    } catch (error) {
       console.error(`Cache expire error for key ${key}:`);
       return false;
     }
@@ -449,7 +449,7 @@ export class RedisCache {
       this.l1Cache.clear();
       console.log('🧹 Cache flushed successfully');
       return true;
-    } catch {
+    } catch (error) {
       console.error('Cache flush error:');
       return false;
     }
@@ -510,7 +510,7 @@ export class RedisCache {
           memoryUsage: this.calculateL1MemoryUsage()
         }
       };
-    } catch {
+    } catch (error) {
       console.error('Error getting detailed stats:');
       return {
         basic: this.stats,
@@ -550,11 +550,11 @@ export class RedisCache {
           results.failed++;
           results.errors.push({ key, error: 'Failed to set cache value' });
         }
-      } catch {
+      } catch (error) {
         results.failed++;
         results.errors.push({ 
           key, 
-          error: _error instanceof Error ? _error.message : 'Unknown error' 
+          error: error instanceof Error ? error.message : 'Unknown error' 
         });
       }
     }
@@ -621,9 +621,9 @@ export class RedisCache {
       }
       
       return JSON.parse(value);
-    } catch {
+    } catch (error) {
       console.error('Cache deserialization error:');
-      throw _error;
+      throw error;
     }
   }
 

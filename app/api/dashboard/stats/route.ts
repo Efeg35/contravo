@@ -83,7 +83,7 @@ export async function GET() {
     };
 
     return NextResponse.json(stats);
-  } catch {
+  } catch (error) {
     console.error('Dashboard stats error:');
     return NextResponse.json(
       { error: 'Internal server error' },

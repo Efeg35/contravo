@@ -71,7 +71,7 @@ export default function CompanyDetailPage() {
       setNewMemberEmail("");
       setNewMemberRole("MEMBER");
       refetch();
-    } catch {
+    } catch (error) {
       toast.error("Üye eklenirken bir hata oluştu");
     }
   };
@@ -81,7 +81,7 @@ export default function CompanyDetailPage() {
       await api.delete(`/companies/${params.id}/members/${memberId}`);
       toast.success("Üye başarıyla kaldırıldı");
       refetch();
-    } catch {
+    } catch (error) {
       toast.error("Üye kaldırılırken bir hata oluştu");
     }
   };

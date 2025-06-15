@@ -46,7 +46,7 @@ export async function PATCH(
     });
 
     return NextResponse.json(updatedNotification);
-  } catch {
+  } catch (error) {
     console.error('Error updating notification:');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -82,7 +82,7 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (error) {
     console.error('Error deleting notification:');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

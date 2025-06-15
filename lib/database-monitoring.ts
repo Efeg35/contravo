@@ -28,8 +28,8 @@ export class DatabaseMonitor {
     this.monitoringInterval = setInterval(async () => {
       try {
         await this.performHealthCheck()
-      } catch {
-        console.error('Monitoring health check failed:', _error)
+      } catch (error) {
+        console.error('Monitoring health check failed:', error)
       }
     }, intervalMs)
   }
@@ -90,12 +90,12 @@ export class DatabaseMonitor {
       }
 
       return report
-    } catch {
+    } catch (error) {
       return {
         timestamp: new Date(),
         status: 'error',
         responseTime: Date.now() - startTime,
-        error: _error instanceof Error ? _error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : 'Unknown error',
         alerts: [{ type: 'critical', message: 'Health check failed', timestamp: new Date() }]
       } as DatabaseHealthReport
     }
@@ -116,11 +116,11 @@ export class DatabaseMonitor {
         responseTime: Math.round(responseTime),
         error: null
       }
-    } catch {
+    } catch (error) {
       return {
         connected: false,
         responseTime: performance.now() - startTime,
-        error: _error instanceof Error ? _error.message : 'Connection failed'
+        error: error instanceof Error ? error.message : 'Connection failed'
       }
     }
   }
@@ -158,8 +158,8 @@ export class DatabaseMonitor {
         recentActivity,
         totalAttachmentSize
       }
-    } catch {
-      throw new Error(`Failed to get database statistics: ${_error}`)
+    } catch (error) {
+      throw new Error(`Failed to get database statistics: ${error}`)
     }
   }
 
@@ -173,7 +173,7 @@ export class DatabaseMonitor {
       })
       
       return result._sum.fileSize || 0
-    } catch {
+    } catch (error) {
       return 0
     }
   }
@@ -210,7 +210,7 @@ export class DatabaseMonitor {
         newContracts,
         newNotifications
       }
-    } catch {
+    } catch (error) {
       return null
     }
   }
@@ -252,8 +252,8 @@ export class DatabaseMonitor {
         queryResults: results,
         totalTestTime: Math.round(totalTime)
       }
-    } catch {
-      throw new Error(`Performance check failed: ${_error}`)
+    } catch (error) {
+      throw new Error(`Performance check failed: ${error}`)
     }
   }
 
@@ -278,7 +278,7 @@ export class DatabaseMonitor {
           usagePercentage: Math.round(usagePercentage * 10000) / 100,
           path: dbPath
         }
-      } catch {
+      } catch (error) {
         return {
           totalSizeMB: 0,
           usedSizeMB: 0,
@@ -288,8 +288,8 @@ export class DatabaseMonitor {
           error: 'Cannot access database file'
         }
       }
-    } catch {
-      throw new Error(`Disk usage check failed: ${_error}`)
+    } catch (error) {
+      throw new Error(`Disk usage check failed: ${error}`)
     }
   }
 
@@ -339,7 +339,7 @@ export class DatabaseMonitor {
       }
 
       return slowQueries
-    } catch {
+    } catch (error) {
       return []
     }
   }
@@ -358,7 +358,7 @@ export class DatabaseMonitor {
         maxConnections: 1,
         status: 'healthy'
       }
-    } catch {
+    } catch (error) {
       return {
         totalConnections: 0,
         activeConnections: 0,
@@ -366,7 +366,7 @@ export class DatabaseMonitor {
         waitingRequests: 0,
         maxConnections: 1,
         status: 'error',
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
   }
@@ -565,10 +565,10 @@ export function trackPerformance(target: any, propertyName: string, descriptor: 
       console.log(`Performance: ${propertyName} took ${Math.round(duration)}ms`)
       
       return result
-    } catch {
+    } catch (error) {
       const duration = performance.now() - start
-      console.error(`Performance: ${propertyName} failed after ${Math.round(duration)}ms`, _error)
-      throw _error
+      console.error(`Performance: ${propertyName} failed after ${Math.round(duration)}ms`, error)
+      throw error
     }
   }
 

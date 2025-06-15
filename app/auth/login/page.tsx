@@ -29,7 +29,7 @@ export default function LoginPage() {
         await getSession();
         window.location.href = '/dashboard';
       }
-    } catch {
+    } catch (error) {
       setError('Bir hata oluştu');
     }
 

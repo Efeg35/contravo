@@ -71,7 +71,7 @@ export default function NotificationsPage() {
         const notificationData = await notificationsRes.json();
         setNotifications(notificationData);
       }
-    } catch {
+    } catch (error) {
       toast.error('Veriler yüklenirken hata oluştu');
     } finally {
       setLoading(false);

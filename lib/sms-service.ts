@@ -148,11 +148,11 @@ class SMSService {
         error: result.error
       };
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error sending SMS:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -185,11 +185,11 @@ class SMSService {
         metadata: { ...options?.metadata, variables }
       });
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error sending templated SMS:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -268,7 +268,7 @@ class SMSService {
   async getSMSStatus(messageId: string): Promise<SMSMessage | null> {
     try {
       return await this.getSMSRecord(messageId);
-    } catch {
+    } catch (error) {
       console.error('❌ Error getting SMS status:');
       return null;
     }
@@ -293,9 +293,9 @@ class SMSService {
       console.log(`📊 SMS stats for user ${userId}:`, stats);
       
       return stats;
-    } catch {
+    } catch (error) {
       console.error('❌ Error getting user SMS stats:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -359,10 +359,10 @@ class SMSService {
         providerId: `twilio_${Date.now()}`,
         cost: 0.05 // Mock cost in USD
       };
-    } catch {
+    } catch (error) {
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Twilio error'
+        error: error instanceof Error ? error.message : 'Twilio error'
       };
     }
   }
@@ -382,10 +382,10 @@ class SMSService {
         providerId: `vonage_${Date.now()}`,
         cost: 0.04
       };
-    } catch {
+    } catch (error) {
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Vonage error'
+        error: error instanceof Error ? error.message : 'Vonage error'
       };
     }
   }
@@ -405,10 +405,10 @@ class SMSService {
         providerId: `sns_${Date.now()}`,
         cost: 0.06
       };
-    } catch {
+    } catch (error) {
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'AWS SNS error'
+        error: error instanceof Error ? error.message : 'AWS SNS error'
       };
     }
   }
@@ -537,7 +537,7 @@ class SMSService {
         default:
           console.log('Unknown SMS provider webhook:', provider);
       }
-    } catch {
+    } catch (error) {
       console.error('❌ Error processing SMS webhook:');
     }
   }

@@ -272,22 +272,22 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(contract, { status: 201 })
-  } catch {
-    if (_error instanceof AuthorizationError) {
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
       return NextResponse.json(
-        { error: _error.message },
-        { status: _error.statusCode }
+        { error: error.message },
+        { status: error.statusCode }
       )
     }
 
-    if (_error instanceof z.ZodError) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: _error.errors },
+        { error: 'Validation error', details: error.errors },
         { status: 400 }
       )
     }
 
-    console.error('Error creating contract:', _error)
+    console.error('Error creating contract:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

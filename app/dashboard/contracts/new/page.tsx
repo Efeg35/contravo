@@ -67,7 +67,7 @@ export default function NewContractPage() {
         } else {
           toast.error('Şablon yüklenirken hata oluştu');
         }
-      } catch {
+      } catch (error) {
         console.error('Template fetch error:');
         toast.error('Şablon yüklenirken hata oluştu');
       } finally {
@@ -125,7 +125,7 @@ export default function NewContractPage() {
         console.error('Sözleşme oluşturma hatası');
         alert('Sözleşme oluşturulurken bir hata oluştu.');
       }
-    } catch {
+    } catch (error) {
       console.error('Sözleşme oluşturma hatası:');
       alert('Sözleşme oluşturulurken bir hata oluştu.');
     } finally {

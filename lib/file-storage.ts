@@ -71,11 +71,11 @@ export class FileStorage {
         success: true,
         url: this.getLocalUrl(filePath)
       };
-    } catch {
+    } catch (error) {
       console.error('❌ Error uploading file:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -92,11 +92,11 @@ export class FileStorage {
         success: true,
         data
       };
-    } catch {
+    } catch (error) {
       console.error('❌ Error downloading file:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -115,16 +115,16 @@ export class FileStorage {
       // Delete metadata if exists
       try {
         await fs.unlink(metadataPath);
-      } catch {
+      } catch (error) {
         // Metadata file might not exist
       }
       
       return { success: true };
-    } catch {
+    } catch (error) {
       console.error('❌ Error deleting file:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -142,7 +142,7 @@ export class FileStorage {
       const fullPath = path.join(this.basePath, filePath);
       await fs.access(fullPath);
       return true;
-    } catch {
+    } catch (error) {
       return false;
     }
   }
@@ -168,7 +168,7 @@ export class FileStorage {
         const metadataObj = JSON.parse(metadataContent);
         metadata = metadataObj.metadata || {};
         contentType = metadataObj.mimeType || contentType;
-      } catch {
+      } catch (error) {
         // Metadata file doesn't exist or is invalid
       }
 
@@ -178,7 +178,7 @@ export class FileStorage {
         contentType,
         metadata
       };
-    } catch {
+    } catch (error) {
       return null;
     }
   }

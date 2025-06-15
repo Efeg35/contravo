@@ -54,8 +54,8 @@ export async function DELETE(
     try {
       const filePath = join(process.cwd(), 'public', 'uploads', attachment.fileName)
       await unlink(filePath)
-    } catch {
-      console.error('Error deleting file from disk:', _error)
+    } catch (error) {
+      console.error('Error deleting file from disk:', error)
     }
 
     // Delete from database
@@ -64,8 +64,8 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: 'Attachment deleted successfully' })
-  } catch {
-    console.error('Error deleting attachment:', _error)
+  } catch (error) {
+    console.error('Error deleting attachment:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -11,7 +11,7 @@ export async function GET() {
       success: true,
       data: stats
     });
-  } catch {
+  } catch (error) {
     console.error('❌ Error getting queue stats:');
     
     return NextResponse.json(
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       message: 'Job added to queue successfully'
     });
 
-  } catch {
+  } catch (error) {
     console.error('❌ Error adding job to queue:');
     
     return NextResponse.json(

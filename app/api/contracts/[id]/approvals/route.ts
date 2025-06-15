@@ -57,7 +57,7 @@ export async function GET(
     });
 
     return NextResponse.json({ approvals });
-  } catch {
+  } catch (error) {
     console.error('Error fetching approvals:');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -142,11 +142,11 @@ export async function POST(
       approvals 
     }, { status: 201 });
 
-  } catch {
-    if (_error instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json({ 
         error: 'Validation error', 
-        details: _error.errors 
+        details: error.errors 
       }, { status: 400 });
     }
     console.error('Error creating approvals:');

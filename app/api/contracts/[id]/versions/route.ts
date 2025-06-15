@@ -63,7 +63,7 @@ export async function GET(
     }
 
     return NextResponse.json(contract.versions);
-  } catch {
+  } catch (error) {
     console.error('Error fetching contract versions:');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -162,9 +162,9 @@ export async function POST(
     });
 
     return NextResponse.json(newVersion, { status: 201 });
-  } catch {
-    if (_error instanceof z.ZodError) {
-      return NextResponse.json({ error: _error.errors }, { status: 400 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
     }
     
     console.error('Error creating contract version:');

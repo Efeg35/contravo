@@ -182,12 +182,12 @@ export async function GET(request: NextRequest) {
         );
     }
 
-  } catch {
-    if (_error instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
         { 
           error: 'Validation error',
-          details: _error.errors
+          details: error.errors
         },
         { status: 400 }
       );
@@ -340,8 +340,8 @@ export async function POST(request: NextRequest) {
               default:
                 results.push({ logId, success: false, error: 'Unknown operation' });
             }
-                     } catch {
-             results.push({ logId, success: false, error: (_error as Error).message });
+                     } catch (error) {
+             results.push({ logId, success: false, error: (error as Error).message });
            }
         }
 
@@ -385,12 +385,12 @@ export async function POST(request: NextRequest) {
         );
     }
 
-  } catch {
-    if (_error instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
         { 
           error: 'Validation error',
-          details: _error.errors
+          details: error.errors
         },
         { status: 400 }
       );
@@ -448,7 +448,7 @@ export async function DELETE(request: NextRequest) {
       { status: 400 }
     );
 
-  } catch {
+  } catch (error) {
     console.error('❌ Error deleting audit logs:');
     return NextResponse.json(
       { error: 'Internal server error' },

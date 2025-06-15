@@ -99,13 +99,13 @@ export async function GET(request: NextRequest) {
         });
     }
 
-  } catch {
+  } catch (error) {
     console.error('Performance API error:');
     
     return NextResponse.json({
       success: false,
       error: 'Internal server error',
-      message: _error instanceof Error ? _error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
@@ -202,13 +202,13 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch {
+  } catch (error) {
     console.error('Performance API POST error:');
     
     return NextResponse.json({
       success: false,
       error: 'Internal server error',
-      message: _error instanceof Error ? _error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 } 

@@ -149,7 +149,7 @@ export class FileCompression {
         algorithm
       };
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error compressing file:');
       return {
         success: false,
@@ -157,7 +157,7 @@ export class FileCompression {
         compressedSize: data.length,
         compressionRatio: 1,
         algorithm: CompressionAlgorithm.AUTO,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -190,11 +190,11 @@ export class FileCompression {
         data: decompressedData
       };
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error decompressing file:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }

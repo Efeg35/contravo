@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         });
     }
 
-  } catch {
+  } catch (error) {
     console.error('❌ Behavioral analytics API error:');
     
     return NextResponse.json({
@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch {
+  } catch (error) {
     console.error('❌ Behavioral analytics admin POST error:');
     
     return NextResponse.json({
@@ -323,7 +323,7 @@ export async function PUT(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch {
+  } catch (error) {
     console.error('❌ Behavioral analytics config update error:');
     
     return NextResponse.json({
@@ -402,7 +402,7 @@ export async function DELETE(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch {
+  } catch (error) {
     console.error('❌ Behavioral analytics cleanup error:');
     
     return NextResponse.json({

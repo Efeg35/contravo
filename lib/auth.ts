@@ -122,7 +122,7 @@ export const authOptions: NextAuthOptions = {
             token.iat = now;
             token.exp = now + (24 * 60 * 60);
           }
-        } catch {
+        } catch (error) {
           console.error("Token refresh error:");
           // Return existing token if refresh fails
         }
@@ -161,7 +161,7 @@ export const authOptions: NextAuthOptions = {
           // Note: We don't have access to request object here, so we'll handle this in the JWT callback
           console.log('Session tracking will be created in JWT callback');
         }
-      } catch {
+      } catch (error) {
         console.error('Failed to create session tracking:');
       }
     },
@@ -173,7 +173,7 @@ export const authOptions: NextAuthOptions = {
         if (token && (token as any).sessionId) {
           await SessionMiddleware.invalidateSessionOnLogout();
         }
-      } catch {
+      } catch (error) {
         console.error('Failed to invalidate session on logout:');
       }
     },
@@ -184,7 +184,7 @@ export const authOptions: NextAuthOptions = {
         if (token && (token as any).sessionId) {
           // This will be handled by middleware for better performance
         }
-      } catch {
+      } catch (error) {
         console.error('Session tracking error:');
       }
     },

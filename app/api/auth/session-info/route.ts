@@ -22,7 +22,7 @@ export async function GET() {
       },
       expires: session.expires,
     });
-  } catch {
+  } catch (error) {
     console.error('Session info error:');
     return NextResponse.json(
       { error: 'Internal server error' },

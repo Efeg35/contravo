@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       { success: true, message: 'Webhook processed successfully' },
       { status: 200 }
     );
-  } catch {
+  } catch (error) {
     console.error('❌ Error processing email webhook:');
     
     return NextResponse.json(
@@ -50,7 +50,7 @@ async function verifyWebhookSignature(
         // For generic webhooks, skip signature verification
         return true;
     }
-  } catch {
+  } catch (error) {
     console.error('❌ Error verifying webhook signature:');
     return false;
   }

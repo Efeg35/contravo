@@ -276,9 +276,9 @@ class FileManager {
         thumbnailUrl: thumbnailPath ? await this.storage.getFileUrl(thumbnailPath) : undefined
       };
 
-    } catch {
-      console.error('❌ File operation error:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ File operation error:', error);
+      throw error;
     }
   }
 
@@ -314,11 +314,11 @@ class FileManager {
       console.log(`📁 Started chunked upload: ${uploadId} (${totalChunks} chunks)`);
 
       return { success: true, uploadId };
-    } catch {
+    } catch (error) {
       console.error('❌ Error starting chunked upload:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -359,11 +359,11 @@ class FileManager {
       }
 
       return { success: true, isComplete };
-    } catch {
+    } catch (error) {
       console.error('❌ Error uploading chunk:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -414,11 +414,11 @@ class FileManager {
         mimeType: fileMetadata.mimeType
       };
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error downloading file:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -461,11 +461,11 @@ class FileManager {
       console.log(`🗑️ File deleted: ${fileId}`);
 
       return { success: true };
-    } catch {
+    } catch (error) {
       console.error('❌ Error deleting file:');
       return {
         success: false,
-        error: _error instanceof Error ? _error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -476,7 +476,7 @@ class FileManager {
       // In real implementation, get from database
       console.log(`📂 Getting file metadata: ${fileId}`);
       return null; // Mock implementation
-    } catch {
+    } catch (error) {
       console.error('❌ Error getting file metadata:');
       return null;
     }
@@ -515,9 +515,9 @@ class FileManager {
         page,
         totalPages: 0
       };
-    } catch {
-      console.error('❌ Error listing files:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ Error listing files:', error);
+      throw error;
     }
   }
 
@@ -632,7 +632,7 @@ class FileManager {
 
       // Return original buffer as mock thumbnail
       return buffer;
-    } catch {
+    } catch (error) {
       console.error('❌ Error generating thumbnail:');
       return null;
     }

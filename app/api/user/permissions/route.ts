@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-  } catch {
+  } catch (error) {
     console.error('Error fetching user permissions:');
     return NextResponse.json(
       { error: 'Internal server error' },

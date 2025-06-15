@@ -116,15 +116,15 @@ export async function POST(
         createdAt: invite.createdAt
       }
     })
-  } catch {
-    if (_error instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', issues: _error.issues },
+        { error: 'Validation error', issues: error.issues },
         { status: 400 }
       )
     }
     
-    console.error('Error creating company invite:', _error)
+    console.error('Error creating company invite:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -177,8 +177,8 @@ export async function GET(
     })
 
     return NextResponse.json(invites)
-  } catch {
-    console.error('Error fetching company invites:', _error)
+  } catch (error) {
+    console.error('Error fetching company invites:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

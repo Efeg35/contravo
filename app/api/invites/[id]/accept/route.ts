@@ -84,8 +84,8 @@ export async function POST(
       message: 'Davet başarıyla kabul edildi',
       companyId: invite.companyId
     })
-  } catch {
-    console.error('Error accepting invite:', _error)
+  } catch (error) {
+    console.error('Error accepting invite:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

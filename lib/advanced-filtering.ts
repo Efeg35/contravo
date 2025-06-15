@@ -202,9 +202,9 @@ export class AdvancedFiltering {
 
       return result;
 
-    } catch {
-      console.error('❌ Error applying filters:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ Error applying filters:', error);
+      throw error;
     }
   }
 

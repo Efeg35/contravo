@@ -55,7 +55,7 @@ export async function GET(
     }
 
     return NextResponse.json(template);
-  } catch {
+  } catch (error) {
     console.error('Template fetch error:');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -96,7 +96,7 @@ export async function DELETE(
     });
 
     return NextResponse.json({ message: 'Template deleted successfully' });
-  } catch {
+  } catch (error) {
     console.error('Template delete error:');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -167,7 +167,7 @@ export async function PUT(
     });
 
     return NextResponse.json(updatedTemplate);
-  } catch {
+  } catch (error) {
     console.error('Template update error:');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

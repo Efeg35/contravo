@@ -81,7 +81,7 @@ export async function POST(
     });
 
     return NextResponse.json(member);
-  } catch {
+  } catch (error) {
     console.error("[COMPANY_MEMBER_POST]");
     return new NextResponse("Internal error", { status: 500 });
   }

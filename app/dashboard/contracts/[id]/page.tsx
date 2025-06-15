@@ -68,7 +68,7 @@ export default function ContractDetailPage({ params }: PageProps) {
           toast.error('Sözleşme yüklenirken bir hata oluştu');
           console.error('Failed to fetch contract');
         }
-      } catch {
+      } catch (error) {
         toast.error('Bağlantı hatası oluştu');
         console.error('Error fetching contract:');
       } finally {
@@ -150,7 +150,7 @@ export default function ContractDetailPage({ params }: PageProps) {
         toast.error('Sözleşme güncellenirken bir hata oluştu');
         console.error('Failed to update contract');
       }
-    } catch {
+    } catch (error) {
       toast.error('Bağlantı hatası oluştu');
       console.error('Error updating contract:');
     }
@@ -175,7 +175,7 @@ export default function ContractDetailPage({ params }: PageProps) {
           toast.error('Sözleşme silinirken bir hata oluştu');
           console.error('Failed to delete contract');
         }
-      } catch {
+      } catch (error) {
         toast.error('Bağlantı hatası oluştu');
         console.error('Error deleting contract:');
       }
@@ -207,7 +207,7 @@ export default function ContractDetailPage({ params }: PageProps) {
 
       await downloadContractPDF(contractData);
       toast.success('PDF başarıyla indirildi!');
-    } catch {
+    } catch (error) {
       console.error('PDF oluşturma hatası:');
       toast.error('PDF oluşturulurken bir hata oluştu');
     }

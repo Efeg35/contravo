@@ -268,7 +268,7 @@ export class SecurityHeadersManager {
       console.log('🛡️ Security headers applied successfully');
       return response;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error applying security headers:');
       return response;
     }

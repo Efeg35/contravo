@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         maxLength: policy.maxLength,
       }
     });
-  } catch {
+  } catch (error) {
     console.error('Error generating password:');
     return NextResponse.json(
       { error: 'Internal server error' },

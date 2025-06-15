@@ -480,9 +480,9 @@ export class DataProtectionManager {
       console.log(`✅ Consent recorded for ${dataSubjectId}: ${consentData.type} = ${consentData.granted}`);
       return consentRecord.id;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error recording consent:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -524,7 +524,7 @@ export class DataProtectionManager {
       console.log(`🚫 Consent withdrawn for ${dataSubjectId}: ${consentType}`);
       return true;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error withdrawing consent:');
       return false;
     }
@@ -586,9 +586,9 @@ export class DataProtectionManager {
       console.log(`📋 Data subject right request created: ${rightType} for ${dataSubjectId}`);
       return request.id;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error processing data subject right request:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -712,9 +712,9 @@ export class DataProtectionManager {
       
       return `${iv.toString('hex')}:${encrypted}`;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Encryption error:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -733,9 +733,9 @@ export class DataProtectionManager {
       
       return decrypted;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Decryption error:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -792,9 +792,9 @@ export class DataProtectionManager {
       console.log(`🎭 Data anonymized for ${dataSubjectId} using ${technique}`);
       return true;
 
-    } catch {
-      console.error('❌ Anonymization error:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ Anonymization error:', error);
+      throw error;
     }
   }
 
@@ -865,9 +865,9 @@ export class DataProtectionManager {
       console.log(`🚨 Privacy breach reported: ${breach.id} (${breachData.severity})`);
       return breach.id;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Error reporting privacy breach:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -914,7 +914,7 @@ export class DataProtectionManager {
         return JSON.parse(cached);
       }
       return null;
-    } catch {
+    } catch (error) {
       console.error('Error getting data subject:');
       return null;
     }
@@ -927,7 +927,7 @@ export class DataProtectionManager {
         JSON.stringify(dataSubject),
         { ttl: 365 * 24 * 60 * 60 } // 1 year
       );
-    } catch {
+    } catch (error) {
       console.error('Error storing data subject:');
     }
   }

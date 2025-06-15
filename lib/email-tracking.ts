@@ -108,9 +108,9 @@ class EmailTracker {
       console.log(`📧 Email delivery record created: ${deliveryRecord.id}`);
       
       return deliveryRecord.id;
-    } catch {
+    } catch (error) {
       console.error('❌ Error creating delivery record:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -138,9 +138,9 @@ class EmailTracker {
       
       console.log(`📊 Email event tracked: ${eventType} for delivery ${deliveryId}`);
       
-    } catch {
-      console.error('❌ Error tracking email:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ Error tracking email:', error);
+      throw error;
     }
   }
 
@@ -174,7 +174,7 @@ class EmailTracker {
 
       // Return 1x1 transparent pixel
       return this.getTrackingPixelImage();
-    } catch {
+    } catch (error) {
       console.error('❌ Error processing pixel tracking:');
       return this.getTrackingPixelImage(); // Still return pixel even on error
     }
@@ -197,7 +197,7 @@ class EmailTracker {
       );
 
       return originalUrl;
-    } catch {
+    } catch (error) {
       console.error('❌ Error processing click tracking:');
       return originalUrl; // Still redirect even on error
     }
@@ -207,7 +207,7 @@ class EmailTracker {
   async getDeliveryStats(deliveryId: string): Promise<EmailDeliveryRecord | null> {
     try {
       return await this.getDeliveryRecord(deliveryId);
-    } catch {
+    } catch (error) {
       console.error('❌ Error getting delivery stats:');
       return null;
     }
@@ -251,9 +251,9 @@ class EmailTracker {
       console.log(`📊 Email stats for user ${userId}:`, stats);
       
       return stats;
-    } catch {
+    } catch (error) {
       console.error('❌ Error getting user email stats:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -293,9 +293,9 @@ class EmailTracker {
       console.log(`📊 Template stats for ${templateType}:`, stats);
       
       return stats;
-    } catch {
+    } catch (error) {
       console.error('❌ Error getting template stats:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -317,9 +317,9 @@ class EmailTracker {
         default:
           await this.processGenericWebhook(webhookData);
       }
-    } catch {
+    } catch (error) {
       console.error('❌ Error processing webhook:');
-      throw _error;
+      throw error;
     }
   }
 
@@ -415,9 +415,9 @@ class EmailTracker {
       console.log('📊 Generated email report:', report);
       
       return report;
-    } catch {
+    } catch (error) {
       console.error('❌ Error generating email report:');
-      throw _error;
+      throw error;
     }
   }
 

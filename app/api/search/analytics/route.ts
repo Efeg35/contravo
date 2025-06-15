@@ -65,12 +65,12 @@ export async function GET(request: NextRequest) {
         );
     }
 
-  } catch {
+  } catch (error) {
     console.error('Search analytics API error:');
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        message: _error instanceof Error ? _error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

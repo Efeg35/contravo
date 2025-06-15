@@ -62,7 +62,7 @@ export class SessionManager {
         createdAt: session.createdAt,
         expiresAt: session.expiresAt,
       };
-    } catch {
+    } catch (error) {
       await prisma.$disconnect();
       throw new Error('Failed to create session');
     }

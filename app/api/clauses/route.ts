@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
         category: validatedData.category,
         visibility: validatedData.visibility,
         createdById: user.id,
-        companyId: user.companyId,
+        // companyId: user.companyId, // TODO: add companyId to user type
         variables: {
           create: validatedData.variables
         }

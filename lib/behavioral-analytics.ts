@@ -337,7 +337,7 @@ export class BehavioralAnalyticsEngine {
         profile
       };
 
-    } catch {
+    } catch (error) {
       console.error('❌ Behavioral analysis error:');
       
       // Return safe defaults on error
@@ -843,7 +843,7 @@ export class BehavioralAnalyticsEngine {
         this.profiles.set(userId, profile!);
         return profile!;
       }
-    } catch {
+    } catch (error) {
       console.error('Error loading profile from cache:');
     }
 
@@ -890,7 +890,7 @@ export class BehavioralAnalyticsEngine {
         JSON.stringify(profile),
         { ttl: this.PROFILE_CACHE_TTL }
       );
-    } catch {
+    } catch (error) {
       console.error('Error storing profile:');
     }
   }

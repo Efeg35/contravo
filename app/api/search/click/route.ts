@@ -30,12 +30,12 @@ export async function POST(request: NextRequest) {
       message: 'Click tracked successfully'
     });
 
-  } catch {
+  } catch (error) {
     console.error('Click tracking API error:');
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        message: _error instanceof Error ? _error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );
@@ -62,12 +62,12 @@ export async function PUT(request: NextRequest) {
       message: 'Dwell time tracked successfully'
     });
 
-  } catch {
+  } catch (error) {
     console.error('Dwell time tracking API error:');
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        message: _error instanceof Error ? _error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

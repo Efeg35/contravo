@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: 'Giriş işlemi başlatıldı',
     });
-  } catch {
+  } catch (error) {
     console.error('Login error:');
     return NextResponse.json(
       { error: 'Sunucu hatası' },

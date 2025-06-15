@@ -100,11 +100,11 @@ export async function PATCH(
       message: validatedData.status === 'APPROVED' ? 'Sözleşme onaylandı' : 'Sözleşme reddedildi'
     });
 
-  } catch {
-    if (_error instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json({ 
         error: 'Validation error', 
-        details: _error.errors 
+        details: error.errors 
       }, { status: 400 });
     }
     console.error('Error updating approval:');

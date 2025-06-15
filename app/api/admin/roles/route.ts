@@ -29,7 +29,7 @@ export async function GET() {
     ];
 
     return NextResponse.json({ roles, permissions });
-  } catch {
+  } catch (error) {
     console.error('Error fetching roles:');
     return NextResponse.json(
       { error: 'Failed to fetch roles' },
@@ -96,17 +96,17 @@ export async function POST(request: NextRequest) {
       newRole,
     });
 
-  } catch {
-    if (_error instanceof AuthorizationError) {
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
       return NextResponse.json(
-        { error: _error.message },
-        { status: _error.statusCode }
+        { error: error.message },
+        { status: error.statusCode }
       );
     }
 
-    if (_error instanceof z.ZodError) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: _error.errors },
+        { error: 'Validation error', details: error.errors },
         { status: 400 }
       );
     }

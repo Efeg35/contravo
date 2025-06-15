@@ -40,7 +40,7 @@ export default function ProfilePage() {
       } else {
         toast.error('Profil bilgileri yüklenirken hata oluştu');
       }
-    } catch {
+    } catch (error) {
       console.error('Error fetching profile:');
       toast.error('Profil bilgileri yüklenirken hata oluştu');
     } finally {
@@ -116,7 +116,7 @@ export default function ProfilePage() {
         const error = await response.json();
         toast.error(error.error || 'Fotoğraf yüklenirken hata oluştu');
       }
-    } catch {
+    } catch (error) {
       console.error('Error uploading avatar:');
       toast.error('Fotoğraf yüklenirken hata oluştu');
     } finally {

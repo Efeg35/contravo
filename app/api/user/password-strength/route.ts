@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       strength,
       validation,
     });
-  } catch {
+  } catch (error) {
     console.error('Error checking password strength:');
     return NextResponse.json(
       { error: 'Internal server error' },

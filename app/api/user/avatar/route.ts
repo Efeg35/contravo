@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     
     try {
       await writeFile(join(uploadsDir, filename), buffer)
-    } catch {
+    } catch (error) {
       // Try to create directory and try again
       const { mkdir } = await import('fs/promises')
       await mkdir(uploadsDir, { recursive: true })
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       message: 'Avatar uploaded successfully',
       imageUrl: imageUrl
     });
-  } catch {
+  } catch (error) {
     console.error('[AVATAR_UPLOAD]');
     return NextResponse.json(
       { error: 'Internal server error' },

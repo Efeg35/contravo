@@ -314,9 +314,9 @@ export class SearchEngine {
         suggestions
       };
 
-    } catch {
-      console.error('❌ Search index error:', _error);
-      throw _error;
+    } catch (error) {
+      console.error('❌ Search index error:', error);
+      throw error;
     }
   }
 
@@ -335,10 +335,10 @@ export class SearchEngine {
       try {
         await this.indexDocument(indexName, document);
         indexed++;
-      } catch {
+      } catch (error) {
         errors.push({
           id: document.id,
-          error: _error instanceof Error ? _error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }

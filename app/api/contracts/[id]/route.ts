@@ -47,8 +47,8 @@ export async function GET(
     }
 
     return NextResponse.json(contract)
-  } catch {
-    console.error('Error fetching contract:', _error)
+  } catch (error) {
+    console.error('Error fetching contract:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -129,8 +129,8 @@ export async function PUT(
     })
 
     return NextResponse.json(contract)
-  } catch {
-    console.error('Error updating contract:', _error)
+  } catch (error) {
+    console.error('Error updating contract:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -175,8 +175,8 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: 'Contract deleted successfully' })
-  } catch {
-    console.error('Error deleting contract:', _error)
+  } catch (error) {
+    console.error('Error deleting contract:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

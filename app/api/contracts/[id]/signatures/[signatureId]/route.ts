@@ -103,7 +103,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedSignature);
 
-  } catch {
+  } catch (error) {
     console.error('İmza güncelleme hatası:');
     return NextResponse.json(
       { error: 'Sunucu hatası' },
@@ -160,7 +160,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'İmza iptal edildi' });
 
-  } catch {
+  } catch (error) {
     console.error('İmza iptal hatası:');
     return NextResponse.json(
       { error: 'Sunucu hatası' },

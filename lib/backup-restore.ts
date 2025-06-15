@@ -63,13 +63,13 @@ export class BackupManager {
 
       console.log(`Backup created successfully: ${archivePath}`)
       return archivePath
-    } catch {
-      console.error('Backup creation failed:', _error)
+    } catch (error) {
+      console.error('Backup creation failed:', error)
       // Clean up on failure
       try {
         await fs.rm(backupDir, { recursive: true })
-      } catch {}
-      throw _error
+      } catch (error) {}
+      throw error
     }
   }
 
@@ -136,8 +136,8 @@ export class BackupManager {
         await fs.copyFile(dbPath, backupDbPath)
         console.log('Database file copied to backup')
       }
-    } catch {
-      console.warn('Could not copy database file:', _error)
+    } catch (error) {
+      console.warn('Could not copy database file:', error)
     }
   }
 
@@ -189,8 +189,8 @@ export class BackupManager {
       }
 
       return backups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    } catch {
-      console.error('Error listing backups:', _error)
+    } catch (error) {
+      console.error('Error listing backups:', error)
       return []
     }
   }
@@ -238,9 +238,9 @@ export class BackupManager {
       await fs.rm(tempDir, { recursive: true })
 
       console.log('Restore completed successfully')
-    } catch {
-      console.error('Restore failed:', _error)
-      throw _error
+    } catch (error) {
+      console.error('Restore failed:', error)
+      throw error
     }
   }
 
@@ -399,8 +399,8 @@ export class BackupManager {
           await fs.unlink(backup.path)
           deletedCount++
           console.log(`Deleted old backup: ${backup.name}`)
-        } catch {
-          console.error(`Failed to delete backup ${backup.name}:`, _error)
+        } catch (error) {
+          console.error(`Failed to delete backup ${backup.name}:`, error)
         }
       }
     }
@@ -420,8 +420,8 @@ export class BackupManager {
       await fs.rm(tempDir, { recursive: true })
       
       return metadata
-    } catch {
-      console.error('Failed to read backup metadata:', _error)
+    } catch (error) {
+      console.error('Failed to read backup metadata:', error)
       return null
     }
   }
@@ -451,8 +451,8 @@ export class BackupScheduler {
         
         // Clean up old backups
         await this.backupManager.cleanupOldBackups()
-      } catch {
-        console.error('Scheduled backup failed:', _error)
+      } catch (error) {
+        console.error('Scheduled backup failed:', error)
       }
     }, intervalMs)
 

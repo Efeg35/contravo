@@ -62,7 +62,7 @@ export default function ChangePasswordPage() {
           const data = await response.json();
           setPasswordPolicy(data.policy);
         }
-      } catch {
+      } catch (error) {
         console.error('Error loading password policy:');
       }
     };
@@ -150,7 +150,7 @@ export default function ChangePasswordPage() {
           toast.error(error.error || 'Şifre güncellenirken hata oluştu');
         }
       }
-    } catch {
+    } catch (error) {
       console.error('Error updating password:');
       toast.error('Şifre güncellenirken hata oluştu');
     } finally {
@@ -196,7 +196,7 @@ export default function ChangePasswordPage() {
         const data = await response.json();
         setPasswordStrength(data.strength);
       }
-    } catch {
+    } catch (error) {
       console.error('Error checking password strength:');
     }
   };

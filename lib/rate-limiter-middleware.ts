@@ -75,7 +75,7 @@ export class RateLimiterMiddleware {
 
       return response;
 
-    } catch {
+    } catch (error) {
       console.error('❌ Rate limiter middleware error:');
       
       // Fail open - allow request if middleware fails
