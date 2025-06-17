@@ -27,7 +27,10 @@ export async function GET(
           { 
             company: {
               users: {
-                some: { userId: session.user.id }
+                some: {
+                  userId: session.user.id,
+                  role: { in: ['ADMIN', 'EDITOR'] }
+                }
               }
             }
           }
@@ -102,9 +105,9 @@ export async function POST(
           { 
             company: {
               users: {
-                some: { 
+                some: {
                   userId: session.user.id,
-                  role: { in: ['ADMIN', 'EDITOR', 'APPROVER'] }
+                  role: { in: ['ADMIN', 'EDITOR'] }
                 }
               }
             }

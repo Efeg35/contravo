@@ -22,7 +22,7 @@ model User {
   image             String?
   password          String?
   passwordChangedAt DateTime? @default(now())
-  role              Role      @default(USER)
+  role              Role      @default(VIEWER)
   department        Department? // Department user belongs to
   departmentRole    String?   // Role within the department (HR_MANAGER, FINANCE_ANALYST, etc.)
   createdAt         DateTime  @default(now())
@@ -194,7 +194,7 @@ model Company {
 // Şirket üyeliği modeli
 model CompanyUser {
   id        String   @id @default(cuid())
-  role      Role     @default(USER)
+  role      Role     @default(VIEWER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   company   Company  @relation(fields: [companyId], references: [id])
@@ -212,7 +212,7 @@ model CompanyUser {
 model CompanyInvite {
   id        String   @id @default(cuid())
   email     String
-  role      Role     @default(USER)
+  role      Role     @default(VIEWER)
   status    InviteStatus @default(PENDING)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -267,9 +267,7 @@ enum InviteStatus {
 enum Role {
   ADMIN
   EDITOR
-  APPROVER
   VIEWER
-  USER
 }
 
 model Contract {
