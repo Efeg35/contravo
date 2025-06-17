@@ -1,5 +1,4 @@
-'use client';
-
+import prisma from '@/lib/prisma';
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -123,72 +122,37 @@ function ContractFilters() {
   );
 }
 
-export default function ContractsPage() {
-  const { data: session } = useSession();
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : undefined;
-  const q = searchParams?.get('q') || '';
-  const filter = searchParams?.get('status') || 'all';
-  const typeFilter = searchParams?.get('type') || 'all';
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [stats, setStats] = useState<ContractStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showBulkMode, setShowBulkMode] = useState(false);
-  const [selectedContractIds, setSelectedContractIds] = useState<string[]>([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-    hasNext: false,
-    hasPrev: false
-  });
+export default async function ContractsPage({ searchParams }: { searchParams: { q?: string; status?: string; type?: string } }) {
+  const q = searchParams.q || '';
+  const status = searchParams.status || 'all';
+  const typeFilter = searchParams.type || 'all';
 
-  // Fetch stats
-  const fetchStats = async () => {
-    try {
-      const response = await fetch('/api/contracts/stats');
-      const data = await response.json();
-      
-      if (response.ok) {
-        setStats(data);
-      }
-    } catch (error) {
-      console.error('İstatistikler yüklenemedi:', error);
-    }
-  };
+  // Dinamik where koşulu oluştur
+  const where: any = {};
+  if (q) {
+    where.title = { contains: q, mode: 'insensitive' };
+  }
+  if (status && status !== 'all') {
+    where.status = status;
+  }
+  if (typeFilter && typeFilter !== 'all') {
+    where.type = typeFilter;
+  }
 
-  // Fetch contracts with useCallback to prevent re-renders
-  const fetchContracts = useCallback(async (page = 1) => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/contracts?page=${page}&limit=10&search=${q}&status=${filter}&type=${typeFilter}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setContracts(data.contracts || []);
-        setPagination(data.pagination || {
-          page: 1,
-          limit: 10,
-          total: 0,
-          totalPages: 0,
-          hasNext: false,
-          hasPrev: false
-        });
-      }
-    } catch (error) {
-      console.error('Sözleşmeler yüklenemedi:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [q, filter, typeFilter]);
-
-  useEffect(() => {
-    fetchContracts();
-  }, [q, filter, typeFilter, fetchContracts]);
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  // Paralel veri çekme
+  const [totalCount, reviewingCount, signedCount, contracts] = await Promise.all([
+    prisma.contract.count(),
+    prisma.contract.count({ where: { status: 'IN_REVIEW' } }),
+    prisma.contract.count({ where: { status: 'SIGNED' } }),
+    prisma.contract.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        createdBy: true,
+        company: true,
+      },
+    })
+  ]);
 
   // Get status color
   const getStatusColor = (status: string) => {
@@ -260,43 +224,18 @@ export default function ContractsPage() {
     }
   };
 
-  // Handle bulk actions
-  const handleBulkAction = async (action: string, data?: Record<string, unknown>) => {
-    try {
-      const response = await fetch('/api/contracts/bulk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          contractIds: selectedContractIds,
-          ...data
-        })
-      });
-
-      if (response.ok) {
-        fetchContracts(pagination.page);
-        setSelectedContractIds([]);
-        setShowBulkMode(false);
-      }
-    } catch (error) {
-      console.error('Toplu işlem hatası:', error);
-    }
-  };
-
   // Filter contracts
   const filteredContracts = contracts.filter(contract => {
     const matchesSearch = contract.title.toLowerCase().includes(q.toLowerCase()) ||
                          contract.description?.toLowerCase().includes(q.toLowerCase()) ||
                          contract.otherPartyName?.toLowerCase().includes(q.toLowerCase());
-    const matchesFilter = filter === 'all' || contract.status === filter;
+    const matchesFilter = status === 'all' || contract.status === status;
     const matchesType = typeFilter === 'all' || contract.type === typeFilter;
     
     return matchesSearch && matchesFilter && matchesType;
   });
 
-  if (loading && contracts.length === 0) {
+  if (contracts.length === 0) {
     return (
       <div className="container mx-auto p-6 space-y-6">
         <div className="text-center py-12">
@@ -331,65 +270,6 @@ export default function ContractsPage() {
         </Button>
       </div>
 
-      {/* Statistics Cards */}
-      {!loading && stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Toplam Sözleşme</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalContracts}</div>
-              <p className="text-xs text-muted-foreground">
-                Aktif sözleşme sayısı
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">İmzalanan</CardTitle>
-              <CheckCheck className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.signedContracts}</div>
-              <p className="text-xs text-muted-foreground">
-                Tamamlanan sözleşmeler
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">İncelemede</CardTitle>
-              <Users className="h-4 w-4 text-yellow-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{stats.inReviewContracts}</div>
-              <p className="text-xs text-muted-foreground">
-                Onay bekleyen sözleşmeler
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Toplam Değer</CardTitle>
-              <TrendingUp className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">
-                {stats.totalValue ? `₺${stats.totalValue.toLocaleString('tr-TR')}` : '₺0'}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Sözleşme toplam değeri
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Contracts List */}
@@ -405,14 +285,43 @@ export default function ContractsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="h-[600px] overflow-auto">
+              {/* Arama ve filtreleme çubuğu */}
               <ContractFilters />
+
+              {/* İstatistik kartları */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Toplam Sözleşme</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{totalCount}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">İncelemede</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-yellow-600">{reviewingCount}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">İmzalanan</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">{signedCount}</div>
+                  </CardContent>
+                </Card>
+              </div>
               {/* Contracts List */}
               {filteredContracts.length === 0 ? (
                 <div className="text-center py-12">
                   <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                   <h3 className="text-lg font-medium mb-2">Sözleşme bulunamadı</h3>
                   <p className="text-gray-500">
-                    {filter === 'all' ? 'Henüz hiç sözleşme oluşturmamışsınız.' : 'Bu filtreye uygun sözleşme bulunamadı.'}
+                    {status === 'all' ? 'Henüz hiç sözleşme oluşturmamışsınız.' : 'Bu filtreye uygun sözleşme bulunamadı.'}
                   </p>
                   <Link
                     href="/dashboard/contracts/new"
