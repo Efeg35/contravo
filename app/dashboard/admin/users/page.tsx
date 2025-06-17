@@ -1,9 +1,10 @@
 'use server';
 
-import { isAdmin } from '@/lib/permissions';
+import { isAdmin } from 'src/lib/permissions';
 import prisma from '@/lib/prisma';
 import { Role, User } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { redirect } from "next/navigation";
 
 async function updateUserRole(userId: string, newRole: Role) {
   await isAdmin();
@@ -19,7 +20,10 @@ async function updateUserRole(userId: string, newRole: Role) {
 type UserWithRole = Pick<User, 'id' | 'name' | 'email' | 'role' | 'createdAt'>;
 
 export default async function AdminUsersPage() {
-  await isAdmin();
+  const isUserAdmin = await isAdmin();
+  if (!isUserAdmin) {
+    redirect('/dashboard');
+  }
   
   const users = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
