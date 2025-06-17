@@ -1,7 +1,6 @@
 import prisma from '@/lib/prisma';
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +26,8 @@ import {
   Brain,
   Globe
 } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import ContractFilters from './ContractFilters';
+import SortableHeader from './components/SortableHeader';
 // import BulkOperations from '@/components/BulkOperations';
 
 interface Contract {
@@ -49,6 +49,7 @@ interface Contract {
   company?: {
     name: string;
   };
+  updatedAt?: string;
 }
 
 interface ContractStats {
@@ -59,73 +60,22 @@ interface ContractStats {
   totalValue: number;
 }
 
-function ContractFilters() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const q = searchParams.get('q') || '';
-  const status = searchParams.get('status') || 'all';
-  const type = searchParams.get('type') || 'all';
-
-  function updateParam(key: string, value: string) {
-    const params = new URLSearchParams(Array.from(searchParams.entries()));
-    if (value === 'all' || value === '') {
-      params.delete(key);
-    } else {
-      params.set(key, value);
-    }
-    router.replace(`?${params.toString()}`);
-  }
-
-  return (
-    <div className="space-y-4 mb-6">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Sözleşme ara..."
-            value={q}
-            onChange={e => updateParam('q', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div className="flex gap-2">
-          <select
-            value={status}
-            onChange={e => updateParam('status', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Tüm Durumlar</option>
-            <option value="DRAFT">Taslak</option>
-            <option value="IN_REVIEW">İncelemede</option>
-            <option value="APPROVED">Onaylandı</option>
-            <option value="SIGNED">İmzalandı</option>
-            <option value="ARCHIVED">Arşivlendi</option>
-          </select>
-          <select
-            value={type}
-            onChange={e => updateParam('type', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Tüm Türler</option>
-            <option value="NDA">Gizlilik</option>
-            <option value="SERVICE">Hizmet</option>
-            <option value="EMPLOYMENT">İş</option>
-            <option value="PARTNERSHIP">Ortaklık</option>
-            <option value="SALES">Satış</option>
-            <option value="LEASE">Kira</option>
-            <option value="OTHER">Diğer</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default async function ContractsPage({ searchParams }: { searchParams: { q?: string; status?: string; type?: string } }) {
+export default async function ContractsPage({ 
+  searchParams 
+}: { 
+  searchParams: { 
+    q?: string; 
+    status?: string; 
+    type?: string;
+    sortBy?: 'title' | 'status' | 'createdAt' | 'updatedAt' | 'expirationDate';
+    order?: 'asc' | 'desc';
+  } 
+}) {
   const q = searchParams.q || '';
   const status = searchParams.status || 'all';
   const typeFilter = searchParams.type || 'all';
+  const sortBy = searchParams.sortBy || 'createdAt';
+  const order = searchParams.order || 'desc';
 
   // Dinamik where koşulu oluştur
   const where: any = {};
@@ -146,7 +96,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: { 
     prisma.contract.count({ where: { status: 'SIGNED' } }),
     prisma.contract.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { [sortBy]: order },
       include: {
         createdBy: true,
         company: true,
@@ -201,29 +151,6 @@ export default async function ContractsPage({ searchParams }: { searchParams: { 
     }
   };
 
-  // Handle PDF download
-  const handleDownloadPDF = async (contract: Contract) => {
-    try {
-      const response = await fetch(`/api/contracts/${contract.id}/pdf`);
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = `${contract.title}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        console.error('PDF indirilemedi');
-      }
-    } catch (error) {
-      console.error('PDF indirme hatası:', error);
-    }
-  };
-
   // Filter contracts
   const filteredContracts = contracts.filter(contract => {
     const matchesSearch = contract.title.toLowerCase().includes(q.toLowerCase()) ||
@@ -260,13 +187,11 @@ export default async function ContractsPage({ searchParams }: { searchParams: { 
           </p>
         </div>
         
-        <Button 
-          size="lg"
-          onClick={() => window.location.href = '/dashboard/contracts/new'}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Yeni Sözleşme Oluştur
+        <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
+          <Link href="/dashboard/contracts/new">
+            <Plus className="h-5 w-5 mr-2" />
+            Yeni Sözleşme Oluştur
+          </Link>
         </Button>
       </div>
 
@@ -333,33 +258,45 @@ export default async function ContractsPage({ searchParams }: { searchParams: { 
                 </div>
               ) : (
                 <div className="space-y-3">
+                  <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg font-medium">
+                    <div className="col-span-4">
+                      <SortableHeader label="Başlık" sortKey="title" />
+                    </div>
+                    <div className="col-span-2">
+                      <SortableHeader label="Durum" sortKey="status" />
+                    </div>
+                    <div className="col-span-2">
+                      <SortableHeader label="Oluşturma Tarihi" sortKey="createdAt" />
+                    </div>
+                    <div className="col-span-2">
+                      <SortableHeader label="Son Güncelleme" sortKey="updatedAt" />
+                    </div>
+                    <div className="col-span-2">
+                      <SortableHeader label="Bitiş Tarihi" sortKey="expirationDate" />
+                    </div>
+                  </div>
                   {filteredContracts.map((contract) => (
                     <div key={contract.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-center justify-between">
-                        <Link href={`/dashboard/contracts/${contract.id}`} className="flex-1 min-w-0">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0">
-                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <FileText className="h-5 w-5 text-blue-600" />
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-900 truncate">
-                                {contract.title}
-                              </div>
-                              <div className="text-sm text-gray-500 truncate">
-                                {contract.description}
-                              </div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                {getTypeText(contract.type)} • {contract.otherPartyName || 'Diğer Taraf Belirtilmemiş'} • {new Date(contract.createdAt).toLocaleDateString('tr-TR')}
-                              </div>
-                            </div>
-                          </div>
-                        </Link>
-                        <div className="flex items-center gap-2 ml-4">
+                      <div className="grid grid-cols-12 gap-4 items-center">
+                        <div className="col-span-4">
+                          <Link href={`/dashboard/contracts/${contract.id}`} className="flex-1 min-w-0">
+                            <h3 className="text-lg font-medium truncate">{contract.title}</h3>
+                            <p className="text-sm text-gray-500 truncate">{contract.description}</p>
+                          </Link>
+                        </div>
+                        <div className="col-span-2">
                           <Badge className={getStatusColor(contract.status)}>
                             {getStatusText(contract.status)}
                           </Badge>
+                        </div>
+                        <div className="col-span-2 text-sm text-gray-500">
+                          {new Date(contract.createdAt).toLocaleDateString('tr-TR')}
+                        </div>
+                        <div className="col-span-2 text-sm text-gray-500">
+                          {contract.updatedAt ? new Date(contract.updatedAt).toLocaleDateString('tr-TR') : '-'}
+                        </div>
+                        <div className="col-span-2 text-sm text-gray-500">
+                          {contract.endDate ? new Date(contract.endDate).toLocaleDateString('tr-TR') : '-'}
                         </div>
                       </div>
                     </div>
@@ -378,97 +315,77 @@ export default async function ContractsPage({ searchParams }: { searchParams: { 
               <CardTitle className="text-lg">Hızlı İşlemler</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/contracts/new'}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Yeni Sözleşme Oluştur
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="/dashboard/contracts/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Yeni Sözleşme Oluştur
+                </Link>
               </Button>
               
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/contracts/collaboration'}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Gerçek Zamanlı İşbirliği
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="/dashboard/contracts/collaboration">
+                  <Users className="h-4 w-4 mr-2" />
+                  Gerçek Zamanlı İşbirliği
+                </Link>
               </Button>
               
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/contracts/workflows'}
-              >
-                <Workflow className="h-4 w-4 mr-2" />
-                İş Akışı Tasarımı
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="/dashboard/contracts/workflows">
+                  <Workflow className="h-4 w-4 mr-2" />
+                  İş Akışı Tasarımı
+                </Link>
               </Button>
               
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/contracts/approvals'}
-              >
-                <CheckCheck className="h-4 w-4 mr-2" />
-                Onay İş Akışı
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="/dashboard/contracts/approvals">
+                  <CheckCheck className="h-4 w-4 mr-2" />
+                  Onay İş Akışı
+                </Link>
               </Button>
               
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/contracts/tracking'}
-              >
-                <Activity className="h-4 w-4 mr-2" />
-                İş Akışı Takibi
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="/dashboard/contracts/tracking">
+                  <Activity className="h-4 w-4 mr-2" />
+                  İş Akışı Takibi
+                </Link>
               </Button>
               
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard/contracts/automation'}
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                Otomasyon Kuralları
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="/dashboard/contracts/automation">
+                  <Zap className="h-4 w-4 mr-2" />
+                  Otomasyon Kuralları
+                </Link>
               </Button>
               
               <div className="border-t pt-3 mt-3">
                 <p className="text-sm font-medium text-gray-700 mb-2">Advanced Contract Authoring</p>
                 
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start mb-2"
-                  onClick={() => window.location.href = '/dashboard/contracts/editor'}
-                >
-                  <Edit3 className="h-4 w-4 mr-2" />
-                  Collaborative Editor
+                <Button asChild variant="outline" className="w-full justify-start mb-2">
+                  <Link href="/dashboard/contracts/editor">
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Collaborative Editor
+                  </Link>
                 </Button>
                 
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start mb-2"
-                  onClick={() => window.location.href = '/dashboard/contracts/smart-clauses'}
-                >
-                  <Brain className="h-4 w-4 mr-2" />
-                  Smart Clauses
+                <Button asChild variant="outline" className="w-full justify-start mb-2">
+                  <Link href="/dashboard/contracts/smart-clauses">
+                    <Brain className="h-4 w-4 mr-2" />
+                    Smart Clauses
+                  </Link>
                 </Button>
                 
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start mb-2"
-                  onClick={() => window.location.href = '/dashboard/contracts/conditional-logic'}
-                >
-                  <GitBranch className="h-4 w-4 mr-2" />
-                  Conditional Logic
+                <Button asChild variant="outline" className="w-full justify-start mb-2">
+                  <Link href="/dashboard/contracts/conditional-logic">
+                    <GitBranch className="h-4 w-4 mr-2" />
+                    Conditional Logic
+                  </Link>
                 </Button>
                 
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => window.location.href = '/dashboard/contracts/language-support'}
-                >
-                  <Globe className="h-4 w-4 mr-2" />
-                  Language Support
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link href="/dashboard/contracts/language-support">
+                    <Globe className="h-4 w-4 mr-2" />
+                    Language Support
+                  </Link>
                 </Button>
               </div>
             </CardContent>
