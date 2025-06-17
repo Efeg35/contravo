@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,24 +78,6 @@ export default function ContractsPage() {
     hasPrev: false
   });
 
-  // Fetch contracts
-  const fetchContracts = async (page = 1) => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/contracts?page=${page}&limit=${pagination.limit}&search=${searchTerm}&status=${filter}&type=${typeFilter}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setContracts(data.contracts || []);
-        setPagination(data.pagination || pagination);
-      }
-    } catch (error) {
-      console.error('Sözleşmeler yüklenemedi:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Fetch stats
   const fetchStats = async () => {
     try {
@@ -110,10 +92,38 @@ export default function ContractsPage() {
     }
   };
 
+  // Fetch contracts with useCallback to prevent re-renders
+  const fetchContracts = useCallback(async (page = 1) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/contracts?page=${page}&limit=10&search=${searchTerm}&status=${filter}&type=${typeFilter}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setContracts(data.contracts || []);
+        setPagination(data.pagination || {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false
+        });
+      }
+    } catch (error) {
+      console.error('Sözleşmeler yüklenemedi:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, filter, typeFilter]);
+
   useEffect(() => {
     fetchContracts();
-    fetchStats();
   }, [searchTerm, filter, typeFilter, fetchContracts]);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
   // Get status color
   const getStatusColor = (status: string) => {
