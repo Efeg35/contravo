@@ -240,19 +240,19 @@ export class RedisCache {
       let finalValue = value;
       let compressed = false;
       
-      if (shouldCompress) {
-        const compressedValue = this.compress(value);
-        const compressionRatio = JSON.stringify(compressedValue).length / serializedValue.length;
-        
-        if (compressionRatio < 0.8) {
-          finalValue = compressedValue as T;
-          compressed = true;
-        }
-      }
+             if (shouldCompress) {
+         const compressedValue = this.compress(value);
+         const compressionRatio = JSON.stringify(compressedValue).length / serializedValue.length;
+         
+         if (compressionRatio < 0.8) {
+           finalValue = compressedValue as T;
+           compressed = true;
+         }
+       }
 
       const ttl = options.ttl ?? this.config.defaultTTL;
       await this.client.setex(fullKey, ttl, JSON.stringify(finalValue));
-
+      
       // Update L1 cache if enabled
       if (options.updateLocal !== false && this.config.enableL1Cache) {
         this.setL1Cache(fullKey, finalValue, ttl);
@@ -264,7 +264,7 @@ export class RedisCache {
       }
 
       if (this.stats) {
-        this.stats.operations.set++;
+      this.stats.operations.set++;
       }
 
       return true;

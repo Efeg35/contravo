@@ -140,9 +140,9 @@ export async function GET(request: NextRequest) {
       const filterEntries = Object.entries(filters);
       if (filterEntries.some(([key]) => ['tags', 'createdBy', 'status'].includes(key))) {
         searchQuery.filters = {};
-        for (const [key, value] of filterEntries) {
-          if (key === 'tags' || key === 'createdBy' || key === 'status') {
-            (searchQuery.filters as Record<string, string[]>)[key] = Array.isArray(value) ? value : [value];
+                 for (const [key, value] of filterEntries) {
+           if (key === 'tags' || key === 'createdBy' || key === 'status') {
+             (searchQuery.filters as Record<string, string[]>)[key] = Array.isArray(value) ? value : [value];
           } else if (key.startsWith('metadata.')) {
             if (!searchQuery.filters.metadata) {
               searchQuery.filters.metadata = {};

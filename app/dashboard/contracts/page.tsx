@@ -279,11 +279,11 @@ export default async function ContractsPage({
                     <div key={contract.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                       <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-4">
-                          <Link href={`/dashboard/contracts/${contract.id}`} className="flex-1 min-w-0">
+                        <Link href={`/dashboard/contracts/${contract.id}`} className="flex-1 min-w-0">
                             <h3 className="text-lg font-medium truncate">{contract.title}</h3>
                             <p className="text-sm text-gray-500 truncate">{contract.description}</p>
                           </Link>
-                        </div>
+                              </div>
                         <div className="col-span-2">
                           <Badge className={getStatusColor(contract.status)}>
                             {getStatusText(contract.status)}

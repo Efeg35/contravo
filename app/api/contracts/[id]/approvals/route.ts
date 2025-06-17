@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
+import { sendNotificationEmail } from '@/lib/mail';
 
 const createApprovalSchema = z.object({
   approverIds: z.array(z.string()).min(1, 'En az bir onaylayıcı seçmelisiniz'),
@@ -66,90 +67,65 @@ export async function GET(
 // POST /api/contracts/[id]/approvals - Request approvals
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await context.params;
     const session = await getServerSession(authOptions);
-    
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Yetkilendirme gerekli' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const validatedData = createApprovalSchema.parse(body);
+    const { id } = params;
+    const { approverIds } = await request.json();
 
-    // Check if user owns this contract
-    const contract = await prisma.contract.findFirst({
-      where: {
-        id,
-        createdById: session.user.id
-      }
+    // Sözleşmeyi ve onaylayıcıları bul
+    const contract = await prisma.contract.findUnique({
+      where: { id },
+      include: {
+        createdBy: true,
+      },
     });
 
     if (!contract) {
-      return NextResponse.json({ error: 'Contract not found or no permission' }, { status: 404 });
+      return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
     }
 
-    // Check if contract is in appropriate status
-    if (!['DRAFT', 'IN_REVIEW'].includes(contract.status)) {
-      return NextResponse.json({ 
-        error: 'Contract must be in DRAFT or IN_REVIEW status to request approvals' 
-      }, { status: 400 });
-    }
-
-    // Remove existing pending approvals
-    await prisma.contractApproval.deleteMany({
-      where: {
-        contractId: id,
-        status: 'PENDING'
-      }
-    });
-
-    // Create new approval requests
+    // Onaylayıcıları ekle
     const approvals = await Promise.all(
-      validatedData.approverIds.map(approverId => 
-        prisma.contractApproval.create({
+      approverIds.map(async (approverId: string) => {
+        const approval = await prisma.contractApproval.create({
           data: {
             contractId: id,
             approverId,
-            status: 'PENDING'
           },
           include: {
-            approver: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              }
-            }
-          }
-        })
-      )
+            approver: true,
+          },
+        });
+
+        // Onaylayıcıya e-posta gönder
+        await sendNotificationEmail({
+          to: approval.approver.email,
+          baslik: 'Yeni Bir Onay İsteğiniz Var',
+          mesaj: `${contract.title} sözleşmesi için onayınız isteniyor. Lütfen sözleşmeyi inceleyip onaylayın veya reddedin.`,
+          link: `/contracts/${id}`,
+          linkText: 'Sözleşmeyi İncele',
+        });
+
+        return approval;
+      })
     );
 
-    // Update contract status to IN_REVIEW
-    await prisma.contract.update({
-      where: { id },
-      data: { 
-        status: 'IN_REVIEW',
-        updatedAt: new Date()
-      }
+    return NextResponse.json({
+      success: true,
+      message: 'Onay istekleri başarıyla gönderildi',
+      approvals,
     });
-
-    return NextResponse.json({ 
-      message: 'Approval requests sent successfully',
-      approvals 
-    }, { status: 201 });
-
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
-        error: 'Validation error', 
-        details: error.errors 
-      }, { status: 400 });
-    }
-    console.error('Error creating approvals:');
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Onay isteği gönderme hatası:', error);
+    return NextResponse.json(
+      { error: 'Sunucu hatası' },
+      { status: 500 }
+    );
   }
 } 

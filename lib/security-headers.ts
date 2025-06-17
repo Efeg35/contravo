@@ -330,21 +330,21 @@ export class SecurityHeadersManager {
     }
 
     this.stats.violationsReported++;
-    this.stats.cspViolations++;
-    this.stats.lastViolation = new Date();
+      this.stats.cspViolations++;
+      this.stats.lastViolation = new Date();
 
-    // Update top violations
+      // Update top violations
     const existingViolation = this.stats.topViolations.find(v => v.type === violation.violatedDirective);
-    if (existingViolation) {
-      existingViolation.count++;
-      existingViolation.lastSeen = new Date();
-    } else {
-      this.stats.topViolations.push({
-        type: violation.violatedDirective,
-        count: 1,
-        lastSeen: new Date()
-      });
-    }
+      if (existingViolation) {
+        existingViolation.count++;
+        existingViolation.lastSeen = new Date();
+      } else {
+        this.stats.topViolations.push({
+          type: violation.violatedDirective,
+          count: 1,
+          lastSeen: new Date()
+        });
+      }
 
     // Sort top violations by count
     this.stats.topViolations.sort((a, b) => b.count - a.count);
@@ -442,12 +442,12 @@ export class SecurityHeadersManager {
     Object.entries(cspConfig.directives).forEach(([directive, values]) => {
       if (values && values.length > 0) {
         let directiveValue = values.join(' ');
-
+        
         // Add nonce to script-src and style-src if enabled
         if (nonce && (directive === 'scriptSrc' || directive === 'styleSrc')) {
           directiveValue += ` 'nonce-${nonce}'`;
         }
-
+        
         directives.push(`${directive.replace(/([A-Z])/g, '-$1').toLowerCase()} ${directiveValue}`);
       }
     });
@@ -471,20 +471,20 @@ export class SecurityHeadersManager {
     if (!this.config.strictTransportSecurity.enabled) {
       return;
     }
-
+    
     const hstsConfig = this.config.strictTransportSecurity;
     const directives: string[] = [`max-age=${hstsConfig.maxAge}`];
-
+      
     if (hstsConfig.includeSubDomains) {
       directives.push('includeSubDomains');
-    }
-
+      }
+      
     if (hstsConfig.preload) {
       directives.push('preload');
-    }
-
+      }
+      
     response.headers.set('Strict-Transport-Security', directives.join('; '));
-    this.stats.hstsUpgrades++;
+      this.stats.hstsUpgrades++;
   }
 
   private applyFrameOptions(response: NextResponse): void {
@@ -494,7 +494,7 @@ export class SecurityHeadersManager {
 
     const frameConfig = this.config.frameOptions;
     let headerValue = frameConfig.policy;
-
+    
     if (frameConfig.policy === 'ALLOW-FROM' && frameConfig.allowFrom) {
       headerValue += ` ${frameConfig.allowFrom}`;
     }
@@ -568,15 +568,15 @@ export class SecurityHeadersManager {
 
     const expectCtConfig = this.config.expectCertificateTransparency;
     const directives: string[] = [`max-age=${expectCtConfig.maxAge}`];
-
+    
     if (expectCtConfig.enforce) {
       directives.push('enforce');
     }
-
+    
     if (expectCtConfig.reportUri) {
       directives.push(`report-uri="${expectCtConfig.reportUri}"`);
     }
-
+    
     response.headers.set('Expect-CT', directives.join(', '));
   }
 
@@ -598,18 +598,18 @@ export class SecurityHeadersManager {
       });
 
       return {
-        group: group.groupName,
-        max_age: group.maxAge,
+      group: group.groupName,
+      max_age: group.maxAge,
         endpoints
       };
     });
-
+    
     response.headers.set('Report-To', JSON.stringify(groups));
   }
 
   private applyServerInfo(response: NextResponse): void {
     const serverConfig = this.config.serverInfo;
-
+    
     if (serverConfig.hideServerInfo) {
       response.headers.delete('Server');
     }
@@ -617,7 +617,7 @@ export class SecurityHeadersManager {
     if (serverConfig.hidePoweredBy) {
       response.headers.delete('X-Powered-By');
     }
-
+    
     if (serverConfig.customServerHeader) {
       response.headers.set('Server', serverConfig.customServerHeader);
     }
@@ -628,7 +628,7 @@ export class SecurityHeadersManager {
       .filter(header => header.enabled)
       .forEach(header => {
         response.headers.set(header.name, header.value);
-      });
+    });
   }
 }
 
