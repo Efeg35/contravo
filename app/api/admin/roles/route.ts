@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkPermissionOrThrow, AuthorizationError, canManageUserRole } from '@/lib/auth-helpers';
 import { Permission } from '@/lib/permissions';
-import prisma from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { z } from 'zod';
+import { Role } from '@prisma/client';
 
 const updateUserRoleSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
-  newRole: z.enum(['ADMIN', 'EDITOR', 'APPROVER', 'USER', 'VIEWER'], {
+  newRole: z.nativeEnum(Role, {
     errorMap: () => ({ message: 'Invalid role' })
   }),
 });
@@ -15,7 +16,7 @@ const updateUserRoleSchema = z.object({
 export async function GET() {
   try {
     const roles = {
-      global: ['ADMIN', 'EDITOR', 'APPROVER', 'USER', 'VIEWER'],
+      global: Object.values(Role),
       company: ['OWNER', 'MANAGER', 'MEMBER']
     };
 
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get target user
-    const targetUser = await prisma.user.findUnique({
+    const targetUser = await db.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user role
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await db.user.update({
       where: { id: userId },
       data: { role: newRole },
       select: {

@@ -144,6 +144,13 @@ export interface APISecurityStats {
   topBlockedCountries: Array<{ country: string; count: number }>;
 }
 
+interface SecurityReport {
+  stats: APISecurityStats;
+  config: APISecurityConfig;
+  issues: string[];
+  recommendations: string[];
+}
+
 export class APISecurityManager {
   private static instance: APISecurityManager;
   private config: APISecurityConfig;
@@ -242,8 +249,8 @@ export class APISecurityManager {
         warnings: warnings.length > 0 ? warnings : undefined
       };
 
-    } catch (_error) {
-      console.error('❌ API security validation error:');
+    } catch (error: unknown) {
+      console.error('❌ API security validation error:', error);
       return { allowed: true, warnings: ['Security validation failed'] };
     }
   }
@@ -258,41 +265,41 @@ export class APISecurityManager {
     }
 
     const clientIP = this.getClientIP(request);
-    
-    // Check blacklist first
-    for (const entry of this.config.ipControl.blacklist) {
-      if (this.isIPInRange(clientIP, entry.ip, entry.cidr)) {
-        if (!entry.expiresAt || entry.expiresAt > new Date()) {
-          await this.logSecurityEvent('IP_BLOCKED', {
-            ip: clientIP,
-            reason: entry.reason,
-            type: 'blacklist'
-          });
-          return { allowed: false, reason: `IP blocked: ${entry.reason}` };
-        }
-      }
-    }
+    const ipConfig = this.config.ipControl;
 
-    // Check whitelist
-    const whitelisted = this.config.ipControl.whitelist.some(entry => {
-      if (entry.expiresAt && entry.expiresAt <= new Date()) {
+    // Check blacklist
+    const blacklisted = ipConfig.blacklist.find(entry => {
+      if (entry.expiresAt && entry.expiresAt < new Date()) {
         return false;
       }
       return this.isIPInRange(clientIP, entry.ip, entry.cidr);
     });
 
-    if (whitelisted) {
-      return { allowed: true };
-    }
-
-    // Apply default action
-    if (this.config.ipControl.defaultAction === 'deny') {
+    if (blacklisted) {
       await this.logSecurityEvent('IP_BLOCKED', {
         ip: clientIP,
-        reason: 'Not in whitelist',
-        type: 'default_deny'
+        reason: blacklisted.reason,
+        blacklistEntry: blacklisted
       });
-      return { allowed: false, reason: 'IP not in whitelist' };
+      return { allowed: false, reason: `IP blocked: ${blacklisted.reason}` };
+    }
+
+    // Check whitelist if default action is deny
+    if (ipConfig.defaultAction === 'deny') {
+      const whitelisted = ipConfig.whitelist.find(entry => {
+        if (entry.expiresAt && entry.expiresAt < new Date()) {
+          return false;
+        }
+        return this.isIPInRange(clientIP, entry.ip, entry.cidr);
+      });
+
+      if (!whitelisted) {
+        await this.logSecurityEvent('IP_NOT_WHITELISTED', {
+          ip: clientIP,
+          defaultAction: ipConfig.defaultAction
+        });
+        return { allowed: false, reason: 'IP not in whitelist' };
+      }
     }
 
     return { allowed: true };
@@ -307,65 +314,73 @@ export class APISecurityManager {
       return { allowed: true };
     }
 
-    try {
-      const geoInfo = await this.getGeolocation(request);
-      
-      // VPN/Proxy/Tor detection
-      if (this.config.geolocation.vpnDetection && geoInfo.isVPN) {
-        await this.logSecurityEvent('VPN_BLOCKED', { ip: this.getClientIP(request) });
-        return { allowed: false, reason: 'VPN connections not allowed' };
+    const geoInfo = await this.getGeolocation(request);
+    const geoConfig = this.config.geolocation;
+
+    // Check country restrictions
+    if (geoConfig.restrictByCountry) {
+      if (geoConfig.blockedCountries.includes(geoInfo.countryCode)) {
+        await this.logSecurityEvent('COUNTRY_BLOCKED', {
+          country: geoInfo.country,
+          countryCode: geoInfo.countryCode
+        });
+        return { allowed: false, reason: `Access denied from ${geoInfo.country}` };
       }
 
-      if (this.config.geolocation.proxyDetection && geoInfo.isProxy) {
-        await this.logSecurityEvent('PROXY_BLOCKED', { ip: this.getClientIP(request) });
-        return { allowed: false, reason: 'Proxy connections not allowed' };
+      if (geoConfig.allowedCountries.length > 0 && !geoConfig.allowedCountries.includes(geoInfo.countryCode)) {
+        await this.logSecurityEvent('COUNTRY_NOT_ALLOWED', {
+          country: geoInfo.country,
+          countryCode: geoInfo.countryCode
+        });
+        return { allowed: false, reason: `Access denied from ${geoInfo.country}` };
       }
-
-      if (this.config.geolocation.torDetection && geoInfo.isTor) {
-        await this.logSecurityEvent('TOR_BLOCKED', { ip: this.getClientIP(request) });
-        return { allowed: false, reason: 'Tor connections not allowed' };
-      }
-
-      // Country restrictions
-      if (this.config.geolocation.restrictByCountry) {
-        if (this.config.geolocation.blockedCountries.includes(geoInfo.countryCode)) {
-          await this.logSecurityEvent('COUNTRY_BLOCKED', {
-            ip: this.getClientIP(request),
-            country: geoInfo.country,
-            countryCode: geoInfo.countryCode
-          });
-          return { allowed: false, reason: `Access from ${geoInfo.country} not allowed` };
-        }
-
-        if (this.config.geolocation.allowedCountries.length > 0 && 
-            !this.config.geolocation.allowedCountries.includes(geoInfo.countryCode)) {
-          await this.logSecurityEvent('COUNTRY_BLOCKED', {
-            ip: this.getClientIP(request),
-            country: geoInfo.country,
-            countryCode: geoInfo.countryCode
-          });
-          return { allowed: false, reason: `Access from ${geoInfo.country} not allowed` };
-        }
-      }
-
-      // Continent restrictions
-      if (this.config.geolocation.restrictByContinent) {
-        if (this.config.geolocation.blockedContinents.includes(geoInfo.continentCode)) {
-          return { allowed: false, reason: `Access from ${geoInfo.continent} not allowed` };
-        }
-
-        if (this.config.geolocation.allowedContinents.length > 0 && 
-            !this.config.geolocation.allowedContinents.includes(geoInfo.continentCode)) {
-          return { allowed: false, reason: `Access from ${geoInfo.continent} not allowed` };
-        }
-      }
-
-      return { allowed: true };
-
-    } catch (_error) {
-      console.error('❌ Geolocation validation error:');
-      return { allowed: true }; // Fail open
     }
+
+    // Check continent restrictions
+    if (geoConfig.restrictByContinent) {
+      if (geoConfig.blockedContinents.includes(geoInfo.continentCode)) {
+        await this.logSecurityEvent('CONTINENT_BLOCKED', {
+          continent: geoInfo.continent,
+          continentCode: geoInfo.continentCode
+        });
+        return { allowed: false, reason: `Access denied from ${geoInfo.continent}` };
+      }
+
+      if (geoConfig.allowedContinents.length > 0 && !geoConfig.allowedContinents.includes(geoInfo.continentCode)) {
+        await this.logSecurityEvent('CONTINENT_NOT_ALLOWED', {
+          continent: geoInfo.continent,
+          continentCode: geoInfo.continentCode
+        });
+        return { allowed: false, reason: `Access denied from ${geoInfo.continent}` };
+      }
+    }
+
+    // Check VPN/Proxy/Tor
+    if (geoConfig.vpnDetection && geoInfo.isVPN) {
+      await this.logSecurityEvent('VPN_DETECTED', {
+        ip: this.getClientIP(request),
+        country: geoInfo.country
+      });
+      return { allowed: false, reason: 'VPN access not allowed' };
+    }
+
+    if (geoConfig.proxyDetection && geoInfo.isProxy) {
+      await this.logSecurityEvent('PROXY_DETECTED', {
+        ip: this.getClientIP(request),
+        country: geoInfo.country
+      });
+      return { allowed: false, reason: 'Proxy access not allowed' };
+    }
+
+    if (geoConfig.torDetection && geoInfo.isTor) {
+      await this.logSecurityEvent('TOR_DETECTED', {
+        ip: this.getClientIP(request),
+        country: geoInfo.country
+      });
+      return { allowed: false, reason: 'Tor access not allowed' };
+    }
+
+    return { allowed: true };
   }
 
   // API version validation
@@ -438,78 +453,64 @@ export class APISecurityManager {
     allowed: boolean;
     reason?: string;
   }> {
-    try {
-      const signature = request.headers.get('X-Signature');
-      const timestamp = request.headers.get('X-Timestamp');
-      const nonce = request.headers.get('X-Nonce');
+    const signConfig = this.config.requestSigning;
+    const timestamp = request.headers.get('X-Request-Timestamp');
+    const nonce = request.headers.get('X-Request-Nonce');
+    const signature = request.headers.get('X-Request-Signature');
 
-      if (!signature || !timestamp) {
-        return { allowed: false, reason: 'Missing required signature headers' };
-      }
-
-      // Validate timestamp
-      const requestTime = parseInt(timestamp);
-      const now = Math.floor(Date.now() / 1000);
-      
-      if (Math.abs(now - requestTime) > this.config.requestSigning.timestampTolerance) {
-        return { allowed: false, reason: 'Request timestamp outside tolerance window' };
-      }
-
-      // Validate nonce (if required)
-      if (this.config.requestSigning.nonceRequired) {
-        if (!nonce) {
-          return { allowed: false, reason: 'Nonce is required' };
-        }
-
-        // Check if nonce was already used
-        const nonceKey = `${this.REDIS_KEY_PREFIX}nonce:${nonce}`;
-        const nonceUsed = await redisCache.get(nonceKey);
-        if (nonceUsed) {
-          return { allowed: false, reason: 'Nonce already used' };
-        }
-
-        // Store nonce to prevent replay
-        await redisCache.set(nonceKey, '1', { ttl: this.NONCE_CACHE_TTL });
-      }
-
-      // Build signature payload
-      const method = request.method;
-      const path = request.nextUrl.pathname + request.nextUrl.search;
-      const body = this.config.requestSigning.includeBody ? 
-        await request.text() : '';
-
-      let payload = `${method}\n${path}\n${timestamp}`;
-      
-      if (nonce) {
-        payload += `\n${nonce}`;
-      }
-
-      if (this.config.requestSigning.includeBody && body) {
-        payload += `\n${body}`;
-      }
-
-      // Include specified headers
-      for (const headerName of this.config.requestSigning.includeHeaders) {
-        const headerValue = request.headers.get(headerName);
-        if (headerValue) {
-          payload += `\n${headerName.toLowerCase()}:${headerValue}`;
-        }
-      }
-
-      // Generate expected signature
-      const expectedSignature = this.generateSignature(payload);
-
-      // Compare signatures
-      if (!this.constantTimeCompare(signature, expectedSignature)) {
-        return { allowed: false, reason: 'Invalid signature' };
-      }
-
-      return { allowed: true };
-
-    } catch (_error) {
-      console.error('❌ Signature validation error:');
-      return { allowed: false, reason: 'Signature validation failed' };
+    if (!timestamp || !signature) {
+      return { allowed: false, reason: 'Missing required signature headers' };
     }
+
+    if (signConfig.nonceRequired && !nonce) {
+      return { allowed: false, reason: 'Nonce required but not provided' };
+    }
+
+    // Validate timestamp
+    const requestTime = parseInt(timestamp, 10);
+    const currentTime = Math.floor(Date.now() / 1000);
+    const timeDiff = Math.abs(currentTime - requestTime);
+
+    if (timeDiff > signConfig.timestampTolerance) {
+      return { allowed: false, reason: 'Request timestamp outside tolerance window' };
+    }
+
+    // Check nonce reuse
+    if (nonce) {
+      const nonceKey = `${this.REDIS_KEY_PREFIX}nonce:${nonce}`;
+      const nonceExists = await redisCache.get(nonceKey);
+      if (nonceExists) {
+        return { allowed: false, reason: 'Nonce already used' };
+      }
+      await redisCache.set(nonceKey, '1', { ttl: this.NONCE_CACHE_TTL });
+    }
+
+    // Build signature payload
+    let payload = timestamp;
+    if (nonce) {
+      payload += nonce;
+    }
+
+    if (signConfig.includeBody) {
+      const body = await request.text();
+      payload += body;
+    }
+
+    if (signConfig.includeHeaders.length > 0) {
+      const headerValues = signConfig.includeHeaders
+        .map(header => request.headers.get(header))
+        .filter(Boolean)
+        .join('');
+      payload += headerValues;
+    }
+
+    // Verify signature
+    const expectedSignature = this.generateSignature(payload);
+    if (!this.constantTimeCompare(signature, expectedSignature)) {
+      return { allowed: false, reason: 'Invalid signature' };
+    }
+
+    return { allowed: true };
   }
 
   // Throttling validation
@@ -517,68 +518,73 @@ export class APISecurityManager {
     allowed: boolean;
     reason?: string;
   }> {
-    try {
-      this.getClientIP(request);
-      const endpoint = request.nextUrl.pathname;
-      const userId = request.headers.get('X-User-ID');
+    const ip = this.getClientIP(request);
+    const endpoint = request.nextUrl.pathname;
+    const userId = request.headers.get('x-user-id') || 'anonymous';
 
-      // Check global rate limit
-      const globalKey = `${this.REDIS_KEY_PREFIX}throttle:global`;
-      const globalCount = await redisCache.get<number>(globalKey) || 0;
-      
-      if (globalCount >= this.config.throttling.globalRateLimit) {
-        return { allowed: false, reason: 'Global rate limit exceeded' };
-      }
+    const now = Date.now();
+    const windowSize = 60 * 1000; // 1 minute
+    const windowStart = now - windowSize;
 
-      // Check per-endpoint limit
-      const endpointLimit = this.config.throttling.perEndpointLimits[endpoint];
-      if (endpointLimit) {
-        const endpointKey = `${this.REDIS_KEY_PREFIX}throttle:endpoint:${endpoint}`;
-        const endpointCount = await redisCache.get<number>(endpointKey) || 0;
-        
-        if (endpointCount >= endpointLimit) {
-          return { allowed: false, reason: `Endpoint rate limit exceeded for ${endpoint}` };
-        }
-      }
+    // Global rate limit
+    const globalKey = `${this.REDIS_KEY_PREFIX}throttle:global`;
+    const globalCountStr = await redisCache.get(globalKey, { 
+      deserializer: (value: string) => value 
+    });
+    const globalCount = parseInt(globalCountStr || '0', 10);
 
-      // Check per-user limit
-      if (userId) {
-        const userLimit = this.config.throttling.perUserLimits[userId];
-        if (userLimit) {
-          const userKey = `${this.REDIS_KEY_PREFIX}throttle:user:${userId}`;
-          const userCount = await redisCache.get<number>(userKey) || 0;
-          
-          if (userCount >= userLimit) {
-            return { allowed: false, reason: 'User rate limit exceeded' };
-          }
-        }
-      }
-
-      // Update counters
-      const ttl = 60; // 1 minute window
-      await redisCache.set(globalKey, globalCount + 1, { ttl });
-      
-      if (endpointLimit) {
-        const endpointKey = `${this.REDIS_KEY_PREFIX}throttle:endpoint:${endpoint}`;
-        const endpointCount = await redisCache.get<number>(endpointKey) || 0;
-        await redisCache.set(endpointKey, endpointCount + 1, { ttl });
-      }
-
-      if (userId) {
-        const userLimit = this.config.throttling.perUserLimits[userId];
-        if (userLimit) {
-          const userKey = `${this.REDIS_KEY_PREFIX}throttle:user:${userId}`;
-          const userCount = await redisCache.get<number>(userKey) || 0;
-          await redisCache.set(userKey, userCount + 1, { ttl });
-        }
-      }
-
-      return { allowed: true };
-
-    } catch (_error) {
-      console.error('❌ Throttling validation error:');
-      return { allowed: true }; // Fail open
+    if (globalCount >= this.config.throttling.globalRateLimit) {
+      return {
+        allowed: false,
+        reason: 'Global rate limit exceeded'
+      };
     }
+
+    // Per-endpoint rate limit
+    const endpointKey = `${this.REDIS_KEY_PREFIX}throttle:endpoint:${endpoint}`;
+    const endpointCountStr = await redisCache.get(endpointKey, { 
+      deserializer: (value: string) => value 
+    });
+    const endpointCount = parseInt(endpointCountStr || '0', 10);
+
+    if (endpointCount >= (this.config.throttling.perEndpointLimits[endpoint] || this.config.throttling.globalRateLimit)) {
+      return {
+        allowed: false,
+        reason: 'Endpoint rate limit exceeded'
+      };
+    }
+
+    // Per-user rate limit
+    const userKey = `${this.REDIS_KEY_PREFIX}throttle:user:${userId}`;
+    const userCountStr = await redisCache.get(userKey, { 
+      deserializer: (value: string) => value 
+    });
+    const userCount = parseInt(userCountStr || '0', 10);
+
+    if (userCount >= (this.config.throttling.perUserLimits[userId] || this.config.throttling.globalRateLimit)) {
+      return {
+        allowed: false,
+        reason: 'User rate limit exceeded'
+      };
+    }
+
+    // Update counters
+    await Promise.all([
+      redisCache.set(globalKey, (globalCount + 1).toString(), { 
+        ttl: windowSize,
+        compress: false
+      }),
+      redisCache.set(endpointKey, (endpointCount + 1).toString(), { 
+        ttl: windowSize,
+        compress: false
+      }),
+      redisCache.set(userKey, (userCount + 1).toString(), { 
+        ttl: windowSize,
+        compress: false
+      })
+    ]);
+
+    return { allowed: true };
   }
 
   // IP management methods
@@ -650,34 +656,34 @@ export class APISecurityManager {
     return { ...this.stats };
   }
 
-  async generateSecurityReport(): Promise<{
-    stats: APISecurityStats;
-    config: APISecurityConfig;
-    issues: string[];
-    recommendations: string[];
-  }> {
+  async generateSecurityReport(): Promise<SecurityReport> {
+    const stats = this.getStats();
     const issues: string[] = [];
     const recommendations: string[] = [];
 
-    // Analyze configuration
-    if (!this.config.requestSigning.enabled) {
-      issues.push('Request signing is disabled');
+    // Analyze security issues
+    if (stats.blockedRequests / stats.totalRequests > 0.1) {
+      issues.push('High rate of blocked requests detected');
+      recommendations.push('Review IP whitelist and blacklist configurations');
     }
 
-    if (!this.config.ipControl.enabled) {
-      recommendations.push('Consider enabling IP control for better security');
+    if (stats.signatureFailures > 0) {
+      issues.push('Request signature verification failures detected');
+      recommendations.push('Review API client implementations and signature generation');
     }
 
-    if (!this.config.geolocation.enabled) {
-      recommendations.push('Enable geolocation filtering for enhanced security');
+    if (stats.geolocationBlocks > 0) {
+      issues.push('Geolocation-based blocks detected');
+      recommendations.push('Review geolocation restrictions and country blocking rules');
     }
 
-    if (this.config.requestSigning.timestampTolerance > 300) {
-      recommendations.push('Consider reducing timestamp tolerance for better security');
+    if (Object.keys(stats.versionDistribution).length > 3) {
+      issues.push('Multiple API versions in use');
+      recommendations.push('Consider deprecating older versions and encouraging upgrades');
     }
 
     return {
-      stats: this.stats,
+      stats,
       config: this.config,
       issues,
       recommendations
@@ -749,17 +755,15 @@ export class APISecurityManager {
     }
   }
 
-  private async logSecurityEvent(event: string, details: Record<string, unknown>): Promise<void> {
-    await auditLogger.log({
-      level: AuditLevel.WARN,
-      category: AuditCategory.SECURITY_EVENT,
-      action: event,
-      resource: 'api_security',
+  private async logSecurityEvent(
+    event: string,
+    details: Record<string, unknown>
+  ): Promise<void> {
+    await auditLogger.logSecurityEvent(event, 'MEDIUM', {
       details: {
-        description: `API security event: ${event}`,
+        description: event,
         ...details
-      },
-      ipAddress: details.ip as string
+      }
     });
   }
 }
@@ -827,14 +831,22 @@ export const defaultAPISecurityConfig: APISecurityConfig = {
 export const apiSecurity = APISecurityManager.getInstance(defaultAPISecurityConfig);
 
 // Helper functions
-export async function validateAPIRequest(request: NextRequest) {
-  return apiSecurity.validateRequest(request);
+export async function validateAPIRequest(request: NextRequest): Promise<{
+  allowed: boolean;
+  reason?: string;
+  version?: string;
+  warnings?: string[];
+}> {
+  const securityManager = APISecurityManager.getInstance();
+  return securityManager.validateRequest(request);
 }
 
 export function generateAPISignature(payload: string): string {
-  return apiSecurity.generateSignature(payload);
+  const securityManager = APISecurityManager.getInstance();
+  return securityManager.generateSignature(payload);
 }
 
-export function getAPISecurityStats() {
-  return apiSecurity.getStats();
+export function getAPISecurityStats(): APISecurityStats {
+  const securityManager = APISecurityManager.getInstance();
+  return securityManager.getStats();
 } 

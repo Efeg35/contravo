@@ -1,6 +1,15 @@
 import { redisCache } from './redis-cache';
 
 // Audit log interfaces
+export interface AuditStats {
+  totalLogs: number;
+  logsByLevel: Record<AuditLevel, number>;
+  logsByCategory: Record<AuditCategory, number>;
+  errorCount: number;
+  lastFlush: Date;
+  bufferSize: number;
+}
+
 export interface AuditLog {
   id: string;
   timestamp: Date;
@@ -62,6 +71,7 @@ export interface AuditDetails {
   impact?: string;
   riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   additionalInfo?: Record<string, unknown>;
+  component?: string;
 }
 
 export interface AuditMetadata {
@@ -224,108 +234,87 @@ export class AuditLogger {
     }
 
     try {
-      // Create complete audit log
       const auditLog = this.createAuditLog(logData);
 
-      // Check if should be logged based on level and category
       if (!this.shouldLog(auditLog)) {
         return auditLog.id;
       }
 
-      // Apply filtering
       if (this.isFiltered(auditLog)) {
         return auditLog.id;
       }
 
-      // Handle sensitive data
       const processedLog = await this.processSensitiveData(auditLog);
 
-      // Add to buffer or log immediately
       if (this.config.performance.asyncLogging) {
         await this.addToBuffer(processedLog);
       } else {
         await this.writeLog(processedLog);
       }
 
-      // Update statistics
-      this.updateStats(processedLog);
-
-      // Real-time notifications
       if (this.config.realtime.enabled) {
         await this.sendRealtimeNotification(processedLog);
       }
 
-      console.log(`📝 Audit log created: ${auditLog.action} by ${auditLog.userId || 'system'}`);
-      return auditLog.id;
-
+      this.updateStats(processedLog);
+      return processedLog.id;
     } catch (error) {
-      console.error('❌ Audit logging error:', error);
-      this.stats.errorCount++;
+      console.error('Error logging audit event:', error);
       return '';
     }
   }
 
-  // Convenience methods for different log levels
   async debug(action: string, details: Partial<AuditLog>): Promise<string> {
     return this.log({
-      ...details,
       level: AuditLevel.DEBUG,
-      action
+      action,
+      ...details
     });
   }
 
   async info(action: string, details: Partial<AuditLog>): Promise<string> {
     return this.log({
-      ...details,
       level: AuditLevel.INFO,
-      action
+      action,
+      ...details
     });
   }
 
   async warn(action: string, details: Partial<AuditLog>): Promise<string> {
     return this.log({
-      ...details,
       level: AuditLevel.WARN,
-      action
+      action,
+      ...details
     });
   }
 
   async error(action: string, details: Partial<AuditLog>): Promise<string> {
     return this.log({
-      ...details,
       level: AuditLevel.ERROR,
-      action
+      action,
+      ...details
     });
   }
 
   async critical(action: string, details: Partial<AuditLog>): Promise<string> {
     return this.log({
-      ...details,
       level: AuditLevel.CRITICAL,
-      action
+      action,
+      ...details
     });
   }
 
-  // Specific audit methods
   async logAuthentication(
     action: 'LOGIN' | 'LOGOUT' | 'LOGIN_FAILED' | 'PASSWORD_CHANGE' | 'MFA_ENABLED',
     userId: string,
     details: Partial<AuditLog>
   ): Promise<string> {
     return this.log({
-      ...details,
+      level: AuditLevel.INFO,
       category: AuditCategory.AUTHENTICATION,
       action,
       userId,
-      resource: 'authentication',
-      level: action === 'LOGIN_FAILED' ? AuditLevel.WARN : AuditLevel.INFO,
-      compliance: {
-        gdprRelevant: true,
-        retentionPeriod: 365,
-        anonymizationRequired: false,
-        encryptionRequired: true,
-        auditTrailRequired: true
-      }
+      ...details
     });
   }
 
@@ -336,20 +325,12 @@ export class AuditLogger {
     details: Partial<AuditLog>
   ): Promise<string> {
     return this.log({
-      ...details,
+      level: AuditLevel.INFO,
       category: AuditCategory.DATA_ACCESS,
-      action: 'READ',
       resource,
       resourceId,
       userId,
-      level: AuditLevel.INFO,
-      compliance: {
-        gdprRelevant: true,
-        retentionPeriod: 180,
-        anonymizationRequired: true,
-        encryptionRequired: false,
-        auditTrailRequired: true
-      }
+      ...details
     });
   }
 
@@ -362,25 +343,17 @@ export class AuditLogger {
     newValues?: Record<string, unknown>
   ): Promise<string> {
     return this.log({
+      level: AuditLevel.INFO,
       category: AuditCategory.DATA_MODIFICATION,
       action,
       resource,
       resourceId,
       userId,
-      level: action === 'DELETE' ? AuditLevel.WARN : AuditLevel.INFO,
       details: {
         description: `${action} operation on ${resource}`,
         oldValues,
         newValues,
-        changedFields: oldValues && newValues ? 
-          Object.keys(newValues).filter(key => oldValues[key] !== newValues[key]) : undefined
-      },
-      compliance: {
-        gdprRelevant: true,
-        retentionPeriod: 2555, // 7 years for financial records
-        anonymizationRequired: false,
-        encryptionRequired: true,
-        auditTrailRequired: true
+        changedFields: newValues ? Object.keys(newValues) : undefined
       }
     });
   }
@@ -391,21 +364,15 @@ export class AuditLogger {
     details: Partial<AuditLog>
   ): Promise<string> {
     return this.log({
-      ...details,
+      level: this.getLevelFromSeverity(severity),
       category: AuditCategory.SECURITY_EVENT,
       action: event,
-      level: severity === 'CRITICAL' ? AuditLevel.CRITICAL : 
-             severity === 'HIGH' ? AuditLevel.ERROR :
-             severity === 'MEDIUM' ? AuditLevel.WARN : AuditLevel.INFO,
-      resource: 'security',
-      sensitive: true,
-      compliance: {
-        gdprRelevant: false,
-        retentionPeriod: 2555, // 7 years for security events
-        anonymizationRequired: false,
-        encryptionRequired: true,
-        auditTrailRequired: true
-      }
+      details: {
+        description: event,
+        ...details.details,
+        riskLevel: severity
+      },
+      ...details
     });
   }
 
@@ -415,19 +382,29 @@ export class AuditLogger {
     details: Partial<AuditLog>
   ): Promise<string> {
     return this.log({
-      ...details,
+      level: AuditLevel.INFO,
       category: AuditCategory.SYSTEM_CONFIGURATION,
       action: event,
-      resource: 'system',
-      level: AuditLevel.INFO,
-      metadata: {
-        ...details.metadata,
-        component,
-        version: process.env.APP_VERSION || '1.0.0',
-        environment: process.env.NODE_ENV || 'development',
-        service: 'contravo'
-      }
+      details: {
+        description: event,
+        ...details.details,
+        component
+      },
+      ...details
     });
+  }
+
+  private getLevelFromSeverity(severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'): AuditLevel {
+    switch (severity) {
+      case 'LOW':
+        return AuditLevel.INFO;
+      case 'MEDIUM':
+        return AuditLevel.WARN;
+      case 'HIGH':
+        return AuditLevel.ERROR;
+      case 'CRITICAL':
+        return AuditLevel.CRITICAL;
+    }
   }
 
   // Search and query methods
@@ -740,6 +717,9 @@ export class AuditLogger {
     this.stats.totalLogs++;
     this.stats.logsByLevel[log.level] = (this.stats.logsByLevel[log.level] || 0) + 1;
     this.stats.logsByCategory[log.category] = (this.stats.logsByCategory[log.category] || 0) + 1;
+    if (log.level === AuditLevel.ERROR || log.level === AuditLevel.CRITICAL) {
+      this.stats.errorCount++;
+    }
   }
 
   private generateCSVReport(logs: AuditLog[]): string {
@@ -798,16 +778,6 @@ export class AuditLogger {
       }
     }, 60000); // Update stats every minute
   }
-}
-
-// Supporting interfaces
-interface AuditStats {
-  totalLogs: number;
-  logsByLevel: Record<AuditLevel, number>;
-  logsByCategory: Record<AuditCategory, number>;
-  errorCount: number;
-  lastFlush: Date;
-  bufferSize: number;
 }
 
 // Default configuration
@@ -877,7 +847,8 @@ export const auditLogger = AuditLogger.getInstance(defaultAuditConfig);
 
 // Helper functions
 export async function logAudit(logData: Partial<AuditLog>): Promise<string> {
-  return auditLogger.log(logData);
+  const logger = AuditLogger.getInstance();
+  return logger.log(logData);
 }
 
 export async function logUserAction(
@@ -886,11 +857,12 @@ export async function logUserAction(
   resource: string,
   details?: Partial<AuditLog>
 ): Promise<string> {
-  return auditLogger.info(action, {
-    ...details,
+  const logger = AuditLogger.getInstance();
+  return logger.log({
+    action,
     userId,
     resource,
-    category: AuditCategory.USER_MANAGEMENT
+    ...details
   });
 }
 
@@ -899,9 +871,11 @@ export async function logSecurityEvent(
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
   details?: Partial<AuditLog>
 ): Promise<string> {
-  return auditLogger.logSecurityEvent(event, severity, details || {});
+  const logger = AuditLogger.getInstance();
+  return logger.logSecurityEvent(event, severity, details || {});
 }
 
-export function getAuditStats() {
-  return auditLogger.getStats();
+export function getAuditStats(): AuditStats {
+  const logger = AuditLogger.getInstance();
+  return logger.getStats();
 } 

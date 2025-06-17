@@ -158,6 +158,25 @@ export interface SecurityHeadersStats {
   }>;
 }
 
+export interface CSPViolation {
+  documentUri: string;
+  referrer: string;
+  blockedUri: string;
+  violatedDirective: string;
+  originalPolicy: string;
+  disposition: string;
+  sourceFile?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+}
+
+export interface SecurityReport {
+  config: SecurityHeadersConfig;
+  stats: SecurityHeadersStats;
+  recommendations: string[];
+  issues: string[];
+}
+
 export class SecurityHeadersManager {
   private static instance: SecurityHeadersManager;
   private config: SecurityHeadersConfig;
@@ -305,62 +324,45 @@ export class SecurityHeadersManager {
   }
 
   // Report CSP violation
-  async reportCSPViolation(violation: {
-    documentUri: string;
-    referrer: string;
-    blockedUri: string;
-    violatedDirective: string;
-    originalPolicy: string;
-    disposition: string;
-    sourceFile?: string;
-    lineNumber?: number;
-    columnNumber?: number;
-  }): Promise<void> {
-    try {
-      // Chrome extension'lardan gelen violation'ları filtrele
-      if (violation.blockedUri.includes('chrome-extension:') || 
-          violation.blockedUri.includes('moz-extension:') ||
-          violation.sourceFile?.includes('chrome-extension:')) {
-        return; // Sessizce ignore et
-      }
+  async reportCSPViolation(violation: CSPViolation): Promise<void> {
+    if (!this.config.contentSecurityPolicy.enabled) {
+      return;
+    }
 
-      this.stats.cspViolations++;
-      this.stats.violationsReported++;
-      this.stats.lastViolation = new Date();
+    this.stats.violationsReported++;
+    this.stats.cspViolations++;
+    this.stats.lastViolation = new Date();
 
-      // Update top violations
-      const existingViolation = this.stats.topViolations.find(v => 
-        v.type === violation.violatedDirective
-      );
+    // Update top violations
+    const existingViolation = this.stats.topViolations.find(v => v.type === violation.violatedDirective);
+    if (existingViolation) {
+      existingViolation.count++;
+      existingViolation.lastSeen = new Date();
+    } else {
+      this.stats.topViolations.push({
+        type: violation.violatedDirective,
+        count: 1,
+        lastSeen: new Date()
+      });
+    }
 
-      if (existingViolation) {
-        existingViolation.count++;
-        existingViolation.lastSeen = new Date();
-      } else {
-        this.stats.topViolations.push({
-          type: violation.violatedDirective,
-          count: 1,
-          lastSeen: new Date()
+    // Sort top violations by count
+    this.stats.topViolations.sort((a, b) => b.count - a.count);
+    this.stats.topViolations = this.stats.topViolations.slice(0, 10);
+
+    // Send violation report if reportUri is configured
+    if (this.config.contentSecurityPolicy.reportUri) {
+      try {
+        await fetch(this.config.contentSecurityPolicy.reportUri, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(violation)
         });
+      } catch (error) {
+        console.error('Failed to send CSP violation report:', error);
       }
-
-      // Keep only top 10 violations
-      this.stats.topViolations = this.stats.topViolations
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
-
-      // Sadece development'ta log et
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('🚨 CSP Violation:', {
-          directive: violation.violatedDirective,
-          blockedUri: violation.blockedUri,
-          sourceFile: violation.sourceFile
-        });
-      }
-
-    } catch (error) {
-      // Hata durumunda sadece log et, throw etme
-      console.error('❌ Error reporting CSP violation:', error);
     }
   }
 
@@ -376,47 +378,44 @@ export class SecurityHeadersManager {
   }
 
   // Generate security report
-  generateSecurityReport(): {
-    config: SecurityHeadersConfig;
-    stats: SecurityHeadersStats;
-    recommendations: string[];
-    issues: string[];
-  } {
+  generateSecurityReport(): SecurityReport {
     const recommendations: string[] = [];
     const issues: string[] = [];
 
     // Analyze CSP configuration
     if (this.config.contentSecurityPolicy.enabled) {
-      const cspErrors = this.validateCSPConfig(this.config.contentSecurityPolicy);
-      issues.push(...cspErrors);
+      const cspIssues = this.validateCSPConfig(this.config.contentSecurityPolicy);
+      issues.push(...cspIssues);
 
-      if (!this.config.contentSecurityPolicy.nonce) {
-        recommendations.push('Consider using CSP nonces for better security');
+      if (!this.config.contentSecurityPolicy.directives.defaultSrc?.length) {
+        recommendations.push('Consider adding default-src directive to CSP');
       }
-    } else {
-      issues.push('Content Security Policy is disabled');
+
+      if (!this.config.contentSecurityPolicy.directives.scriptSrc?.length) {
+        recommendations.push('Consider adding script-src directive to CSP');
+      }
     }
 
-    // Check HSTS configuration
+    // Analyze HSTS configuration
     if (this.config.strictTransportSecurity.enabled) {
-      if (this.config.strictTransportSecurity.maxAge < 31536000) { // 1 year
-        recommendations.push('HSTS max-age should be at least 1 year');
+      if (this.config.strictTransportSecurity.maxAge < 31536000) {
+        recommendations.push('Consider increasing HSTS max-age to at least 1 year');
       }
+
       if (!this.config.strictTransportSecurity.includeSubDomains) {
-        recommendations.push('Consider enabling HSTS for subdomains');
+        recommendations.push('Consider enabling includeSubDomains for HSTS');
       }
-    } else {
-      issues.push('Strict Transport Security is disabled');
     }
 
-    // Check frame options
-    if (!this.config.frameOptions.enabled) {
-      issues.push('X-Frame-Options is disabled - clickjacking protection missing');
+    // Analyze security statistics
+    if (this.stats.cspViolations > 0) {
+      issues.push(`CSP violations detected: ${this.stats.cspViolations}`);
+      recommendations.push('Review CSP configuration and fix reported violations');
     }
 
-    // Check content type options
-    if (!this.config.contentTypeOptions.enabled) {
-      issues.push('X-Content-Type-Options is disabled - MIME sniffing protection missing');
+    if (this.stats.referrerPolicyBlocks > 0) {
+      issues.push(`Referrer policy blocks: ${this.stats.referrerPolicyBlocks}`);
+      recommendations.push('Review referrer policy configuration');
     }
 
     return {
@@ -429,165 +428,207 @@ export class SecurityHeadersManager {
 
   // Private methods for applying headers
   private applyCsp(response: NextResponse, customNonce?: string): void {
-    const csp = this.config.contentSecurityPolicy;
+    if (!this.config.contentSecurityPolicy.enabled) {
+      return;
+    }
+
     const directives: string[] = [];
+    const cspConfig = this.config.contentSecurityPolicy;
 
-    // Generate nonce if enabled
-    const nonce = csp.nonce ? (customNonce || this.generateCSPNonce()) : null;
+    // Add nonce if enabled
+    const nonce = customNonce || (cspConfig.nonce ? this.generateCSPNonce() : undefined);
 
-    // Build directives
-    Object.entries(csp.directives).forEach(([directive, values]) => {
+    // Process each directive
+    Object.entries(cspConfig.directives).forEach(([directive, values]) => {
       if (values && values.length > 0) {
-        const directiveValues = [...values];
-        
+        let directiveValue = values.join(' ');
+
         // Add nonce to script-src and style-src if enabled
         if (nonce && (directive === 'scriptSrc' || directive === 'styleSrc')) {
-          directiveValues.push(`'nonce-${nonce}'`);
+          directiveValue += ` 'nonce-${nonce}'`;
         }
-        
-        const kebabDirective = directive.replace(/([A-Z])/g, '-$1').toLowerCase();
-        directives.push(`${kebabDirective} ${directiveValues.join(' ')}`);
+
+        directives.push(`${directive.replace(/([A-Z])/g, '-$1').toLowerCase()} ${directiveValue}`);
       }
     });
 
     // Add upgrade-insecure-requests if enabled
-    if (csp.upgradeInsecureRequests) {
+    if (cspConfig.upgradeInsecureRequests) {
       directives.push('upgrade-insecure-requests');
     }
 
-    // Add report-uri if specified
-    if (csp.reportUri) {
-      directives.push(`report-uri ${csp.reportUri}`);
+    // Add report-uri if configured
+    if (cspConfig.reportUri) {
+      directives.push(`report-uri ${cspConfig.reportUri}`);
     }
 
-    const cspValue = directives.join('; ');
-    const headerName = csp.reportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
-    
-    response.headers.set(headerName, cspValue);
-    
-    // Store nonce for template usage
-    if (nonce) {
-      response.headers.set('X-CSP-Nonce', nonce);
-    }
+    // Set CSP header
+    const headerName = cspConfig.reportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
+    response.headers.set(headerName, directives.join('; '));
   }
 
   private applyHsts(response: NextResponse, request: NextRequest): void {
-    const hsts = this.config.strictTransportSecurity;
-    
-    // Only apply HSTS over HTTPS
-    if (request.nextUrl.protocol === 'https:') {
-      const hstsValues = [`max-age=${hsts.maxAge}`];
-      
-      if (hsts.includeSubDomains) {
-        hstsValues.push('includeSubDomains');
-      }
-      
-      if (hsts.preload) {
-        hstsValues.push('preload');
-      }
-      
-      response.headers.set('Strict-Transport-Security', hstsValues.join('; '));
-      this.stats.hstsUpgrades++;
+    if (!this.config.strictTransportSecurity.enabled) {
+      return;
     }
+
+    const hstsConfig = this.config.strictTransportSecurity;
+    const directives: string[] = [`max-age=${hstsConfig.maxAge}`];
+
+    if (hstsConfig.includeSubDomains) {
+      directives.push('includeSubDomains');
+    }
+
+    if (hstsConfig.preload) {
+      directives.push('preload');
+    }
+
+    response.headers.set('Strict-Transport-Security', directives.join('; '));
+    this.stats.hstsUpgrades++;
   }
 
   private applyFrameOptions(response: NextResponse): void {
-    const frameOptions = this.config.frameOptions;
-    
-    if (frameOptions.policy === 'ALLOW-FROM' && frameOptions.allowFrom) {
-      response.headers.set('X-Frame-Options', `ALLOW-FROM ${frameOptions.allowFrom}`);
-    } else {
-      response.headers.set('X-Frame-Options', frameOptions.policy);
+    if (!this.config.frameOptions.enabled) {
+      return;
     }
+
+    const frameConfig = this.config.frameOptions;
+    let headerValue = frameConfig.policy;
+
+    if (frameConfig.policy === 'ALLOW-FROM' && frameConfig.allowFrom) {
+      headerValue += ` ${frameConfig.allowFrom}`;
+    }
+
+    response.headers.set('X-Frame-Options', headerValue);
   }
 
   private applyContentTypeOptions(response: NextResponse): void {
-    if (this.config.contentTypeOptions.nosniff) {
-      response.headers.set('X-Content-Type-Options', 'nosniff');
+    if (!this.config.contentTypeOptions.enabled) {
+      return;
     }
+
+    response.headers.set('X-Content-Type-Options', 'nosniff');
   }
 
   private applyReferrerPolicy(response: NextResponse): void {
+    if (!this.config.referrerPolicy.enabled) {
+      return;
+    }
+
     response.headers.set('Referrer-Policy', this.config.referrerPolicy.policy);
   }
 
   private applyPermissionsPolicy(response: NextResponse): void {
-    const policies = this.config.permissionsPolicy.policies;
-    const policyStrings: string[] = [];
+    if (!this.config.permissionsPolicy.enabled) {
+      return;
+    }
 
-    Object.entries(policies).forEach(([feature, allowed]) => {
-      if (allowed !== undefined) {
-        policyStrings.push(`${feature}=${allowed ? '()' : '()'}`);
+    const policies = this.config.permissionsPolicy.policies;
+    const directives: string[] = [];
+
+    Object.entries(policies).forEach(([feature, enabled]) => {
+      if (enabled !== undefined) {
+        directives.push(`${feature}=${enabled ? '*' : '()'}`);
       }
     });
 
-    if (policyStrings.length > 0) {
-      response.headers.set('Permissions-Policy', policyStrings.join(', '));
+    if (directives.length > 0) {
+      response.headers.set('Permissions-Policy', directives.join(', '));
     }
   }
 
   private applyCrossOriginEmbedderPolicy(response: NextResponse): void {
+    if (!this.config.crossOriginEmbedderPolicy.enabled) {
+      return;
+    }
+
     response.headers.set('Cross-Origin-Embedder-Policy', this.config.crossOriginEmbedderPolicy.policy);
   }
 
   private applyCrossOriginOpenerPolicy(response: NextResponse): void {
+    if (!this.config.crossOriginOpenerPolicy.enabled) {
+      return;
+    }
+
     response.headers.set('Cross-Origin-Opener-Policy', this.config.crossOriginOpenerPolicy.policy);
   }
 
   private applyCrossOriginResourcePolicy(response: NextResponse): void {
+    if (!this.config.crossOriginResourcePolicy.enabled) {
+      return;
+    }
+
     response.headers.set('Cross-Origin-Resource-Policy', this.config.crossOriginResourcePolicy.policy);
   }
 
   private applyExpectCt(response: NextResponse): void {
-    const expectCt = this.config.expectCertificateTransparency;
-    const values = [`max-age=${expectCt.maxAge}`];
-    
-    if (expectCt.enforce) {
-      values.push('enforce');
+    if (!this.config.expectCertificateTransparency.enabled) {
+      return;
     }
-    
-    if (expectCt.reportUri) {
-      values.push(`report-uri="${expectCt.reportUri}"`);
+
+    const expectCtConfig = this.config.expectCertificateTransparency;
+    const directives: string[] = [`max-age=${expectCtConfig.maxAge}`];
+
+    if (expectCtConfig.enforce) {
+      directives.push('enforce');
     }
-    
-    response.headers.set('Expect-CT', values.join(', '));
+
+    if (expectCtConfig.reportUri) {
+      directives.push(`report-uri="${expectCtConfig.reportUri}"`);
+    }
+
+    response.headers.set('Expect-CT', directives.join(', '));
   }
 
   private applyReportTo(response: NextResponse): void {
-    const reportTo = this.config.reportTo;
-    const groups = reportTo.groups.map(group => ({
-      group: group.groupName,
-      max_age: group.maxAge,
-      endpoints: group.endpoints.map(endpoint => ({
-        url: endpoint.url,
-        priority: endpoint.priority,
-        weight: endpoint.weight
-      }))
-    }));
-    
+    if (!this.config.reportTo.enabled) {
+      return;
+    }
+
+    const groups = this.config.reportTo.groups.map(group => {
+      const endpoints = group.endpoints.map(endpoint => {
+        const endpointConfig: Record<string, unknown> = { url: endpoint.url };
+        if (endpoint.priority !== undefined) {
+          endpointConfig.priority = endpoint.priority;
+        }
+        if (endpoint.weight !== undefined) {
+          endpointConfig.weight = endpoint.weight;
+        }
+        return endpointConfig;
+      });
+
+      return {
+        group: group.groupName,
+        max_age: group.maxAge,
+        endpoints
+      };
+    });
+
     response.headers.set('Report-To', JSON.stringify(groups));
   }
 
   private applyServerInfo(response: NextResponse): void {
-    const serverInfo = this.config.serverInfo;
-    
-    if (serverInfo.hidePoweredBy) {
+    const serverConfig = this.config.serverInfo;
+
+    if (serverConfig.hideServerInfo) {
+      response.headers.delete('Server');
+    }
+
+    if (serverConfig.hidePoweredBy) {
       response.headers.delete('X-Powered-By');
     }
-    
-    if (serverInfo.hideServerInfo) {
-      response.headers.delete('Server');
-    } else if (serverInfo.customServerHeader) {
-      response.headers.set('Server', serverInfo.customServerHeader);
+
+    if (serverConfig.customServerHeader) {
+      response.headers.set('Server', serverConfig.customServerHeader);
     }
   }
 
   private applyCustomHeaders(response: NextResponse): void {
-    this.config.customHeaders.forEach(header => {
-      if (header.enabled) {
+    this.config.customHeaders
+      .filter(header => header.enabled)
+      .forEach(header => {
         response.headers.set(header.name, header.value);
-      }
-    });
+      });
   }
 }
 
@@ -708,13 +749,32 @@ export function applySecurityHeaders(
     customNonce?: string;
   }
 ): NextResponse {
-  return securityHeaders.applySecurityHeaders(request, response, options);
+  return SecurityHeadersManager.getInstance().applySecurityHeaders(request, response, options);
 }
 
 export function generateCSPNonce(): string {
-  return securityHeaders.generateCSPNonce();
+  return SecurityHeadersManager.getInstance().generateCSPNonce();
 }
 
-export function getSecurityHeadersStats() {
-  return securityHeaders.getStats();
+export function getSecurityHeadersStats(): SecurityHeadersStats {
+  const manager = SecurityHeadersManager.getInstance();
+  return manager.getStats();
+}
+
+export function updateSecurityHeadersConfig(updates: Partial<SecurityHeadersConfig>): void {
+  SecurityHeadersManager.getInstance().updateConfig(updates);
+}
+
+export function generateSecurityReport(): SecurityReport {
+  const manager = SecurityHeadersManager.getInstance();
+  return manager.generateSecurityReport();
+}
+
+export async function reportCSPViolation(violation: CSPViolation): Promise<void> {
+  const manager = SecurityHeadersManager.getInstance();
+  return manager.reportCSPViolation(violation);
+}
+
+export function validateCSPConfig(config: CSPConfig): string[] {
+  return SecurityHeadersManager.getInstance().validateCSPConfig(config);
 } 

@@ -1098,27 +1098,64 @@ export class BehavioralAnalyticsEngine {
     anomalies: AnomalyRecord[], 
     adaptiveAction?: AdaptiveAction
   ): void {
-    this.stats.totalAnomalies += anomalies.length;
-    this.stats.unresolvedAnomalies += anomalies.filter(a => !a.resolved).length;
+    // Update total profiles count
+    this.stats.totalProfiles = this.profiles.size;
+    
+    // Update active profiles count (profiles with activity in last 24 hours)
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    this.stats.activeProfiles = Array.from(this.profiles.values()).filter(
+      (p: UserBehaviorProfile) => p.lastUpdated > oneDayAgo
+    ).length;
 
+    // Update anomalies count
+    this.stats.totalAnomalies += anomalies.length;
+    this.stats.unresolvedAnomalies = Array.from(this.profiles.values()).reduce(
+      (sum: number, p: UserBehaviorProfile) => sum + p.anomalies.filter(a => !a.resolved).length,
+      0
+    );
+
+    // Update risk distribution
+    const riskLevel = profile.riskLevel;
+    if (riskLevel in this.stats.riskDistribution) {
+      this.stats.riskDistribution[riskLevel as RiskLevel]++;
+    }
+
+    // Update average risk score
+    const totalRiskScore = Array.from(this.profiles.values()).reduce(
+      (sum: number, p: UserBehaviorProfile) => sum + p.riskScore,
+      0
+    );
+    this.stats.averageRiskScore = totalRiskScore / this.stats.totalProfiles;
+
+    // Update top anomaly types
+    const anomalyCounts = new Map<AnomalyType, number>();
+    Array.from(this.profiles.values()).forEach((p: UserBehaviorProfile) => {
+      p.anomalies.forEach((a: AnomalyRecord) => {
+        anomalyCounts.set(a.type, (anomalyCounts.get(a.type) || 0) + 1);
+      });
+    });
+
+    this.stats.topAnomalyTypes = Array.from(anomalyCounts.entries())
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // Update adaptive auth triggers
     if (adaptiveAction) {
       this.stats.adaptiveAuthTriggers++;
     }
 
-    // Update top anomaly types
-    anomalies.forEach(anomaly => {
-      const existingType = this.stats.topAnomalyTypes.find(t => t.type === anomaly.type);
-      if (existingType) {
-        existingType.count++;
-      } else {
-        this.stats.topAnomalyTypes.push({ type: anomaly.type, count: 1 });
-      }
-    });
-
-    // Keep only top 10
-    this.stats.topAnomalyTypes = this.stats.topAnomalyTypes
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+    // Update false positive rate
+    const totalResolved = Array.from(this.profiles.values()).reduce(
+      (sum: number, p: UserBehaviorProfile) => sum + p.anomalies.filter(a => a.resolved).length,
+      0
+    );
+    const falsePositives = Array.from(this.profiles.values()).reduce(
+      (sum: number, p: UserBehaviorProfile) => sum + p.anomalies.filter(a => a.falsePositive).length,
+      0
+    );
+    this.stats.falsePositiveRate = totalResolved > 0 ? falsePositives / totalResolved : 0;
   }
 
   private async logBehavioralEvent(

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import prisma from '../../../../../lib/prisma'
+import { db } from '../../../../../lib/db'
 import { authOptions } from '../../../../../lib/auth'
 import { emailService } from '../../../../../lib/email'
 import { z } from 'zod'
+import { Role } from '@prisma/client'
 
 const inviteSchema = z.object({
   email: z.string().email('Geçerli bir email adresi giriniz'),
-  role: z.enum(['ADMIN', 'USER'], { required_error: 'Rol seçimi zorunludur' }),
+  role: z.nativeEnum(Role, { required_error: 'Rol seçimi zorunludur' }),
 })
 
 export async function POST(
@@ -26,7 +27,7 @@ export async function POST(
     const { email, role } = inviteSchema.parse(body)
 
     // Check if user has permission to invite
-    const company = await prisma.company.findFirst({
+    const company = await db.company.findFirst({
       where: {
         id: companyId,
         OR: [
@@ -35,7 +36,7 @@ export async function POST(
             users: {
               some: {
                 userId: session.user.id,
-                role: 'ADMIN'
+                role: Role.ADMIN
               }
             }
           }
@@ -53,7 +54,7 @@ export async function POST(
     }
 
     // Check if user is already a member
-    const existingMember = await prisma.companyUser.findFirst({
+    const existingMember = await db.companyUser.findFirst({
       where: {
         companyId,
         user: { email }
@@ -65,7 +66,7 @@ export async function POST(
     }
 
     // Check if there's already a pending invite
-    const existingInvite = await prisma.companyInvite.findFirst({
+    const existingInvite = await db.companyInvite.findFirst({
       where: {
         companyId,
         email,
@@ -78,7 +79,7 @@ export async function POST(
     }
 
     // Create invite
-    const invite = await prisma.companyInvite.create({
+    const invite = await db.companyInvite.create({
       data: {
         email,
         role,
@@ -146,7 +147,7 @@ export async function GET(
     const { id: companyId } = await params
 
     // Check if user has access to this company
-    const company = await prisma.company.findFirst({
+    const company = await db.company.findFirst({
       where: {
         id: companyId,
         OR: [
@@ -166,7 +167,7 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found or access denied' }, { status: 404 })
     }
 
-    const invites = await prisma.companyInvite.findMany({
+    const invites = await db.companyInvite.findMany({
       where: { companyId },
       include: {
         invitedBy: {

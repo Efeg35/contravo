@@ -18,16 +18,18 @@ interface Contract {
   id: string;
   title: string;
   status: string;
-  type: string;
+  type: 'general' | 'procurement' | 'service' | 'sales' | 'employment' | 'partnership' | 'nda' | 'rental';
   createdAt: string;
   otherPartyName?: string;
 }
+
+type BulkAction = 'UPDATE_STATUS' | 'UPDATE_TYPE' | 'ARCHIVE' | 'DELETE' | 'EXPORT' | 'UPDATE_COMPANY' | 'BULK_ASSIGN';
 
 interface BulkOperationsProps {
   contracts: Contract[];
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
-  onBulkAction: (action: string, data?: Record<string, unknown>) => Promise<void>;
+  onBulkAction: (action: BulkAction, data?: Record<string, unknown>) => Promise<void>;
   loading?: boolean;
 }
 
@@ -64,7 +66,7 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
   };
 
   // Toplu işlem yürütme
-  const executeBulkAction = async (action: string, data?: Record<string, unknown>) => {
+  const executeBulkAction = async (action: BulkAction, data?: Record<string, unknown>) => {
     if (selectedIds.length === 0) {
       alert('Lütfen en az bir sözleşme seçin.');
       return;

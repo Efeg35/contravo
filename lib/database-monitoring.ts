@@ -179,7 +179,13 @@ export class DatabaseMonitor {
   }
 
   // Get recent activity (last 24 hours)
-  private async getRecentActivity(): Promise<any> {
+  private async getRecentActivity(): Promise<{
+    period: string;
+    newUsers: number;
+    newCompanies: number;
+    newContracts: number;
+    newNotifications: number;
+  }> {
     const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
     try {
@@ -211,7 +217,13 @@ export class DatabaseMonitor {
         newNotifications
       }
     } catch (error) {
-      return null
+      return {
+        period: '24h',
+        newUsers: 0,
+        newCompanies: 0,
+        newContracts: 0,
+        newNotifications: 0
+      }
     }
   }
 
@@ -221,7 +233,10 @@ export class DatabaseMonitor {
 
     try {
       // Test common queries
-      const queries = [
+      const queries: Array<{
+        name: string;
+        query: () => Promise<unknown>;
+      }> = [
         { name: 'user_lookup', query: () => this.prisma.user.findFirst() },
         { name: 'contract_list', query: () => this.prisma.contract.findMany({ take: 10 }) },
         { name: 'company_stats', query: () => this.prisma.company.count() }
@@ -253,7 +268,7 @@ export class DatabaseMonitor {
         totalTestTime: Math.round(totalTime)
       }
     } catch (error) {
-      throw new Error(`Performance check failed: ${error}`)
+      throw new Error(`Failed to check query performance: ${error}`)
     }
   }
 
@@ -494,14 +509,20 @@ export interface ConnectionTest {
 
 export interface DatabaseStatistics {
   totalRecords: {
-    users: number
-    companies: number
-    contracts: number
-    templates: number
-    notifications: number
-  }
-  recentActivity: any
-  totalAttachmentSize: number
+    users: number;
+    companies: number;
+    contracts: number;
+    templates: number;
+    notifications: number;
+  };
+  recentActivity: {
+    period: string;
+    newUsers: number;
+    newCompanies: number;
+    newContracts: number;
+    newNotifications: number;
+  };
+  totalAttachmentSize: number;
 }
 
 export interface PerformanceMetrics {
@@ -552,27 +573,28 @@ export interface Alert {
 }
 
 // Performance tracking decorator
-export function trackPerformance(target: any, propertyName: string, descriptor: PropertyDescriptor) {
-  const method = descriptor.value
+export function trackPerformance(
+  target: object,
+  propertyName: string,
+  descriptor: PropertyDescriptor
+): PropertyDescriptor {
+  const originalMethod = descriptor.value;
 
-  descriptor.value = async function (...args: any[]) {
-    const start = performance.now()
-    
+  descriptor.value = async function (...args: unknown[]) {
+    const startTime = performance.now();
     try {
-      const result = await method.apply(this, args)
-      const duration = performance.now() - start
-      
-      console.log(`Performance: ${propertyName} took ${Math.round(duration)}ms`)
-      
-      return result
+      const result = await originalMethod.apply(this, args);
+      const executionTime = performance.now() - startTime;
+      console.log(`${propertyName} executed in ${executionTime}ms`);
+      return result;
     } catch (error) {
-      const duration = performance.now() - start
-      console.error(`Performance: ${propertyName} failed after ${Math.round(duration)}ms`, error)
-      throw error
+      const executionTime = performance.now() - startTime;
+      console.error(`${propertyName} failed after ${executionTime}ms:`, error);
+      throw error;
     }
-  }
+  };
 
-  return descriptor
+  return descriptor;
 }
 
 export default DatabaseMonitor 

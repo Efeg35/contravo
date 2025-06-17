@@ -10,7 +10,7 @@ interface LogEntry {
   timestamp: string;
   level: LogLevel;
   message: string;
-  context?: any;
+  context?: Record<string, unknown>;
   userId?: string;
   sessionId?: string;
   requestId?: string;
@@ -49,7 +49,11 @@ class Logger {
     return level >= this.level;
   }
 
-  private createLogEntry(level: LogLevel, message: string, context?: any): LogEntry {
+  private createLogEntry(
+    level: LogLevel,
+    message: string,
+    context?: Record<string, unknown>
+  ): LogEntry {
     return {
       timestamp: new Date().toISOString(),
       level,
@@ -90,23 +94,23 @@ class Logger {
     return `[${time}] ${levelName}: ${entry.message}`;
   }
 
-  debug(message: string, context?: any): void {
+  debug(message: string, context?: Record<string, unknown>): void {
     this.writeLog(this.createLogEntry(LogLevel.DEBUG, message, context));
   }
 
-  info(message: string, context?: any): void {
+  info(message: string, context?: Record<string, unknown>): void {
     this.writeLog(this.createLogEntry(LogLevel.INFO, message, context));
   }
 
-  warn(message: string, context?: any): void {
+  warn(message: string, context?: Record<string, unknown>): void {
     this.writeLog(this.createLogEntry(LogLevel.WARN, message, context));
   }
 
-  error(message: string, context?: any): void {
+  error(message: string, context?: Record<string, unknown>): void {
     this.writeLog(this.createLogEntry(LogLevel.ERROR, message, context));
   }
 
-  fatal(message: string, context?: any): void {
+  fatal(message: string, context?: Record<string, unknown>): void {
     this.writeLog(this.createLogEntry(LogLevel.FATAL, message, context));
   }
 }

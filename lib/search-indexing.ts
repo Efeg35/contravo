@@ -547,7 +547,7 @@ export class SearchIndexing {
     for (const existing of this.indexes.values()) {
       if (existing.table === definition.table &&
           existing.columns.length === definition.columns.length &&
-          existing.columns.every((col, i) => col === definition.columns[i])) {
+          existing.columns.every((col: string, i: number) => col === definition.columns[i])) {
         return existing;
       }
     }

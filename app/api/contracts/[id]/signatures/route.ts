@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
+import { Role } from '@prisma/client';
 
 // Sözleşme imzalarını getir
 export async function GET(
@@ -19,7 +18,7 @@ export async function GET(
     const { id } = await params;
 
     // Sözleşme erişim kontrolü
-    const contract = await prisma.contract.findFirst({
+    const contract = await db.contract.findFirst({
       where: {
         id,
         OR: [
@@ -40,7 +39,7 @@ export async function GET(
     }
 
     // İmza paketi ve imzaları getir
-    const signaturePackage = await prisma.signaturePackage.findUnique({
+    const signaturePackage = await db.signaturePackage.findUnique({
       where: { contractId: id },
       include: {
         createdBy: {
@@ -49,7 +48,7 @@ export async function GET(
       }
     });
 
-    const signatures = await prisma.digitalSignature.findMany({
+    const signatures = await db.digitalSignature.findMany({
       where: { contractId: id },
       include: {
         user: {
@@ -94,7 +93,7 @@ export async function POST(
     } = body;
 
     // Sözleşme erişim kontrolü
-    const contract = await prisma.contract.findFirst({
+    const contract = await db.contract.findFirst({
       where: {
         id,
         OR: [
@@ -104,7 +103,7 @@ export async function POST(
               users: {
                 some: { 
                   userId: session.user.id,
-                  role: { in: ['ADMIN', 'EDITOR', 'APPROVER'] }
+                  role: { in: [Role.ADMIN, Role.EDITOR] }
                 }
               }
             }
@@ -118,7 +117,7 @@ export async function POST(
     }
 
     // Mevcut imza paketi var mı kontrol et
-    const existingPackage = await prisma.signaturePackage.findUnique({
+    const existingPackage = await db.signaturePackage.findUnique({
       where: { contractId: id }
     });
 
@@ -127,7 +126,7 @@ export async function POST(
     }
 
     // Yeni imza paketi oluştur
-    const signaturePackage = await prisma.signaturePackage.create({
+    const signaturePackage = await db.signaturePackage.create({
       data: {
         contractId: id,
         title,
@@ -140,7 +139,7 @@ export async function POST(
     // İmzacıları ekle
     const digitalSignatures = await Promise.all(
       signers.map((signer: { userId: string; isRequired?: boolean }, index: number) => 
-        prisma.digitalSignature.create({
+        db.digitalSignature.create({
           data: {
             contractId: id,
             userId: signer.userId,
@@ -153,7 +152,7 @@ export async function POST(
     );
 
     // Paket durumunu SENT olarak güncelle
-    await prisma.signaturePackage.update({
+    await db.signaturePackage.update({
       where: { id: signaturePackage.id },
       data: { status: 'SENT' }
     });

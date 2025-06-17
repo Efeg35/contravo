@@ -503,46 +503,34 @@ export class SearchEngine {
     query: SearchQuery
   ): Set<string> {
     const candidates = new Set<string>();
-
-    // Add documents matching terms
+    
+    // Process each term
     for (const term of processedQuery.terms) {
-      const docSet = index.invertedIndex.get(term);
-      if (docSet) {
-        docSet.forEach(docId => candidates.add(docId));
-      }
-
-      // Fuzzy matching if enabled
-      if (query.fuzzy) {
-        for (const [indexTerm, docSet] of index.invertedIndex) {
-          if (this.calculateLevenshteinDistance(term, indexTerm) <= 2) {
-            docSet.forEach(docId => candidates.add(docId));
-          }
-        }
-      }
+      const termDocs = index.invertedIndex.get(term) || new Set<string>();
+      
+      // Add documents containing this term
+      termDocs.forEach((docId: string) => candidates.add(docId));
     }
-
-    // Add documents matching phrases
+    
+    // Process phrases
     for (const phrase of processedQuery.phrases) {
-      const phraseTokens = this.tokenize(phrase);
-      if (phraseTokens.length > 0) {
-        let phraseCandidates = index.invertedIndex.get(phraseTokens[0]);
-        
-        for (let i = 1; i < phraseTokens.length && phraseCandidates; i++) {
-          const termDocs = index.invertedIndex.get(phraseTokens[i]);
-          if (termDocs) {
-            phraseCandidates = new Set([...phraseCandidates].filter(x => termDocs.has(x)));
-          } else {
-            phraseCandidates = new Set();
-            break;
-          }
-        }
-
-        if (phraseCandidates) {
-          phraseCandidates.forEach(docId => candidates.add(docId));
-        }
+      const phraseTerms = this.tokenize(phrase);
+      let phraseCandidates = new Set<string>();
+      
+      // Start with documents containing the first term
+      const firstTermDocs = index.invertedIndex.get(phraseTerms[0]) || new Set<string>();
+      phraseCandidates = new Set(firstTermDocs);
+      
+      // Filter for documents containing all terms in sequence
+      for (let i = 1; i < phraseTerms.length; i++) {
+        const termDocs = index.invertedIndex.get(phraseTerms[i]) || new Set<string>();
+        phraseCandidates = new Set([...phraseCandidates].filter((x: string) => termDocs.has(x)));
       }
+      
+      // Add phrase matches to candidates
+      phraseCandidates.forEach((docId: string) => candidates.add(docId));
     }
-
+    
     return candidates;
   }
 

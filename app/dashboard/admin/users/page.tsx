@@ -1,7 +1,7 @@
 'use server';
 
-import { isAdmin } from 'src/lib/permissions';
-import prisma from '@/lib/prisma';
+import { isAdmin } from '../../../../src/lib/permissions';
+import { db } from '@/lib/db';
 import { Role, User } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from "next/navigation";
@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 async function updateUserRole(userId: string, newRole: Role) {
   await isAdmin();
   
-  await prisma.user.update({
+  await db.user.update({
     where: { id: userId },
     data: { role: newRole },
   });
@@ -25,7 +25,7 @@ export default async function AdminUsersPage() {
     redirect('/dashboard');
   }
   
-  const users = await prisma.user.findMany({
+  const users = await db.user.findMany({
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,

@@ -4,9 +4,11 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from './prisma';
 import { SessionMiddleware } from './session-middleware';
 import { passwordManager } from './password-manager';
+import { getServerSession } from 'next-auth';
+import { Role } from '@prisma/client';
 
-
-export const authOptions: NextAuthOptions = {
+// authOptions'ı import etmek yerine burada tanımlıyoruz
+const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
@@ -120,7 +122,7 @@ export const authOptions: NextAuthOptions = {
       // Initial sign in
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+        token.role = user.role as Role;
         token.companyId = (user as any).companyId;
         token.iat = Math.floor(Date.now() / 1000);
         token.exp = Math.floor(Date.now() / 1000) + (24 * 60 * 60); // 1 day
@@ -170,7 +172,8 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user && token) {
         session.user.id = token.id as string;
-        session.user.role = token.role as string;
+        session.user.role = token.role as Role;
+        // @ts-expect-error - companyId is added by our custom logic
         session.user.companyId = token.companyId as string;
         
         // Add token metadata to session
@@ -200,7 +203,7 @@ export const authOptions: NextAuthOptions = {
           console.log('Session tracking will be created in JWT callback');
         }
       } catch (error) {
-        console.error('Failed to create session tracking:');
+        console.error('Error creating session tracking:', error);
       }
     },
     async signOut({ token }) {
@@ -234,4 +237,17 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
-}; 
+};
+
+export { authOptions };
+
+export async function hasRequiredRole(requiredRole: string): Promise<boolean> {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user) {
+    return false;
+  }
+
+  // Kullanıcının rolünü kontrol et
+  return session.user.role === requiredRole;
+} 

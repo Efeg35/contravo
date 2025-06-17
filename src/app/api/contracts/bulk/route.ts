@@ -7,7 +7,7 @@ interface BulkAssignment {
   contractId: string;
   companyId?: string;
   status?: 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SIGNED' | 'ARCHIVED';
-  type?: string;
+  type?: 'general' | 'procurement' | 'service' | 'sales' | 'employment' | 'partnership' | 'nda' | 'rental';
 }
 
 const prisma = new PrismaClient();

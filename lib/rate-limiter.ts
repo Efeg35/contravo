@@ -1,4 +1,24 @@
 import { redisCache } from './redis-cache';
+
+interface ViolationRecord {
+  id: string;
+  key: string;
+  rule: string;
+  request: RateLimitRequest;
+  timestamp: Date;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}
+
+interface PatternAnalysis {
+  key: string;
+  requestCount: number;
+  violationCount: number;
+  firstSeen: Date;
+  lastSeen: Date;
+  averageInterval: number;
+  suspiciousScore: number; // 0-100
+}
+
 export interface RateLimitRule {
   id: string;
   name: string;
@@ -230,36 +250,70 @@ export class RateLimiter {
     key: string
   ): Promise<RateLimitResult> {
     const now = Date.now();
-    const windowStart = Math.floor(now / (rule.windowSize * 1000)) * rule.windowSize * 1000;
-    const windowEnd = windowStart + rule.windowSize * 1000;
-    const windowKey = `${key}:${windowStart}`;
+    const windowStart = Math.floor(now / 1000) * 1000;
+    const windowEnd = windowStart + (rule.windowSize * 1000);
+    const windowKey = `${this.REDIS_KEY_PREFIX}${key}:${windowStart}`;
 
     // Get current count
-    const currentCountStr = await redisCache.get<string>(windowKey);
-    const currentCount = currentCountStr ? parseInt(currentCountStr) : 0;
+    const currentCountStr = await redisCache.get(windowKey, { 
+      deserializer: (value: string) => value 
+    });
+    const currentCount = parseInt(currentCountStr || '0', 10);
 
     // Check if request should be counted
     const shouldCount = this.shouldCountRequest(request, rule);
-    const newCount = shouldCount ? currentCount + 1 : currentCount;
-
-    // Check limit
-    const allowed = newCount <= rule.maxRequests;
-
-    // Update count if allowed and should count
-    if (allowed && shouldCount) {
-      await redisCache.set(windowKey, newCount.toString(), { ttl: rule.windowSize });
+    if (!shouldCount) {
+      return {
+        allowed: true,
+        limit: rule.maxRequests,
+        remaining: rule.maxRequests - currentCount,
+        resetTime: new Date(windowEnd),
+        strategy: rule.strategy,
+        rule: rule.id,
+        key,
+        metadata: {
+          currentCount,
+          windowStart: new Date(windowStart),
+          windowEnd: new Date(windowEnd)
+        }
+      };
     }
 
+    // Check if limit is reached
+    if (currentCount >= rule.maxRequests) {
+      return {
+        allowed: false,
+        limit: rule.maxRequests,
+        remaining: 0,
+        resetTime: new Date(windowEnd),
+        retryAfter: Math.ceil((windowEnd - now) / 1000),
+        strategy: rule.strategy,
+        rule: rule.id,
+        key,
+        metadata: {
+          currentCount,
+          windowStart: new Date(windowStart),
+          windowEnd: new Date(windowEnd)
+        }
+      };
+    }
+
+    // Update count
+    await redisCache.set(windowKey, (currentCount + 1).toString(), { 
+      ttl: rule.windowSize,
+      compress: false
+    });
+
     return {
-      allowed,
+      allowed: true,
       limit: rule.maxRequests,
-      remaining: Math.max(0, rule.maxRequests - newCount),
+      remaining: rule.maxRequests - (currentCount + 1),
       resetTime: new Date(windowEnd),
       strategy: rule.strategy,
       rule: rule.id,
       key,
       metadata: {
-        currentCount: newCount,
+        currentCount: currentCount + 1,
         windowStart: new Date(windowStart),
         windowEnd: new Date(windowEnd)
       }
@@ -273,39 +327,65 @@ export class RateLimiter {
     key: string
   ): Promise<RateLimitResult> {
     const now = Date.now();
-    const windowStart = now - rule.windowSize * 1000;
-    const scoreKey = `${key}:sliding`;
+    const windowStart = now - (rule.windowSize * 1000);
+    const windowEnd = now;
 
-    // Remove old entries
-    await this.removeOldEntries(scoreKey, windowStart);
-
-    // Get current count
-    const currentCount = await this.getSlidingWindowCount(scoreKey, windowStart, now);
+    // Get count for sliding window
+    const count = await this.getSlidingWindowCount(key, windowStart, windowEnd);
 
     // Check if request should be counted
     const shouldCount = this.shouldCountRequest(request, rule);
-    const newCount = shouldCount ? currentCount + 1 : currentCount;
-
-    // Check limit
-    const allowed = newCount <= rule.maxRequests;
-
-    // Add current request if allowed and should count
-    if (allowed && shouldCount) {
-      await this.addSlidingWindowEntry(scoreKey, now, rule.windowSize);
+    if (!shouldCount) {
+      return {
+        allowed: true,
+        limit: rule.maxRequests,
+        remaining: rule.maxRequests - count,
+        resetTime: new Date(windowEnd),
+        strategy: rule.strategy,
+        rule: rule.id,
+        key,
+        metadata: {
+          currentCount: count,
+          windowStart: new Date(windowStart),
+          windowEnd: new Date(windowEnd)
+        }
+      };
     }
 
+    // Check if limit is reached
+    if (count >= rule.maxRequests) {
+      return {
+        allowed: false,
+        limit: rule.maxRequests,
+        remaining: 0,
+        resetTime: new Date(windowEnd),
+        retryAfter: Math.ceil((windowEnd - now) / 1000),
+        strategy: rule.strategy,
+        rule: rule.id,
+        key,
+        metadata: {
+          currentCount: count,
+          windowStart: new Date(windowStart),
+          windowEnd: new Date(windowEnd)
+        }
+      };
+    }
+
+    // Add entry to sliding window
+    await this.addSlidingWindowEntry(key, now, rule.windowSize);
+
     return {
-      allowed,
+      allowed: true,
       limit: rule.maxRequests,
-      remaining: Math.max(0, rule.maxRequests - newCount),
-      resetTime: new Date(now + rule.windowSize * 1000),
+      remaining: rule.maxRequests - (count + 1),
+      resetTime: new Date(windowEnd),
       strategy: rule.strategy,
       rule: rule.id,
       key,
       metadata: {
-        currentCount: newCount,
+        currentCount: count + 1,
         windowStart: new Date(windowStart),
-        windowEnd: new Date(now + rule.windowSize * 1000)
+        windowEnd: new Date(windowEnd)
       }
     };
   }
@@ -484,14 +564,24 @@ export class RateLimiter {
     console.log(`Removing old entries from ${key} before ${windowStart}`);
   }
 
-  private async getSlidingWindowCount(_key: string, _start: number, _end: number): Promise<number> {
-    // Mock implementation - in production use Redis ZCOUNT
-    return Math.floor(Math.random() * 10);
+  private async getSlidingWindowCount(key: string, start: number, end: number): Promise<number> {
+    const entries = await redisCache.get(`${this.REDIS_KEY_PREFIX}${key}:entries`, { 
+      deserializer: (value: string) => JSON.parse(value) as number[] 
+    }) || [];
+    return entries.filter(timestamp => timestamp >= start && timestamp <= end).length;
   }
 
   private async addSlidingWindowEntry(key: string, timestamp: number, ttl: number): Promise<void> {
-    // Mock implementation - in production use Redis ZADD with TTL
-    console.log(`Adding sliding window entry ${timestamp} to ${key} with TTL ${ttl}`);
+    const entriesKey = `${this.REDIS_KEY_PREFIX}${key}:entries`;
+    const entries = await redisCache.get(entriesKey, { 
+      deserializer: (value: string) => JSON.parse(value) as number[] 
+    }) || [];
+    
+    entries.push(timestamp);
+    await redisCache.set(entriesKey, JSON.stringify(entries), { 
+      ttl,
+      compress: false
+    });
   }
 
   private async getTokenBucket(key: string, rule: RateLimitRule): Promise<{
@@ -765,28 +855,6 @@ export class RateLimiter {
   private generateViolationId(): string {
     return `violation_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
-
-
-}
-
-// Supporting interfaces
-interface ViolationRecord {
-  id: string;
-  key: string;
-  rule: string;
-  request: RateLimitRequest;
-  timestamp: Date;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-}
-
-interface PatternAnalysis {
-  key: string;
-  requestCount: number;
-  violationCount: number;
-  firstSeen: Date;
-  lastSeen: Date;
-  averageInterval: number;
-  suspiciousScore: number; // 0-100
 }
 
 // Default configuration
@@ -826,13 +894,22 @@ export async function checkRateLimit(
   request: RateLimitRequest,
   ruleIds?: string[]
 ): Promise<RateLimitResult[]> {
+  const rateLimiter = RateLimiter.getInstance();
   return rateLimiter.checkLimit(request, ruleIds);
 }
 
-export function addRateLimitRule(rule: RateLimitRule): Promise<void> {
+export async function addRateLimitRule(rule: RateLimitRule): Promise<void> {
+  const rateLimiter = RateLimiter.getInstance();
   return rateLimiter.addRule(rule);
 }
 
-export function getRateLimitStats() {
+export function getRateLimitStats(): {
+  totalRequests: number;
+  totalViolations: number;
+  topViolators: Array<{ key: string; violations: number }>;
+  ruleEffectiveness: Array<{ rule: string; violations: number; requests: number }>;
+  suspiciousPatterns: PatternAnalysis[];
+} {
+  const rateLimiter = RateLimiter.getInstance();
   return rateLimiter.getStatistics();
 } 

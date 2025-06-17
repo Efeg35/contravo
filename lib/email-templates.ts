@@ -524,21 +524,16 @@ export class EmailTemplates {
     };
   }
 
-  // Özel template oluşturmak için
-  static custom(subject: string, title: string, content: string, data: EmailTemplateData = {}): EmailTemplate {
-    // Template değişkenlerini değiştir
-    let processedContent = content;
-    Object.keys(data).forEach(key => {
-      const value = data[key];
-      if (typeof value === 'string' || typeof value === 'number') {
-        processedContent = processedContent.replace(new RegExp(`{{${key}}}`, 'g'), value.toString());
-      }
-    });
-
+  static custom(
+    subject: string,
+    title: string,
+    content: string,
+    data: Partial<EmailTemplateData> = {}
+  ): EmailTemplate {
     return {
       subject,
-      html: this.baseTemplate(title, processedContent),
-      text: processedContent.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
+      html: this.baseTemplate(title, content),
+      text: content.replace(/<[^>]*>/g, '') // HTML etiketlerini kaldır
     };
   }
 } 

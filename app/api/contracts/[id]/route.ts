@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../../lib/auth'
-import { prisma } from '../../../../lib/db'
+import { db } from '../../../../lib/db'
 import { z } from 'zod'
 
 // 📅 ANAHTAR TARİH TAKİBİ - Güncelleme Doğrulama Şeması
@@ -46,7 +46,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { email: session.user.email }
     })
 
@@ -54,7 +54,7 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const contract = await prisma.contract.findFirst({
+    const contract = await db.contract.findFirst({
       where: {
         id: id,
         OR: [
@@ -110,7 +110,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { email: session.user.email }
     })
 
@@ -124,7 +124,7 @@ export async function PUT(
     const validatedData = updateContractSchema.parse(body)
 
     // Önce sözleşmenin var olduğunu ve kullanıcıya ait olduğunu kontrol et
-    const existingContract = await prisma.contract.findFirst({
+    const existingContract = await db.contract.findFirst({
       where: {
         id: id,
         OR: [
@@ -151,7 +151,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
     }
 
-    const contract = await prisma.contract.update({
+    const contract = await db.contract.update({
       where: { id: id },
       data: {
         ...(validatedData.title !== undefined && { title: validatedData.title }),
@@ -218,7 +218,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { email: session.user.email }
     })
 
@@ -227,7 +227,7 @@ export async function DELETE(
     }
 
     // Önce sözleşmenin var olduğunu ve kullanıcıya ait olduğunu kontrol et
-    const existingContract = await prisma.contract.findFirst({
+    const existingContract = await db.contract.findFirst({
       where: {
         id: id,
         OR: [
@@ -254,7 +254,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
     }
 
-    await prisma.contract.delete({
+    await db.contract.delete({
       where: { id: id }
     })
 

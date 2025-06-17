@@ -622,12 +622,12 @@ export class DatabaseOptimization {
     
     // Analyze each query group
     for (const [normalizedQuery, queryMetrics] of queryGroups) {
-      const avgExecutionTime = queryMetrics.reduce((sum, m) => sum + m.executionTime, 0) / queryMetrics.length;
+      const avgExecutionTime = queryMetrics.reduce((sum: number, m: QueryMetrics) => sum + m.executionTime, 0) / queryMetrics.length;
       const frequency = queryMetrics.length;
       
       if (avgExecutionTime > this.SLOW_QUERY_THRESHOLD && frequency > 5) {
         // Check for missing indexes
-        const fullTableScans = queryMetrics.filter(m => m.fullTableScan).length;
+        const fullTableScans = queryMetrics.filter((m: QueryMetrics) => m.fullTableScan).length;
         if (fullTableScans > frequency * 0.5) {
           recommendations.push({
             type: 'index',
@@ -645,7 +645,7 @@ export class DatabaseOptimization {
               risks: ['Increased storage usage', 'Slower write operations'],
               dependencies: ['Database schema access']
             },
-            affectedQueries: queryMetrics.map(m => m.id)
+            affectedQueries: queryMetrics.map((m: QueryMetrics) => m.id)
           });
         }
         
@@ -668,7 +668,7 @@ export class DatabaseOptimization {
               risks: ['Application code changes required'],
               dependencies: ['Code review and testing']
             },
-            affectedQueries: queryMetrics.map(m => m.id)
+            affectedQueries: queryMetrics.map((m: QueryMetrics) => m.id)
           });
         }
       }
@@ -777,16 +777,34 @@ export class DatabaseOptimization {
   }
 
   private analyzeRecentQueries(): void {
-    const recentQueries = Array.from(this.queryMetrics.values())
-      .filter(m => Date.now() - m.timestamp.getTime() < this.ANALYSIS_INTERVAL);
+    const queryGroups = new Map<string, QueryMetrics[]>();
     
-    if (recentQueries.length > 0) {
-      // Calculate average time for monitoring
-      // const avgTime = recentQueries.reduce((sum, m) => sum + m.executionTime, 0) / recentQueries.length;
-      const slowQueries = recentQueries.filter(m => m.executionTime > this.SLOW_QUERY_THRESHOLD).length;
+    // Group queries by normalized form
+    for (const [normalizedQuery, queryMetrics] of queryGroups) {
+      const avgExecutionTime = queryMetrics.reduce((sum: number, m: QueryMetrics) => sum + m.executionTime, 0) / queryMetrics.length;
       
-      if (slowQueries > recentQueries.length * 0.1) { // More than 10% slow queries
-        console.warn(`⚠️ High slow query rate: ${slowQueries}/${recentQueries.length} (${(slowQueries/recentQueries.length*100).toFixed(1)}%)`);
+      // Analyze query patterns
+      const fullTableScans = queryMetrics.filter((m: QueryMetrics) => m.fullTableScan).length;
+      
+      if (fullTableScans > 0) {
+        this.optimizationSuggestions.push({
+          type: 'index',
+          priority: 'high',
+          description: `Consider adding an index for ${normalizedQuery}`,
+          originalQuery: queryMetrics[0].query,
+          expectedImprovement: {
+            executionTime: 0.7,
+            resourceUsage: 0.5,
+            scalability: 0.8
+          },
+          implementation: {
+            difficulty: 'medium',
+            estimatedTime: '1 hour',
+            risks: ['Temporary performance impact during index creation'],
+            dependencies: []
+          },
+          affectedQueries: queryMetrics.map((m: QueryMetrics) => m.id)
+        });
       }
     }
   }

@@ -44,7 +44,6 @@ interface SignaturePackage {
   allowDecline: boolean;
   completedAt: string | null;
   createdBy: User;
-  createdAt: string;
 }
 
 interface DigitalSignaturesProps {

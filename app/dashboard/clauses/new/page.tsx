@@ -123,7 +123,7 @@ const NewClausePage = () => {
   // Extract variables from content
   const extractVariablesFromContent = () => {
     const regex = /\{\{([^}]+)\}\}/g;
-    const matches = [...formData.content.matchAll(regex)];
+    const matches = Array.from(formData.content.matchAll(regex));
     const extractedVars = matches.map(match => match[1].trim());
     
     // Add missing variables
@@ -132,7 +132,7 @@ const NewClausePage = () => {
         const newVariable: ClauseVariable = {
           id: `var_${Date.now()}_${varName}`,
           name: varName,
-          label: varName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          label: varName.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
           type: 'STRING',
           defaultValue: '',
           isRequired: true,

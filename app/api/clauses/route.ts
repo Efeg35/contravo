@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth-helpers';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 import { z } from 'zod';
 
 // Validation schema for creating clauses
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
     // Get user's accessible companies for filtering
-    const userCompanies = await prisma.company.findMany({
+    const userCompanies = await db.company.findMany({
       where: {
         OR: [
           { createdById: user.id },
@@ -112,10 +112,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get total count for pagination
-    const total = await prisma.clause.count({ where });
+    const total = await db.clause.count({ where });
 
     // Get clauses with pagination
-    const clauses = await prisma.clause.findMany({
+    const clauses = await db.clause.findMany({
       where,
       include: {
         createdBy: {
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createClauseSchema.parse(body);
 
     // Create clause with variables
-    const clause = await prisma.clause.create({
+    const clause = await db.clause.create({
       data: {
         title: validatedData.title,
         description: validatedData.description,

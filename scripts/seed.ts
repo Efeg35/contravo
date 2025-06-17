@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -30,7 +30,7 @@ async function main() {
       email: 'admin@contravo.com',
       name: 'Ahmet Yılmaz',
       password: hashedPassword,
-      role: 'ADMIN',
+      role: Role.ADMIN,
       image: null,
     },
   });
@@ -40,7 +40,7 @@ async function main() {
       email: 'manager@techcorp.com',
       name: 'Zeynep Kaya',
       password: hashedPassword,
-      role: 'EDITOR',
+      role: Role.EDITOR,
       image: null,
     },
   });
@@ -50,7 +50,7 @@ async function main() {
       email: 'employee@techcorp.com',
       name: 'Mehmet Demir',
       password: hashedPassword,
-      role: 'USER',
+      role: Role.VIEWER,
       image: null,
     },
   });
@@ -60,7 +60,7 @@ async function main() {
       email: 'contact@globaltech.com',
       name: 'Ayşe Öztürk',
       password: hashedPassword,
-      role: 'USER',
+      role: Role.VIEWER,
       image: null,
     },
   });
@@ -70,7 +70,7 @@ async function main() {
       email: 'freelancer@example.com',
       name: 'Can Özkan',
       password: hashedPassword,
-      role: 'USER',
+      role: Role.VIEWER,
       image: null,
     },
   });
@@ -118,9 +118,9 @@ async function main() {
     data: [
       { companyId: techCorp.id, userId: adminUser.id, role: 'ADMIN' },
       { companyId: techCorp.id, userId: managerUser.id, role: 'EDITOR' },
-      { companyId: techCorp.id, userId: employeeUser.id, role: 'USER' },
+      { companyId: techCorp.id, userId: employeeUser.id, role: 'VIEWER' },
       { companyId: digitalAgency.id, userId: managerUser.id, role: 'ADMIN' },
-      { companyId: digitalAgency.id, userId: employeeUser.id, role: 'USER' },
+      { companyId: digitalAgency.id, userId: employeeUser.id, role: 'VIEWER' },
       { companyId: consultingFirm.id, userId: adminUser.id, role: 'ADMIN' },
     ],
   });
@@ -436,7 +436,7 @@ Gizlilik ihlali durumunda {{PENALTY_AMOUNT}} TL ceza ödenecektir.`,
     data: [
       {
         email: 'newemployee@techcorp.com',
-        role: 'USER',
+        role: 'VIEWER',
         status: 'PENDING',
         companyId: techCorp.id,
         invitedById: adminUser.id,
@@ -450,7 +450,7 @@ Gizlilik ihlali durumunda {{PENALTY_AMOUNT}} TL ceza ödenecektir.`,
       },
       {
         email: 'consultant@bcfirm.com',
-        role: 'USER',
+        role: 'VIEWER',
         status: 'EXPIRED',
         companyId: consultingFirm.id,
         invitedById: adminUser.id,

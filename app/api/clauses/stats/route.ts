@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth-helpers';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 
 // GET /api/clauses/stats - Get clause statistics
 export async function GET() {
@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     // Get user's accessible companies
-    const userCompanies = await prisma.company.findMany({
+    const userCompanies = await db.company.findMany({
       where: {
         OR: [
           { createdById: user.id },
@@ -50,12 +50,12 @@ export async function GET() {
     };
 
     // Get total clauses count
-    const totalClauses = await (prisma as any).clause.count({
+    const totalClauses = await (db as any).clause.count({
       where: baseFilter
     });
 
     // Get public clauses count
-    const publicClauses = await (prisma as any).clause.count({
+    const publicClauses = await (db as any).clause.count({
       where: {
         ...baseFilter,
         visibility: 'PUBLIC'
@@ -63,7 +63,7 @@ export async function GET() {
     });
 
     // Get company clauses count
-    const companyClauses = await (prisma as any).clause.count({
+    const companyClauses = await (db as any).clause.count({
       where: {
         ...baseFilter,
         visibility: 'COMPANY'
@@ -71,7 +71,7 @@ export async function GET() {
     });
 
     // Get private clauses count
-    const privateClauses = await (prisma as any).clause.count({
+    const privateClauses = await (db as any).clause.count({
       where: {
         ...baseFilter,
         visibility: 'PRIVATE',
@@ -80,7 +80,7 @@ export async function GET() {
     });
 
     // Get most used category
-    const categoryStats = await (prisma as any).clause.groupBy({
+    const categoryStats = await (db as any).clause.groupBy({
       by: ['category'],
       where: baseFilter,
       _count: {
@@ -97,7 +97,7 @@ export async function GET() {
     const mostUsedCategory = categoryStats.length > 0 ? categoryStats[0].category : 'LEGAL';
 
     // Get total usage count
-    const totalUsage = await (prisma as any).clauseUsage.count({
+    const totalUsage = await (db as any).clauseUsage.count({
       where: {
         clause: {
           ...baseFilter
@@ -106,7 +106,7 @@ export async function GET() {
     });
 
     // Get category breakdown
-    const categoryBreakdown = await (prisma as any).clause.groupBy({
+    const categoryBreakdown = await (db as any).clause.groupBy({
       by: ['category'],
       where: baseFilter,
       _count: {
@@ -120,7 +120,7 @@ export async function GET() {
     });
 
     // Get recent activity (last 10 clause usages)
-    const recentActivity = await (prisma as any).clauseUsage.findMany({
+    const recentActivity = await (db as any).clauseUsage.findMany({
       where: {
         clause: {
           ...baseFilter

@@ -338,35 +338,19 @@ export class QueryPerformanceMonitor {
     queryFunction: () => Promise<T>
   ): Promise<T> {
     const startTime = performance.now()
-    
     try {
       const result = await queryFunction()
-      const endTime = performance.now()
-      const duration = endTime - startTime
+      const duration = performance.now() - startTime
 
-      // Store query time
-      if (!this.queryTimes.has(queryName)) {
-        this.queryTimes.set(queryName, [])
-      }
-      
-      const times = this.queryTimes.get(queryName)!
+      // Record query time
+      const times = this.queryTimes.get(queryName) || []
       times.push(duration)
-      
-      // Keep only last 100 measurements
-      if (times.length > 100) {
-        times.shift()
-      }
-
-      // Log slow queries (> 1000ms)
-      if (duration > 1000) {
-        console.warn(`Slow query detected: ${queryName} took ${duration.toFixed(2)}ms`)
-      }
+      this.queryTimes.set(queryName, times)
 
       return result
     } catch (error) {
-      const endTime = performance.now()
-      const duration = endTime - startTime
-      console.error(`Query ${queryName} failed after ${duration.toFixed(2)}ms:`, error)
+      const duration = performance.now() - startTime
+      console.error(`Query ${queryName} failed after ${duration}ms:`, error)
       throw error
     }
   }
@@ -443,18 +427,17 @@ export class ConnectionPoolManager {
     }
   }
 
-  static async executeQuery<T = any>(
+  static async executeQuery<T = unknown>(
     prisma: PrismaClient,
     query: string,
-    params?: any[]
+    params?: unknown[]
   ): Promise<T[]> {
     try {
-      // This is a simplified example - in practice, you'd use Prisma's query methods
-      console.log('Executing query:', query);
-      return [];
+      const result = await prisma.$queryRawUnsafe(query, ...(params || []))
+      return result as T[]
     } catch (error) {
-      console.error('Query execution failed:', error);
-      throw error;
+      console.error('Query execution failed:', error)
+      throw error
     }
   }
 }

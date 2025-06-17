@@ -230,8 +230,6 @@ export class RedisCache {
     priority?: 'high' | 'medium' | 'low';
     updateLocal?: boolean;
   } = {}): Promise<boolean> {
-    // Performance tracking for future use
-    // const startTime = Date.now();
     const fullKey = this.buildKey(key);
     
     try {
@@ -242,49 +240,34 @@ export class RedisCache {
       let finalValue = value;
       let compressed = false;
       
-             if (shouldCompress) {
-         const compressedValue = this.compress(value);
-         const compressionRatio = JSON.stringify(compressedValue).length / serializedValue.length;
-         
-         if (compressionRatio < 0.8) {
-           finalValue = compressedValue as T;
-           compressed = true;
-         }
-       }
-
-      const cacheData = {
-        value: finalValue,
-        ttl: options.ttl || this.config.defaultTTL,
-        createdAt: new Date(),
-        tags: options.tags || [],
-        compressed,
-        pattern: options.pattern,
-        priority: options.priority || 'medium'
-      };
-
-      const ttl = options.ttl || this.config.defaultTTL;
-      
-      // Set in Redis
-      await this.client.setex(fullKey, ttl, JSON.stringify(cacheData));
-      
-      // Set in local cache
-      if (options.updateLocal !== false && this.l1Cache.size < this.MAX_L1_CACHE_SIZE) {
-        this.l1Cache.set(fullKey, {
-          value: value,
-          expires: Date.now() + ttl * 1000,
-          size: serializedValue.length
-        });
+      if (shouldCompress) {
+        const compressedValue = this.compress(value);
+        const compressionRatio = JSON.stringify(compressedValue).length / serializedValue.length;
+        
+        if (compressionRatio < 0.8) {
+          finalValue = compressedValue as T;
+          compressed = true;
+        }
       }
 
-      // Add to pattern tracking
+      const ttl = options.ttl ?? this.config.defaultTTL;
+      await this.client.setex(fullKey, ttl, JSON.stringify(finalValue));
+
+      // Update L1 cache if enabled
+      if (options.updateLocal !== false && this.config.enableL1Cache) {
+        this.setL1Cache(fullKey, finalValue, ttl);
+      }
+
+      // Track pattern if specified
       if (options.pattern) {
-        await this.trackPattern(fullKey, options.pattern);
+        this.trackPattern(fullKey, options.pattern);
       }
 
-      this.stats.operations.set++;
-      this.updateHitRate();
-      return true;
+      if (this.stats) {
+        this.stats.operations.set++;
+      }
 
+      return true;
     } catch (error) {
       console.error(`Cache set error for key ${key}:`);
       return false;

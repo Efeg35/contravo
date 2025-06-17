@@ -26,7 +26,7 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   experimental: {
-    // Enable experimental features if needed
+    serverActions: true,
   },
   webpack: (config, { isServer }) => {
     // PDF.js worker file konfigürasyonu
@@ -41,4 +41,4 @@ const nextConfig = {
   },
 }
 
-export default nextConfig; 
+module.exports = nextConfig; 

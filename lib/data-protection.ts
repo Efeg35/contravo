@@ -954,13 +954,13 @@ export class DataProtectionManager {
   private shouldRequireVerification(rightType: DataSubjectRight): boolean {
     return [
       DataSubjectRight.ERASURE,
-      DataSubjectRight.DATA_PORTABILITY,
-      DataSubjectRight.ACCESS
+      DataSubjectRight.RESTRICT_PROCESSING,
+      DataSubjectRight.WITHDRAW_CONSENT
     ].includes(rightType);
   }
 
-  private shouldNotifyBreach(severity: string): boolean {
-    return ['HIGH', 'CRITICAL'].includes(severity);
+  private shouldNotifyBreach(severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'): boolean {
+    return severity === 'HIGH' || severity === 'CRITICAL';
   }
 
   private async notifyPrivacyBreach(breachId: string): Promise<void> {

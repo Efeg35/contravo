@@ -358,15 +358,11 @@ export class AdvancedFiltering {
     }
 
     const fieldDef = schema.fields[field];
-    if (!fieldDef || !fieldDef.filterable) {
-      throw new Error(`Field ${field} is not filterable`);
+    if (!fieldDef) {
+      throw new Error(`Field ${field} not found in schema for table: ${table}`);
     }
 
-    // Mock implementation - in real app, query database
-    const suggestions = await this.queryFieldValues(table, field, query, limit);
-    
-    console.log(`💡 Generated ${suggestions.length} suggestions for ${table}.${field}`);
-    return suggestions;
+    return this.queryFieldValues(table, field, query, limit);
   }
 
   // Validate filter permissions
@@ -381,40 +377,42 @@ export class AdvancedFiltering {
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    // Check field access
+    // Validate field access
     if (query.fields) {
-      for (const field of query.fields) {
-        if (!userPermissions.canAccessFields.includes(field)) {
-          errors.push(`Access denied to field: ${field}`);
-        }
+      const invalidFields = query.fields.filter(field => !userPermissions.canAccessFields.includes(field));
+      if (invalidFields.length > 0) {
+        errors.push(`Access denied to fields: ${invalidFields.join(', ')}`);
       }
     }
 
-    // Check filter permissions
+    // Validate filter fields
     if (query.filters) {
       const filterFields = this.extractFieldsFromFilterGroup(query.filters);
-      for (const field of filterFields) {
-        if (!userPermissions.canFilterFields.includes(field)) {
-          errors.push(`Filter access denied to field: ${field}`);
-        }
+      const invalidFilterFields = filterFields.filter(field => !userPermissions.canFilterFields.includes(field));
+      if (invalidFilterFields.length > 0) {
+        errors.push(`Filtering not allowed on fields: ${invalidFilterFields.join(', ')}`);
       }
     }
 
-    // Check sort permissions
+    // Validate sort fields
     if (query.sort) {
-      for (const sort of query.sort) {
-        if (!userPermissions.canSortFields.includes(sort.field)) {
-          errors.push(`Sort access denied to field: ${sort.field}`);
-        }
+      const invalidSortFields = query.sort
+        .filter(sort => !userPermissions.canSortFields.includes(sort.field))
+        .map(sort => sort.field);
+      if (invalidSortFields.length > 0) {
+        errors.push(`Sorting not allowed on fields: ${invalidSortFields.join(', ')}`);
       }
     }
 
-    // Check pagination limits
-    if (query.pagination && query.pagination.limit > userPermissions.maxLimit) {
-      errors.push(`Limit exceeds maximum allowed: ${userPermissions.maxLimit}`);
+    // Validate pagination limit
+    if (query.pagination?.limit && query.pagination.limit > userPermissions.maxLimit) {
+      errors.push(`Pagination limit exceeds maximum allowed: ${userPermissions.maxLimit}`);
     }
 
-    return { valid: errors.length === 0, errors };
+    return {
+      valid: errors.length === 0,
+      errors
+    };
   }
 
   // Get performance metrics
@@ -667,8 +665,8 @@ export class AdvancedFiltering {
     }
   }
 
-  private buildSQLQuery(table: string, query: FilterQuery, schema: FilterSchema): { sql: string; parameters: any[] } {
-    const parameters: any[] = [];
+  private buildSQLQuery(table: string, query: FilterQuery, schema: FilterSchema): { sql: string; parameters: unknown[] } {
+    const parameters: unknown[] = [];
     let paramIndex = 1;
 
     // SELECT clause
@@ -774,11 +772,11 @@ export class AdvancedFiltering {
 
   private buildWhereClause(
     group: FilterGroup, 
-    existingParams: any[], 
+    existingParams: unknown[], 
     startParamIndex: number,
     schema: FilterSchema
-  ): { clause: string; params: any[] } {
-    const params: any[] = [];
+  ): { clause: string; params: unknown[] } {
+    const params: unknown[] = [];
     const clauses: string[] = [];
     let paramIndex = startParamIndex;
 
@@ -810,9 +808,9 @@ export class AdvancedFiltering {
     condition: FilterCondition, 
     paramIndex: number,
     schema: FilterSchema
-  ): { clause: string; params: any[] } {
+  ): { clause: string; params: unknown[] } {
     const field = `"${condition.field}"`;
-    const params: any[] = [];
+    const params: unknown[] = [];
     let clause = '';
 
     // Transform value if needed
@@ -914,7 +912,7 @@ export class AdvancedFiltering {
   }
 
   private async executeSQLQuery<T>(
-    sqlQuery: { sql: string; parameters: any[] }
+    sqlQuery: { sql: string; parameters: unknown[] }
   ): Promise<FilterResult<T>> {
     // Mock implementation - in real app, execute against database
     console.log(`🔍 Executing SQL: ${sqlQuery.sql}`);
@@ -941,7 +939,7 @@ export class AdvancedFiltering {
     field: string,
     query?: string,
     limit = 10
-  ): Promise<Array<{ value: any; count: number; label?: string }>> {
+  ): Promise<Array<{ value: unknown; count: number; label?: string }>> {
     // Mock implementation
     const mockValues = [
       { value: 'active', count: 150, label: 'Active' },
@@ -1057,6 +1055,10 @@ export class AdvancedFiltering {
       }
     }, this.CACHE_TTL / 2); // Run cleanup every half TTL
   }
+
+  getSchema(table: string): FilterSchema | undefined {
+    return this.schemas.get(table);
+  }
 }
 
 // Export singleton instance
@@ -1066,16 +1068,28 @@ export const advancedFiltering = AdvancedFiltering.getInstance();
 export async function executeFilter<T = unknown>(
   table: string,
   query: FilterQuery,
-  options?: Parameters<typeof advancedFiltering.executeFilter>[2]
+  options?: {
+    useCache?: boolean;
+    explain?: boolean;
+    timeout?: number;
+  }
 ): Promise<FilterResult<T>> {
+  const advancedFiltering = AdvancedFiltering.getInstance();
   return advancedFiltering.executeFilter<T>(table, query, options);
 }
 
 export function buildDynamicFilter(
-  userInput: Parameters<typeof advancedFiltering.buildDynamicFilter>[0],
+  userInput: {
+    search?: string;
+    filters?: Record<string, unknown>;
+    sort?: string;
+    page?: number;
+    limit?: number;
+  },
   table: string
 ): FilterQuery {
-  const schema = advancedFiltering['schemas'].get(table);
+  const advancedFiltering = AdvancedFiltering.getInstance();
+  const schema = advancedFiltering.getSchema(table);
   if (!schema) {
     throw new Error(`Schema not found for table: ${table}`);
   }
@@ -1087,14 +1101,17 @@ export async function getFilterSuggestions(
   field: string,
   query?: string,
   limit?: number
-): Promise<Array<{ value: any; count: number; label?: string }>> {
+): Promise<Array<{ value: unknown; count: number; label?: string }>> {
+  const advancedFiltering = AdvancedFiltering.getInstance();
   return advancedFiltering.getFilterSuggestions(table, field, query, limit);
 }
 
 export function registerFilterSchema(schema: FilterSchema): void {
+  const advancedFiltering = AdvancedFiltering.getInstance();
   advancedFiltering.registerSchema(schema);
 }
 
-export function getFilteringMetrics(): ReturnType<typeof advancedFiltering.getPerformanceMetrics> {
+export function getFilteringMetrics(): ReturnType<typeof AdvancedFiltering.prototype.getPerformanceMetrics> {
+  const advancedFiltering = AdvancedFiltering.getInstance();
   return advancedFiltering.getPerformanceMetrics();
 } 

@@ -47,6 +47,7 @@ model User {
   createdClauses    Clause[]        @relation("CreatedClauses")
   clauseUsages      ClauseUsage[]   @relation("ClauseUsages")  
   clauseApprovals   ClauseApproval[] @relation("ClauseApprovals")
+  teams             UsersOnTeams[]
 
   // Performance indexes
   @@index([email])
@@ -794,4 +795,22 @@ enum Department {
   GENERAL
 
   @@map("departments")
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members   UsersOnTeams[]
+}
+
+model UsersOnTeams {
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  team      Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId    String
+  createdAt DateTime @default(now())
+
+  @@id([userId, teamId])
 }

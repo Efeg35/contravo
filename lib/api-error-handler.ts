@@ -20,14 +20,14 @@ export interface ApiErrorResponse {
     type: ErrorType;
     message: string;
     code: string;
-    details?: any;
+    details?: Record<string, unknown>;
     timestamp: string;
     requestId?: string;
   };
 }
 
 // Success response interface
-export interface ApiSuccessResponse<T = any> {
+export interface ApiSuccessResponse<T = unknown> {
   success: true;
   data: T;
   meta?: {
@@ -129,7 +129,7 @@ export function handleApiError(
         type: errorType,
         message,
         code: `PRISMA_${error.code}`,
-        details: process.env.NODE_ENV === 'development' ? error.meta : undefined,
+        details: process.env.NODE_ENV === 'development' ? { meta: error.meta } : undefined,
         timestamp,
         requestId
       }
@@ -154,7 +154,7 @@ export function handleApiError(
         type: ErrorType.VALIDATION,
         message: 'Gönderilen veri formatı hatalı',
         code: 'VALIDATION_FAILED',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        details: process.env.NODE_ENV === 'development' ? { message: error.message } : undefined,
         timestamp,
         requestId
       }
@@ -178,7 +178,7 @@ export function handleApiError(
       type: ErrorType.INTERNAL,
       message: 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyiniz.',
       code: 'INTERNAL_SERVER_ERROR',
-      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      details: process.env.NODE_ENV === 'development' ? { message: errorMessage } : undefined,
       timestamp,
       requestId
     }
@@ -265,13 +265,14 @@ export const commonErrors = {
 };
 
 // Async wrapper for API handlers to automatically catch errors
-export function withErrorHandler<T extends any[], R>(
+export function withErrorHandler<T extends unknown[], R>(
   handler: (...args: T) => Promise<R>,
   context: string = 'API'
 ) {
-  return async (...args: T): Promise<R | NextResponse<ApiErrorResponse>> => {
+  return async (...args: T): Promise<NextResponse<ApiSuccessResponse<R> | ApiErrorResponse>> => {
     try {
-      return await handler(...args);
+      const result = await handler(...args);
+      return createSuccessResponse(result);
     } catch (error) {
       return handleApiError(error, context);
     }
