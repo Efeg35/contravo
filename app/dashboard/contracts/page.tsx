@@ -28,6 +28,7 @@ import {
   Brain,
   Globe
 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 // import BulkOperations from '@/components/BulkOperations';
 
 interface Contract {
@@ -59,14 +60,78 @@ interface ContractStats {
   totalValue: number;
 }
 
+function ContractFilters() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const q = searchParams.get('q') || '';
+  const status = searchParams.get('status') || 'all';
+  const type = searchParams.get('type') || 'all';
+
+  function updateParam(key: string, value: string) {
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    if (value === 'all' || value === '') {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    router.replace(`?${params.toString()}`);
+  }
+
+  return (
+    <div className="space-y-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Sözleşme ara..."
+            value={q}
+            onChange={e => updateParam('q', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex gap-2">
+          <select
+            value={status}
+            onChange={e => updateParam('status', e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Tüm Durumlar</option>
+            <option value="DRAFT">Taslak</option>
+            <option value="IN_REVIEW">İncelemede</option>
+            <option value="APPROVED">Onaylandı</option>
+            <option value="SIGNED">İmzalandı</option>
+            <option value="ARCHIVED">Arşivlendi</option>
+          </select>
+          <select
+            value={type}
+            onChange={e => updateParam('type', e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Tüm Türler</option>
+            <option value="NDA">Gizlilik</option>
+            <option value="SERVICE">Hizmet</option>
+            <option value="EMPLOYMENT">İş</option>
+            <option value="PARTNERSHIP">Ortaklık</option>
+            <option value="SALES">Satış</option>
+            <option value="LEASE">Kira</option>
+            <option value="OTHER">Diğer</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ContractsPage() {
   const { data: session } = useSession();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : undefined;
+  const q = searchParams?.get('q') || '';
+  const filter = searchParams?.get('status') || 'all';
+  const typeFilter = searchParams?.get('type') || 'all';
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [stats, setStats] = useState<ContractStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showBulkMode, setShowBulkMode] = useState(false);
   const [selectedContractIds, setSelectedContractIds] = useState<string[]>([]);
   const [pagination, setPagination] = useState({
@@ -96,7 +161,7 @@ export default function ContractsPage() {
   const fetchContracts = useCallback(async (page = 1) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/contracts?page=${page}&limit=10&search=${searchTerm}&status=${filter}&type=${typeFilter}`);
+      const response = await fetch(`/api/contracts?page=${page}&limit=10&search=${q}&status=${filter}&type=${typeFilter}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -115,11 +180,11 @@ export default function ContractsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filter, typeFilter]);
+  }, [q, filter, typeFilter]);
 
   useEffect(() => {
     fetchContracts();
-  }, [searchTerm, filter, typeFilter, fetchContracts]);
+  }, [q, filter, typeFilter, fetchContracts]);
 
   useEffect(() => {
     fetchStats();
@@ -222,9 +287,9 @@ export default function ContractsPage() {
 
   // Filter contracts
   const filteredContracts = contracts.filter(contract => {
-    const matchesSearch = contract.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contract.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contract.otherPartyName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = contract.title.toLowerCase().includes(q.toLowerCase()) ||
+                         contract.description?.toLowerCase().includes(q.toLowerCase()) ||
+                         contract.otherPartyName?.toLowerCase().includes(q.toLowerCase());
     const matchesFilter = filter === 'all' || contract.status === filter;
     const matchesType = typeFilter === 'all' || contract.type === typeFilter;
     
@@ -340,49 +405,7 @@ export default function ContractsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="h-[600px] overflow-auto">
-              {/* Search and Filters */}
-              <div className="space-y-4 mb-6">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      placeholder="Sözleşme ara..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <select
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="all">Tüm Durumlar</option>
-                      <option value="DRAFT">Taslak</option>
-                      <option value="IN_REVIEW">İncelemede</option>
-                      <option value="APPROVED">Onaylandı</option>
-                      <option value="SIGNED">İmzalandı</option>
-                      <option value="ARCHIVED">Arşivlendi</option>
-                    </select>
-                    <select
-                      value={typeFilter}
-                      onChange={(e) => setTypeFilter(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="all">Tüm Türler</option>
-                      <option value="NDA">Gizlilik</option>
-                      <option value="SERVICE">Hizmet</option>
-                      <option value="EMPLOYMENT">İş</option>
-                      <option value="PARTNERSHIP">Ortaklık</option>
-                      <option value="SALES">Satış</option>
-                      <option value="LEASE">Kira</option>
-                      <option value="OTHER">Diğer</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
+              <ContractFilters />
               {/* Contracts List */}
               {filteredContracts.length === 0 ? (
                 <div className="text-center py-12">
