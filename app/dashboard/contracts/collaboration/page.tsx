@@ -83,6 +83,105 @@ interface CommentReply {
   createdAt: string;
 }
 
+// Mock data - moved outside component to prevent re-creation on every render
+const MOCK_SESSIONS: CollaborativeSession[] = [
+  {
+    id: '1',
+    clauseId: '1',
+    clauseTitle: 'Gizlilik ve Veri Koruma Maddesi',
+    participants: [
+      {
+        id: '1',
+        name: 'Ahmet Yılmaz',
+        email: 'ahmet@contravo.com',
+        role: 'OWNER',
+        joinedAt: '2024-01-15T09:00:00Z'
+      },
+      {
+        id: '2',
+        name: 'Ayşe Demir',
+        email: 'ayse@contravo.com',
+        role: 'EDITOR',
+        joinedAt: '2024-01-15T09:15:00Z'
+      },
+      {
+        id: '3',
+        name: 'Mehmet Kaya',
+        email: 'mehmet@contravo.com',
+        role: 'VIEWER',
+        joinedAt: '2024-01-15T10:00:00Z'
+      }
+    ],
+    activeUsers: [
+      {
+        id: '1',
+        name: 'Ahmet Yılmaz',
+        cursor: { line: 5, column: 12 },
+        color: '#3B82F6',
+        lastSeen: '2024-01-15T10:30:00Z'
+      },
+      {
+        id: '2',
+        name: 'Ayşe Demir',
+        cursor: { line: 12, column: 8 },
+        color: '#EF4444',
+        lastSeen: '2024-01-15T10:29:00Z'
+      }
+    ],
+    comments: [
+      {
+        id: '1',
+        userId: '2',
+        user: {
+          name: 'Ayşe Demir'
+        },
+        content: 'Bu bölümde KVKK uyumluluğu için ek açıklama gerekiyor.',
+        position: { line: 8, column: 0 },
+        resolved: false,
+        createdAt: '2024-01-15T10:15:00Z',
+        replies: [
+          {
+            id: '1',
+            userId: '1',
+            user: {
+              name: 'Ahmet Yılmaz'
+            },
+            content: 'Haklısın, bu kısmı detaylandıralım.',
+            createdAt: '2024-01-15T10:20:00Z'
+          }
+        ]
+      }
+    ],
+    createdAt: '2024-01-15T09:00:00Z',
+    lastActivity: '2024-01-15T10:30:00Z'
+  },
+  {
+    id: '2',
+    clauseId: '2',
+    clauseTitle: 'Sorumluluk Reddi Maddesi',
+    participants: [
+      {
+        id: '1',
+        name: 'Ahmet Yılmaz',
+        email: 'ahmet@contravo.com',
+        role: 'OWNER',
+        joinedAt: '2024-01-14T14:00:00Z'
+      },
+      {
+        id: '4',
+        name: 'Fatma Özkan',
+        email: 'fatma@contravo.com',
+        role: 'EDITOR',
+        joinedAt: '2024-01-14T14:30:00Z'
+      }
+    ],
+    activeUsers: [],
+    comments: [],
+    createdAt: '2024-01-14T14:00:00Z',
+    lastActivity: '2024-01-14T16:45:00Z'
+  }
+];
+
 const CollaborationPage = () => {
   const router = useRouter();
 
@@ -97,113 +196,14 @@ const CollaborationPage = () => {
   const [inviteRole, setInviteRole] = useState<'EDITOR' | 'VIEWER'>('EDITOR');
   const [loading, setLoading] = useState(true);
 
-  // Mock data
-  const mockSessions: CollaborativeSession[] = [
-    {
-      id: '1',
-      clauseId: '1',
-      clauseTitle: 'Gizlilik ve Veri Koruma Maddesi',
-      participants: [
-        {
-          id: '1',
-          name: 'Ahmet Yılmaz',
-          email: 'ahmet@contravo.com',
-          role: 'OWNER',
-          joinedAt: '2024-01-15T09:00:00Z'
-        },
-        {
-          id: '2',
-          name: 'Ayşe Demir',
-          email: 'ayse@contravo.com',
-          role: 'EDITOR',
-          joinedAt: '2024-01-15T09:15:00Z'
-        },
-        {
-          id: '3',
-          name: 'Mehmet Kaya',
-          email: 'mehmet@contravo.com',
-          role: 'VIEWER',
-          joinedAt: '2024-01-15T10:00:00Z'
-        }
-      ],
-      activeUsers: [
-        {
-          id: '1',
-          name: 'Ahmet Yılmaz',
-          cursor: { line: 5, column: 12 },
-          color: '#3B82F6',
-          lastSeen: '2024-01-15T10:30:00Z'
-        },
-        {
-          id: '2',
-          name: 'Ayşe Demir',
-          cursor: { line: 12, column: 8 },
-          color: '#EF4444',
-          lastSeen: '2024-01-15T10:29:00Z'
-        }
-      ],
-      comments: [
-        {
-          id: '1',
-          userId: '2',
-          user: {
-            name: 'Ayşe Demir'
-          },
-          content: 'Bu bölümde KVKK uyumluluğu için ek açıklama gerekiyor.',
-          position: { line: 8, column: 0 },
-          resolved: false,
-          createdAt: '2024-01-15T10:15:00Z',
-          replies: [
-            {
-              id: '1',
-              userId: '1',
-              user: {
-                name: 'Ahmet Yılmaz'
-              },
-              content: 'Haklısın, bu kısmı detaylandıralım.',
-              createdAt: '2024-01-15T10:20:00Z'
-            }
-          ]
-        }
-      ],
-      createdAt: '2024-01-15T09:00:00Z',
-      lastActivity: '2024-01-15T10:30:00Z'
-    },
-    {
-      id: '2',
-      clauseId: '2',
-      clauseTitle: 'Sorumluluk Reddi Maddesi',
-      participants: [
-        {
-          id: '1',
-          name: 'Ahmet Yılmaz',
-          email: 'ahmet@contravo.com',
-          role: 'OWNER',
-          joinedAt: '2024-01-14T14:00:00Z'
-        },
-        {
-          id: '4',
-          name: 'Fatma Özkan',
-          email: 'fatma@contravo.com',
-          role: 'EDITOR',
-          joinedAt: '2024-01-14T14:30:00Z'
-        }
-      ],
-      activeUsers: [],
-      comments: [],
-      createdAt: '2024-01-14T14:00:00Z',
-      lastActivity: '2024-01-14T16:45:00Z'
-    }
-  ];
-
-  // Initialize
+  // Initialize - fixed infinite re-render by removing dependency
   useEffect(() => {
     setLoading(true);
     setTimeout(() => {
-      setSessions(mockSessions);
+      setSessions(MOCK_SESSIONS);
       setLoading(false);
     }, 1000);
-  }, [mockSessions]);
+  }, []); // Empty dependency array prevents re-renders
 
   // Handle session selection
   const handleSessionSelect = (session: CollaborativeSession) => {
