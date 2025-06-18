@@ -202,7 +202,7 @@ export default function ProactiveContractWidget() {
                   <p className="text-xs text-red-600">{contract.otherPartyName} • {contract.type}</p>
                 </div>
                 <Link 
-                  href={`/dashboard/contracts/${contract.id}`}
+                  href={`/contract/${contract.id}`}
                   className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
                 >
                   DERHAL İNCELE
@@ -225,7 +225,7 @@ export default function ProactiveContractWidget() {
                   <p className="text-xs text-orange-600">{contract.otherPartyName} • {contract.type}</p>
                 </div>
                 <Link 
-                  href={`/dashboard/contracts/${contract.id}`}
+                  href={`/contract/${contract.id}`}
                   className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
                 >
                   ACİL KARAR
@@ -259,10 +259,10 @@ export default function ProactiveContractWidget() {
                   <p className="text-sm text-yellow-700 mt-1">{contract.actionRequired}</p>
                 </div>
                 <Link 
-                  href={`/dashboard/contracts/${contract.id}`}
-                  className="text-yellow-700 hover:text-yellow-900 font-medium"
+                  href={`/contract/${contract.id}`}
+                  className="text-indigo-600 hover:text-indigo-700 font-medium text-sm transition-colors"
                 >
-                  İncele →
+                  Detayları İncele →
                 </Link>
               </div>
             ))}
