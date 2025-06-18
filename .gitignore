@@ -48,3 +48,4 @@ next-env.d.ts
 node_modules/
 *.db*
 .next/
+.env
