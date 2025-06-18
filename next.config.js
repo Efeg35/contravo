@@ -26,7 +26,9 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   experimental: {
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ['localhost:3000'],
+    },
   },
   webpack: (config, { isServer }) => {
     // PDF.js worker file konfigürasyonu

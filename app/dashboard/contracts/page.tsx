@@ -63,19 +63,20 @@ interface ContractStats {
 export default async function ContractsPage({ 
   searchParams 
 }: { 
-  searchParams: { 
+  searchParams: Promise<{ 
     q?: string; 
     status?: string; 
     type?: string;
     sortBy?: 'title' | 'status' | 'createdAt' | 'updatedAt' | 'expirationDate';
     order?: 'asc' | 'desc';
-  } 
+  }> 
 }) {
-  const q = searchParams.q || '';
-  const status = searchParams.status || 'all';
-  const typeFilter = searchParams.type || 'all';
-  const sortBy = searchParams.sortBy || 'createdAt';
-  const order = searchParams.order || 'desc';
+  const params = await searchParams;
+  const q = params.q || '';
+  const status = params.status || 'all';
+  const typeFilter = params.type || 'all';
+  const sortBy = params.sortBy || 'createdAt';
+  const order = params.order || 'desc';
 
   // Dinamik where koşulu oluştur
   const where: any = {};

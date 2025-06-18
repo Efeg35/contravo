@@ -38,6 +38,8 @@ export default function NewContractPage() {
     otherPartyEmail: '',
     content: ''
   });
+  const [users, setUsers] = useState([]);
+  const [selectedApprovers, setSelectedApprovers] = useState<string[]>([]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -83,6 +85,13 @@ export default function NewContractPage() {
     fetchTemplate();
   }, [templateId]);
 
+  useEffect(() => {
+    // Kullanıcı listesini çek
+    fetch('/api/users')
+      .then(res => res.json())
+      .then(data => setUsers(data));
+  }, []);
+
   const getTypeFromCategory = (category: string) => {
     const categoryMap: Record<string, string> = {
       'EMPLOYMENT': 'employment',
@@ -106,13 +115,20 @@ export default function NewContractPage() {
     }));
   };
 
+  const handleApproverChange = (userId: string) => {
+    setSelectedApprovers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title) {
       alert('Lütfen sözleşme başlığını girin');
       return;
     }
-
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/contracts', {
@@ -120,9 +136,8 @@ export default function NewContractPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, approverIds: selectedApprovers }),
       });
-
       if (response.ok) {
         const contract = await response.json();
         router.push(`/dashboard/contracts/${contract.id}`);
@@ -438,6 +453,29 @@ export default function NewContractPage() {
                     </p>
                   </div>
                 )}
+
+                {/* Onaylayıcı(lar) (İsteğe bağlı) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Onaylayıcı(lar) (İsteğe bağlı)
+                  </label>
+                  <div className="space-y-2 max-h-40 overflow-y-auto border rounded p-2 bg-gray-50 dark:bg-gray-700">
+                    {users.map((user: any) => (
+                      <label key={user.id} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedApprovers.includes(user.id)}
+                          onChange={() => handleApproverChange(user.id)}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                          {user.name || user.email}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Birden fazla onaylayıcı seçebilirsiniz. Boş bırakabilirsiniz.</p>
+                </div>
 
                 {/* Yardım paneli */}
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">

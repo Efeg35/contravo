@@ -67,7 +67,7 @@ export async function GET(
 // POST /api/contracts/[id]/approvals - Request approvals
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -75,7 +75,7 @@ export async function POST(
       return NextResponse.json({ error: 'Yetkilendirme gerekli' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const { approverIds } = await request.json();
 
     // Sözleşmeyi ve onaylayıcıları bul
@@ -104,13 +104,19 @@ export async function POST(
         });
 
         // Onaylayıcıya e-posta gönder
-        await sendNotificationEmail({
-          to: approval.approver.email,
-          baslik: 'Yeni Bir Onay İsteğiniz Var',
-          mesaj: `${contract.title} sözleşmesi için onayınız isteniyor. Lütfen sözleşmeyi inceleyip onaylayın veya reddedin.`,
-          link: `/contracts/${id}`,
-          linkText: 'Sözleşmeyi İncele',
-        });
+        try {
+          await sendNotificationEmail({
+            to: approval.approver.email,
+            baslik: 'Yeni Bir Onay İsteğiniz Var',
+            mesaj: `${contract.title} sözleşmesi için onayınız isteniyor. Lütfen sözleşmeyi inceleyip onaylayın veya reddedin.`,
+            link: `${process.env.NEXTAUTH_URL}/dashboard/contracts/${id}`,
+            linkText: 'Sözleşmeyi İncele',
+          });
+          console.log(`Approval email sent to ${approval.approver.email}`);
+        } catch (emailError) {
+          console.error('Email sending failed:', emailError);
+          // Email hatası olsa da approval oluşturmaya devam et
+        }
 
         return approval;
       })

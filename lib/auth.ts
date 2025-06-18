@@ -5,7 +5,9 @@ import prisma from './prisma';
 import { SessionMiddleware } from './session-middleware';
 import { passwordManager } from './password-manager';
 import { getServerSession } from 'next-auth';
-import { Role } from '@prisma/client';
+
+// User type for NextAuth
+type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER';
 
 // authOptions'ı import etmek yerine burada tanımlıyoruz
 const authOptions: NextAuthOptions = {
@@ -99,14 +101,16 @@ const authOptions: NextAuthOptions = {
           defaultCompanyId = user.companyUsers[0].companyId;
         }
 
+        // Return user compatible with NextAuth User type
         return {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role,
+          image: user.image,
+          role: user.role as UserRole,
           companyId: defaultCompanyId,
-        };
-      },
+        } as any;
+      }
     }),
   ],
   session: {
@@ -122,7 +126,7 @@ const authOptions: NextAuthOptions = {
       // Initial sign in
       if (user) {
         token.id = user.id;
-        token.role = user.role as Role;
+        token.role = (user as any).role || 'VIEWER';
         token.companyId = (user as any).companyId;
         token.iat = Math.floor(Date.now() / 1000);
         token.exp = Math.floor(Date.now() / 1000) + (24 * 60 * 60); // 1 day
@@ -172,13 +176,14 @@ const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user && token) {
         session.user.id = token.id as string;
-        session.user.role = token.role as Role;
+        // @ts-expect-error - Adding custom property to session
+        session.user.role = token.role as string;
         // @ts-expect-error - companyId is added by our custom logic
         session.user.companyId = token.companyId as string;
         
         // Add token metadata to session
-        session.tokenIssuedAt = token.iat as number;
-        session.tokenExpiresAt = token.exp as number;
+        (session as any).tokenIssuedAt = token.iat as number;
+        (session as any).tokenExpiresAt = token.exp as number;
       }
       return session;
     },

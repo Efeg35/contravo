@@ -1,67 +1,76 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { sendNotificationEmail } from '@/lib/mail';
-import { ContractStatus } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const now = new Date();
-    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const fifteenDaysFromNow = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
-    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const oneDayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Check if request has proper authorization header
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Bitiş tarihi yaklaşan sözleşmeleri bul
-    const contracts = await prisma.contract.findMany({
+    const now = new Date();
+    const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const oneMonthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // Check for contracts expiring within a week
+    const expiringContracts = await db.contract.findMany({
       where: {
-        endDate: {
-          in: [thirtyDaysFromNow, fifteenDaysFromNow, sevenDaysFromNow, oneDayFromNow],
+        status: 'SIGNED',
+        expirationDate: {
+          gte: now,
+          lte: oneWeekFromNow,
         },
-        status: ContractStatus.SIGNED,
       },
       include: {
-        createdBy: true,
-      },
+        createdBy: {
+          select: { email: true, name: true }
+        },
+        company: {
+          select: { name: true }
+        }
+      }
     });
 
-    // Her sözleşme için bildirim gönder
-    for (const contract of contracts) {
-      if (!contract.endDate) continue;
-
-      const daysUntilEnd = Math.ceil(
-        (contract.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      // Bildirim mesajını gün sayısına göre özelleştir
-      let message = '';
-      if (daysUntilEnd === 30) {
-        message = `${contract.title} sözleşmenizin bitiş tarihine 30 gün kaldı. Lütfen gerekli işlemleri yapmayı unutmayın.`;
-      } else if (daysUntilEnd === 15) {
-        message = `${contract.title} sözleşmenizin bitiş tarihine 15 gün kaldı. Lütfen gerekli işlemleri yapmayı unutmayın.`;
-      } else if (daysUntilEnd === 7) {
-        message = `${contract.title} sözleşmenizin bitiş tarihine 7 gün kaldı. Lütfen gerekli işlemleri yapmayı unutmayın.`;
-      } else if (daysUntilEnd === 1) {
-        message = `${contract.title} sözleşmenizin bitiş tarihine sadece 1 gün kaldı! Acil olarak gerekli işlemleri yapmanızı rica ederiz.`;
+    // Check for contracts that need renewal
+    const renewalContracts = await db.contract.findMany({
+      where: {
+        status: 'SIGNED',
+        autoRenewal: true,
+        renewalDate: {
+          gte: now,
+          lte: oneMonthFromNow,
+        },
+      },
+      include: {
+        createdBy: {
+          select: { email: true, name: true }
+        },
+        company: {
+          select: { name: true }
+        }
       }
+    });
 
-      await sendNotificationEmail({
-        to: contract.createdBy.email,
-        baslik: 'Sözleşmenizin Bitiş Tarihi Yaklaşıyor!',
-        mesaj: message,
-        link: `/contracts/${contract.id}`,
-        linkText: 'Sözleşmeyi Görüntüle',
-      });
+    // Log notifications instead of sending emails for now
+    for (const contract of expiringContracts) {
+      console.log(`Contract expiring notification: ${contract.title} for ${contract.createdBy.email}`);
+    }
+
+    for (const contract of renewalContracts) {
+      console.log(`Contract renewal notification: ${contract.title} for ${contract.createdBy.email}`);
     }
 
     return NextResponse.json({
-      success: true,
-      message: `${contracts.length} sözleşme için bildirim gönderildi.`,
+      message: 'Deadline check completed',
+      expiringContracts: expiringContracts.length,
+      renewalContracts: renewalContracts.length,
     });
+
   } catch (error) {
-    console.error('Bildirim gönderme hatası:', error);
-    return NextResponse.json(
-      { success: false, error: 'Bildirim gönderilirken bir hata oluştu.' },
-      { status: 500 }
-    );
+    console.error('Error checking deadlines:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

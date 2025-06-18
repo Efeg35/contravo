@@ -1,14 +1,29 @@
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { authOptions } from '../../lib/auth';
+
+// Rol hiyerarşisi tanımı
+const ROLE_HIERARCHY = {
+  'VIEWER': 0,
+  'EDITOR': 1,
+  'ADMIN': 2
+};
 
 export async function hasRequiredRole(requiredRole: string): Promise<boolean> {
   const session = await getServerSession(authOptions);
   
-  if (!session?.user) {
+  if (!session?.user?.role) {
     return false;
   }
 
-  // Kullanıcının rolünü kontrol et
-  // Not: Bu kısmı kendi rol yapınıza göre düzenlemelisiniz
-  return session.user.role === requiredRole;
-} 
+  // Kullanıcının mevcut rolünü ve gerekli rolü hiyerarşide kontrol et
+  const userRoleLevel = ROLE_HIERARCHY[session.user.role as keyof typeof ROLE_HIERARCHY];
+  const requiredRoleLevel = ROLE_HIERARCHY[requiredRole as keyof typeof ROLE_HIERARCHY];
+  
+  // Tanımlanmamış roller için false döndür
+  if (userRoleLevel === undefined || requiredRoleLevel === undefined) {
+    return false;
+  }
+
+  // Kullanıcının rolü gerekli rol seviyesinde veya üstünde mi?
+  return userRoleLevel >= requiredRoleLevel;
+}

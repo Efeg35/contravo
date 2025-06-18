@@ -12,6 +12,7 @@ import ContractApproval from '../../../../components/ContractApproval';
 import ContractVersions from '../../../../components/ContractVersions';
 import DigitalSignatures from '../../../../components/DigitalSignatures';
 import ContractEditor from '../../../../components/ContractEditor';
+import { createAmendment } from '../../../../src/lib/actions/contract-actions';
 
 interface ContractDetail {
   id: string;
@@ -33,6 +34,21 @@ interface ContractDetail {
     name?: string;
     email: string;
   };
+  parentContract?: {
+    id: string;
+    title: string;
+    status: string;
+  };
+  amendments?: Array<{
+    id: string;
+    title: string;
+    status: string;
+    createdAt: string;
+    createdBy: {
+      name?: string;
+      email: string;
+    };
+  }>;
 }
 
 interface PageProps {
@@ -48,6 +64,8 @@ export default function ContractDetailPage({ params }: PageProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<ContractDetail>>({});
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [users, setUsers] = useState<{id: string, name?: string, email: string}[]>([]);
+  const [selectedApprovers, setSelectedApprovers] = useState<string[]>([]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -82,6 +100,17 @@ export default function ContractDetailPage({ params }: PageProps) {
       fetchContract();
     }
   }, [session, id, router]);
+
+  useEffect(() => {
+    if (session && id) {
+      fetch(`/api/contracts/${id}/approvals`).then(res => res.json()).then(data => {
+        if (data.approvals) {
+          setSelectedApprovers(data.approvals.map((a: any) => a.approver.id));
+        }
+      });
+      fetch('/api/users').then(res => res.json()).then(data => setUsers(data.users || data));
+    }
+  }, [session, id]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -131,16 +160,31 @@ export default function ContractDetailPage({ params }: PageProps) {
   const handleEdit = () => {
     setIsEditing(true);
     setEditData({ ...contract });
+    setSelectedApprovers(selectedApprovers);
   };
 
   const handleSave = async () => {
+    // Verileri normalize et
+    const payload = {
+      ...editData,
+      value: editData.value === undefined || editData.value === null || String(editData.value) === '' || isNaN(Number(editData.value)) ? undefined : Number(editData.value),
+      startDate: editData.startDate ? new Date(editData.startDate).toISOString() : undefined,
+      endDate: editData.endDate ? new Date(editData.endDate).toISOString() : undefined,
+      expirationDate: editData.expirationDate ? new Date(editData.expirationDate).toISOString() : undefined,
+      noticePeriodDays: editData.noticePeriodDays === undefined || editData.noticePeriodDays === null || String(editData.noticePeriodDays) === '' || isNaN(Number(editData.noticePeriodDays)) ? undefined : Number(editData.noticePeriodDays),
+      approverIds: Array.isArray(selectedApprovers) ? selectedApprovers : [],
+    };
+    // content alanı null veya undefined ise payload'dan çıkar
+    if (payload.content === null || payload.content === undefined) {
+      delete payload.content;
+    }
     try {
       const response = await fetch(`/api/contracts/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(editData),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -149,7 +193,14 @@ export default function ContractDetailPage({ params }: PageProps) {
         setIsEditing(false);
         toast.success('Sözleşme başarıyla güncellendi!');
       } else {
-        toast.error('Sözleşme güncellenirken bir hata oluştu');
+        const errorData = await response.json();
+        if (errorData.details) {
+          errorData.details.forEach((detail: any) => {
+            toast.error(`${detail.field}: ${detail.message}`);
+          });
+        } else {
+          toast.error('Sözleşme güncellenirken bir hata oluştu');
+        }
         console.error('Failed to update contract');
       }
     } catch (error) {
@@ -332,18 +383,35 @@ export default function ContractDetailPage({ params }: PageProps) {
                     </svg>
                     PDF İndir
                   </button>
-                  <button
-                    onClick={handleEdit}
-                    className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    Düzenle
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-                  >
-                    Sil
-                  </button>
+                  {contract.status === 'SIGNED' ? (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await createAmendment(contract.id);
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : 'Değişiklik oluşturulurken hata oluştu');
+                        }
+                      }}
+                      className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                    >
+                      📝 Değişiklik Yap
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleEdit}
+                        className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        Düzenle
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                      >
+                        Sil
+                      </button>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -557,6 +625,97 @@ export default function ContractDetailPage({ params }: PageProps) {
             </div>
           </div>
 
+          {/* Ana Sözleşme Bilgisi - Eğer bu bir ek sözleşme ise */}
+          {contract.parentContract && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-6">
+              <div className="px-6 py-4">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                      Bu bir ek sözleşmedir
+                    </h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Ana Sözleşme: 
+                      <Link 
+                        href={`/dashboard/contracts/${contract.parentContract.id}`}
+                        className="ml-1 font-medium hover:underline"
+                      >
+                        {contract.parentContract.title}
+                      </Link>
+                      <span className="ml-2 text-xs px-2 py-1 bg-blue-100 dark:bg-blue-800 rounded">
+                        {getStatusText(contract.parentContract.status)}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ek Sözleşmeler - Eğer bu sözleşmenin ekleri varsa */}
+          {contract.amendments && contract.amendments.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+              <div className="px-6 py-6">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-green-600 dark:text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    Bu Sözleşmeye Bağlı Değişiklikler ({contract.amendments.length})
+                  </h3>
+                </div>
+                
+                <div className="space-y-3">
+                  {contract.amendments.map((amendment) => (
+                    <div 
+                      key={amendment.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3">
+                          <Link 
+                            href={`/dashboard/contracts/${amendment.id}`}
+                            className="text-sm font-medium text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline"
+                          >
+                            {amendment.title}
+                          </Link>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(amendment.status)}`}>
+                            {getStatusText(amendment.status)}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Oluşturan: {amendment.createdBy.name || amendment.createdBy.email} • 
+                          Tarih: {new Date(amendment.createdAt).toLocaleDateString('tr-TR')}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <Link 
+                          href={`/dashboard/contracts/${amendment.id}`}
+                          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Collaborative Contract Editor */}
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
             <div className="px-6 py-6">
@@ -568,6 +727,7 @@ export default function ContractDetailPage({ params }: PageProps) {
                   contractId={contract.id}
                   initialContent={contract.content || '# Sözleşme İçeriği\n\nSözleşme içeriğinizi buraya yazın...'}
                   onSave={handleContentChange}
+                  isEditable={contract.status !== 'SIGNED'}
                 />
               </div>
             </div>
@@ -623,6 +783,25 @@ export default function ContractDetailPage({ params }: PageProps) {
               </div>
             </div>
           </div>
+
+          {isEditing && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Onaylayıcılar</label>
+              <div className="space-y-2 max-h-40 overflow-y-auto border rounded p-2 bg-gray-50 dark:bg-gray-700">
+                {users.map(user => (
+                  <label key={user.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedApprovers.includes(user.id)}
+                      onChange={() => setSelectedApprovers(prev => prev.includes(user.id) ? prev.filter(id => id !== user.id) : [...prev, user.id])}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-900 dark:text-white">{user.name || user.email}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

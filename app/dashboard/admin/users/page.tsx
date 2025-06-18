@@ -1,57 +1,93 @@
-'use server';
+'use client';
 
-import { isAdmin } from '../../../../src/lib/permissions';
-import { db } from '@/lib/db';
-import { Role, User } from '@prisma/client';
-import { revalidatePath } from 'next/cache';
-import { redirect } from "next/navigation";
+import { useState, useEffect } from 'react';
+import { User } from '@prisma/client';
 
-async function updateUserRole(userId: string, newRole: Role) {
-  await isAdmin();
-  
-  await db.user.update({
-    where: { id: userId },
-    data: { role: newRole },
-  });
-  
-  revalidatePath('/dashboard/admin/users');
+// Role definitions
+const ROLES = ['ADMIN', 'EDITOR', 'VIEWER'] as const;
+type UserRole = typeof ROLES[number];
+
+interface UserWithRole extends Omit<User, 'role'> {
+  role: UserRole;
 }
 
-type UserWithRole = Pick<User, 'id' | 'name' | 'email' | 'role' | 'createdAt'>;
+export default function AdminUsersPage() {
+  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default async function AdminUsersPage() {
-  const isUserAdmin = await isAdmin();
-  if (!isUserAdmin) {
-    redirect('/dashboard');
-  }
-  
-  const users = await db.user.findMany({
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      createdAt: true,
-    },
-  }) as UserWithRole[];
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/admin/roles');
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      const data = await response.json();
+      setUsers(data.users);
+    } catch (err) {
+      setError('Error loading users');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateUserRole = async (userId: string, newRole: UserRole) => {
+    try {
+      const response = await fetch('/api/admin/roles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId, newRole }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update role');
+      }
+
+      const data = await response.json();
+      
+      // Update the user in the list
+      setUsers(prevUsers =>
+        prevUsers.map(user =>
+          user.id === userId ? { ...user, role: newRole } : user
+        )
+      );
+
+      alert('Role updated successfully');
+    } catch (err) {
+      alert(`Error updating role: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Kullanıcı Yönetimi</h1>
+    <div className="container mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">User Management</h1>
       
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Kullanıcı
+                User
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Rol
+                Email
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Kayıt Tarihi
+                Role
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
               </th>
             </tr>
           </thead>
@@ -59,41 +95,30 @@ export default async function AdminUsersPage() {
             {users.map((user) => (
               <tr key={user.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {user.name || 'İsimsiz Kullanıcı'}
-                      </div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                    </div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {user.name || 'Unknown'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <form action={async (formData) => {
-                    const newRole = formData.get('role') as Role;
-                    await updateUserRole(user.id, newRole);
-                  }}>
-                    <select
-                      name="role"
-                      defaultValue={user.role}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                    >
-                      {Object.values(Role).map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="submit"
-                      className="mt-2 inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      Güncelle
-                    </button>
-                  </form>
+                  <div className="text-sm text-gray-900">{user.email}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(user.createdAt).toLocaleDateString('tr-TR')}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                    {user.role}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <select
+                    value={user.role}
+                    onChange={(e) => updateUserRole(user.id, e.target.value as UserRole)}
+                    className="text-sm border border-gray-300 rounded px-2 py-1"
+                  >
+                    {ROLES.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                  </select>
                 </td>
               </tr>
             ))}

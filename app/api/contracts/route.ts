@@ -383,6 +383,20 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Eğer approverIds varsa, her biri için ContractApproval kaydı oluştur
+    if (Array.isArray(body.approverIds) && body.approverIds.length > 0) {
+      await Promise.all(
+        body.approverIds.map((approverId: string) =>
+          prisma.contractApproval.create({
+            data: {
+              contractId: contract.id,
+              approverId,
+            },
+          })
+        )
+      );
+    }
+
     return createSuccessResponse(contract, {
       timestamp: new Date().toISOString()
     })

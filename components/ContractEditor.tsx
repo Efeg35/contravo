@@ -53,6 +53,7 @@ interface ContractEditorProps {
   initialContent?: string;
   onSave?: (content: string) => void;
   className?: string;
+  isEditable?: boolean;
 }
 
 // Category labels in Turkish
@@ -76,7 +77,8 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
   contractId,
   initialContent = '',
   onSave,
-  className
+  className,
+  isEditable = true
 }) => {
   // Editor state
   const [content, setContent] = useState(initialContent);
@@ -211,29 +213,40 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowClauseLibrary(!showClauseLibrary)}
-            className="flex items-center gap-2"
-          >
-            <BookOpen className="h-4 w-4" />
-            Smart Clauses
-          </Button>
+          {isEditable && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowClauseLibrary(!showClauseLibrary)}
+                className="flex items-center gap-2"
+              >
+                <BookOpen className="h-4 w-4" />
+                Smart Clauses
+              </Button>
+              
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {saving ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Kaydet
+              </Button>
+            </>
+          )}
           
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {saving ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Kaydet
-          </Button>
+          {!isEditable && (
+            <div className="flex items-center gap-2 text-gray-500">
+              <Eye className="h-4 w-4" />
+              <span className="text-sm font-medium">Salt Okunur</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -242,25 +255,37 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
         <div className={showClauseLibrary ? 'lg:col-span-2' : 'lg:col-span-3'}>
           <Card>
             <CardHeader>
-              <CardTitle>Sözleşme İçeriği</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Sözleşme İçeriği
+                {!isEditable && (
+                  <Badge variant="secondary" className="text-xs">
+                    Salt Okunur
+                  </Badge>
+                )}
+              </CardTitle>
               <CardDescription>
-                Sözleşme metnini yazın veya Smart Clauses'dan hazır maddeler ekleyin
+                {isEditable 
+                  ? "Sözleşme metnini yazın veya Smart Clauses'dan hazır maddeler ekleyin"
+                  : "Bu sözleşme imzalanmış olduğu için içeriği değiştirilemez"
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Sözleşme içeriğinizi buraya yazın..."
+                onChange={isEditable ? (e) => setContent(e.target.value) : undefined}
+                placeholder={isEditable ? "Sözleşme içeriğinizi buraya yazın..." : "Bu sözleşme imzalanmış olduğu için düzenlenemez"}
                 rows={20}
-                className="min-h-[500px] font-mono text-sm"
+                className={`min-h-[500px] font-mono text-sm ${!isEditable ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
+                readOnly={!isEditable}
+                disabled={!isEditable}
               />
             </CardContent>
           </Card>
         </div>
 
         {/* Clause Library Sidebar */}
-        {showClauseLibrary && (
+        {showClauseLibrary && isEditable && (
           <div className="space-y-4">
             <Card>
               <CardHeader>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { Role } from '@prisma/client';
+import prisma from '@/lib/prisma';
 
 // Sözleşme imzalarını getir
 export async function GET(
@@ -77,95 +77,87 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { id: contractId } = await params;
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Yetkilendirme gerekli' }, { status: 401 });
+    const { signatureData } = await request.json();
+
+    if (!signatureData) {
+      return NextResponse.json({ error: 'Signature data is required' }, { status: 400 });
     }
 
-    const { id } = await params;
-    const body = await request.json();
-    const { 
-      title, 
-      description, 
-      expiresAt, 
-      signers = [] 
-    } = body;
-
-    // Sözleşme erişim kontrolü
-    const contract = await db.contract.findFirst({
+    // Verify contract exists and user has access
+    const contract = await prisma.contract.findFirst({
       where: {
-        id,
+        id: contractId,
         OR: [
           { createdById: session.user.id },
           { 
             company: {
               users: {
-                some: { 
-                  userId: session.user.id,
-                  role: { in: [Role.ADMIN, Role.EDITOR] }
+                some: {
+                  userId: session.user.id
                 }
               }
             }
           }
         ]
+      },
+      include: {
+        digitalSignatures: true
       }
     });
 
     if (!contract) {
-      return NextResponse.json({ error: 'Sözleşme bulunamadı veya yetki yok' }, { status: 404 });
+      return NextResponse.json({ error: 'Contract not found or access denied' }, { status: 404 });
     }
 
-    // Mevcut imza paketi var mı kontrol et
-    const existingPackage = await db.signaturePackage.findUnique({
-      where: { contractId: id }
-    });
+    // Check if user has already signed
+    const existingSignature = contract.digitalSignatures.find(
+      (sig: any) => sig.userId === session.user.id
+    );
 
-    if (existingPackage) {
-      return NextResponse.json({ error: 'Bu sözleşme için zaten bir imza paketi mevcut' }, { status: 400 });
+    if (existingSignature) {
+      return NextResponse.json({ error: 'You have already signed this contract' }, { status: 400 });
     }
 
-    // Yeni imza paketi oluştur
-    const signaturePackage = await db.signaturePackage.create({
+    // Create digital signature with required expiresAt field
+    const signature = await prisma.digitalSignature.create({
       data: {
-        contractId: id,
-        title,
-        description,
-        expiresAt: new Date(expiresAt),
-        createdById: session.user.id
+        contractId,
+        userId: session.user.id,
+        signatureData,
+        signedAt: new Date(),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+        ipAddress: 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
       }
     });
 
-    // İmzacıları ekle
-    const digitalSignatures = await Promise.all(
-      signers.map((signer: { userId: string; isRequired?: boolean }, index: number) => 
-        db.digitalSignature.create({
-          data: {
-            contractId: id,
-            userId: signer.userId,
-            order: index + 1,
-            isRequired: signer.isRequired ?? true,
-            expiresAt: new Date(expiresAt)
-          }
-        })
-      )
-    );
-
-    // Paket durumunu SENT olarak güncelle
-    await db.signaturePackage.update({
-      where: { id: signaturePackage.id },
-      data: { status: 'SENT' }
+    return NextResponse.json({ 
+      message: 'Contract signed successfully',
+      signature 
     });
 
-    return NextResponse.json({
-      signaturePackage,
-      signatures: digitalSignatures
-    }, { status: 201 });
-
   } catch (error) {
-    console.error('İmza paketi oluşturma hatası:');
+    console.error('Error creating signature:', error);
     return NextResponse.json(
-      { error: 'Sunucu hatası' },
+      { error: 'Failed to create signature' },
       { status: 500 }
     );
   }

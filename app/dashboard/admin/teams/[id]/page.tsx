@@ -8,9 +8,9 @@ import { UserSearch } from '@/components/UserSearch';
 import { Users, X } from 'lucide-react';
 
 interface TeamPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function TeamPage({ params }: TeamPageProps) {
@@ -19,9 +19,11 @@ export default async function TeamPage({ params }: TeamPageProps) {
     redirect('/dashboard');
   }
 
+  const { id } = await params;
+
   // Takım ve üyelerini çek
   const team = await db.team.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       members: {
         include: {

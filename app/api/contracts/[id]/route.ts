@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../../lib/auth'
 import { db } from '../../../../lib/db'
 import { z } from 'zod'
+import prisma from '../../../../lib/prisma'
 
 // 📅 ANAHTAR TARİH TAKİBİ - Güncelleme Doğrulama Şeması
 const updateContractSchema = z.object({
@@ -28,6 +29,7 @@ const updateContractSchema = z.object({
   ),
   otherPartyName: z.string().optional(),
   otherPartyEmail: z.string().optional(),
+  approverIds: z.array(z.string()).optional(),
 })
 
 interface RouteParams {
@@ -54,7 +56,7 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const contract = await db.contract.findFirst({
+    const contract = await (db.contract as any).findFirst({
       where: {
         id: id,
         OR: [
@@ -79,6 +81,31 @@ export async function GET(
         createdBy: {
           select: {
             name: true,
+            email: true,
+          }
+        },
+        parentContract: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+          }
+        },
+        amendments: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            createdAt: true,
+            createdBy: {
+              select: {
+                name: true,
+                email: true,
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
           }
         }
       }
@@ -119,9 +146,26 @@ export async function PUT(
     }
 
     const body = await request.json()
+    let validatedData;
     
-    // 📅 ANAHTAR TARİH TAKİBİ - Veri Doğrulama
-    const validatedData = updateContractSchema.parse(body)
+    try {
+      // 📅 ANAHTAR TARİH TAKİBİ - Veri Doğrulama
+      validatedData = updateContractSchema.parse(body)
+    } catch (validationError) {
+      if (validationError instanceof z.ZodError) {
+        return NextResponse.json(
+          { 
+            error: 'Veri doğrulama hatası',
+            details: validationError.errors.map(err => ({
+              field: err.path.join('.'),
+              message: err.message
+            }))
+          },
+          { status: 400 }
+        )
+      }
+      throw validationError;
+    }
 
     // Önce sözleşmenin var olduğunu ve kullanıcıya ait olduğunu kontrol et
     const existingContract = await db.contract.findFirst({
@@ -151,58 +195,116 @@ export async function PUT(
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
     }
 
-    const contract = await db.contract.update({
-      where: { id: id },
-      data: {
-        ...(validatedData.title !== undefined && { title: validatedData.title }),
-        ...(validatedData.description !== undefined && { description: validatedData.description }),
-        ...(validatedData.content !== undefined && { content: validatedData.content }),
-        ...(validatedData.status !== undefined && { status: validatedData.status as any }),
-        ...(validatedData.type !== undefined && { type: validatedData.type }),
-        ...(validatedData.value !== undefined && { value: validatedData.value }),
-        ...(validatedData.startDate !== undefined && { startDate: validatedData.startDate ? new Date(validatedData.startDate) : null }),
-        ...(validatedData.endDate !== undefined && { endDate: validatedData.endDate ? new Date(validatedData.endDate) : null }),
-        // 📅 ANAHTAR TARİH TAKİBİ - Kritik Tarih Verilerini Güncelle
-        ...(validatedData.expirationDate !== undefined && { 
-          expirationDate: validatedData.expirationDate ? new Date(validatedData.expirationDate) : null 
-        }),
-        ...(validatedData.noticePeriodDays !== undefined && { noticePeriodDays: validatedData.noticePeriodDays }),
-        ...(validatedData.otherPartyName !== undefined && { otherPartyName: validatedData.otherPartyName }),
-        ...(validatedData.otherPartyEmail !== undefined && { otherPartyEmail: validatedData.otherPartyEmail }),
-        updatedById: user.id,
-        updatedAt: new Date()
-      },
-      include: {
-        createdBy: {
-          select: {
-            name: true,
-          }
-        }
-      }
-    })
-
-    return NextResponse.json(contract)
-  } catch (error) {
-    console.error('Error updating contract:', error)
-    
-    // 📅 ANAHTAR TARİH TAKİBİ - Doğrulama Hatası Yönetimi
-    if (error instanceof z.ZodError) {
+    // 🔒 GÜVENLİK KONTROLÜ: İmzalanmış sözleşmeler düzenlenemez!
+    if (existingContract.status === 'SIGNED') {
       return NextResponse.json(
         { 
-          error: 'Veri doğrulama hatası',
-          details: error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
+          error: 'İmzalanmış sözleşmeler düzenlenemez',
+          message: 'Bu sözleşme imzalanmış olduğu için düzenleyemezsiniz. Değişiklik yapmak için "Değişiklik Yap" butonunu kullanın.'
+        }, 
+        { status: 403 }
       )
     }
-    
+
+    // Transaction ile onaycıları ve sözleşmeyi güncelle
+    if (Array.isArray(body.approverIds)) {
+      try {
+        const transactionOps = [];
+        // 1. Eski onaycıları sil
+        transactionOps.push(
+          prisma.contractApproval.deleteMany({ where: { contractId: id } })
+        );
+        // 2. Yeni onaycıları ekle
+        if (body.approverIds.length > 0) {
+          transactionOps.push(
+            prisma.contractApproval.createMany({
+              data: body.approverIds.map((approverId: string) => ({ contractId: id, approverId }))
+            })
+          );
+        }
+        // 3. Sözleşmeyi güncelle
+        transactionOps.push(
+          db.contract.update({
+            where: { id: id },
+            data: {
+              ...(validatedData.title !== undefined && { title: validatedData.title }),
+              ...(validatedData.description !== undefined && { description: validatedData.description }),
+              ...(validatedData.content !== undefined && { content: validatedData.content }),
+              ...(validatedData.status !== undefined && { status: validatedData.status as any }),
+              ...(validatedData.type !== undefined && { type: validatedData.type }),
+              ...(validatedData.value !== undefined && { value: validatedData.value }),
+              ...(validatedData.startDate !== undefined && { startDate: validatedData.startDate ? new Date(validatedData.startDate) : null }),
+              ...(validatedData.endDate !== undefined && { endDate: validatedData.endDate ? new Date(validatedData.endDate) : null }),
+              ...(validatedData.expirationDate !== undefined && { expirationDate: validatedData.expirationDate ? new Date(validatedData.expirationDate) : null }),
+              ...(validatedData.noticePeriodDays !== undefined && { noticePeriodDays: validatedData.noticePeriodDays }),
+              ...(validatedData.otherPartyName !== undefined && { otherPartyName: validatedData.otherPartyName }),
+              ...(validatedData.otherPartyEmail !== undefined && { otherPartyEmail: validatedData.otherPartyEmail }),
+              updatedById: user.id,
+              updatedAt: new Date()
+            },
+            include: {
+              createdBy: {
+                select: {
+                  name: true,
+                }
+              }
+            }
+          })
+        );
+        // Transactionu çalıştır
+        const [, , updatedContract] = await prisma.$transaction(transactionOps);
+        return NextResponse.json(updatedContract);
+      } catch (error) {
+        console.error('Error updating approvers or contract (transaction):', error);
+        return NextResponse.json(
+          { error: 'Onaylayıcılar veya sözleşme güncellenirken bir hata oluştu' },
+          { status: 500 }
+        );
+      }
+    } else {
+      // Onaycı yoksa sadece contract'ı güncelle
+      try {
+        const contract = await db.contract.update({
+          where: { id: id },
+          data: {
+            ...(validatedData.title !== undefined && { title: validatedData.title }),
+            ...(validatedData.description !== undefined && { description: validatedData.description }),
+            ...(validatedData.content !== undefined && { content: validatedData.content }),
+            ...(validatedData.status !== undefined && { status: validatedData.status as any }),
+            ...(validatedData.type !== undefined && { type: validatedData.type }),
+            ...(validatedData.value !== undefined && { value: validatedData.value }),
+            ...(validatedData.startDate !== undefined && { startDate: validatedData.startDate ? new Date(validatedData.startDate) : null }),
+            ...(validatedData.endDate !== undefined && { endDate: validatedData.endDate ? new Date(validatedData.endDate) : null }),
+            ...(validatedData.expirationDate !== undefined && { expirationDate: validatedData.expirationDate ? new Date(validatedData.expirationDate) : null }),
+            ...(validatedData.noticePeriodDays !== undefined && { noticePeriodDays: validatedData.noticePeriodDays }),
+            ...(validatedData.otherPartyName !== undefined && { otherPartyName: validatedData.otherPartyName }),
+            ...(validatedData.otherPartyEmail !== undefined && { otherPartyEmail: validatedData.otherPartyEmail }),
+            updatedById: user.id,
+            updatedAt: new Date()
+          },
+          include: {
+            createdBy: {
+              select: {
+                name: true,
+              }
+            }
+          }
+        });
+        return NextResponse.json(contract);
+      } catch (error) {
+        console.error('Error updating contract:', error);
+        return NextResponse.json(
+          { error: 'Sözleşme güncellenirken bir hata oluştu' },
+          { status: 500 }
+        );
+      }
+    }
+  } catch (error) {
+    console.error('Error in PUT request:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    )
+    );
   }
 }
 
@@ -252,6 +354,17 @@ export async function DELETE(
 
     if (!existingContract) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
+    }
+
+    // 🔒 GÜVENLİK KONTROLÜ: İmzalanmış sözleşmeler silinemez!
+    if (existingContract.status === 'SIGNED') {
+      return NextResponse.json(
+        { 
+          error: 'İmzalanmış sözleşmeler silinemez',
+          message: 'Bu sözleşme imzalanmış olduğu için silemezsiniz.'
+        }, 
+        { status: 403 }
+      )
     }
 
     await db.contract.delete({
