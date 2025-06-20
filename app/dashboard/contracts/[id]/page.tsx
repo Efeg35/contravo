@@ -398,18 +398,18 @@ export default function ContractDetailPage({ params }: PageProps) {
                     </button>
                   ) : (
                     <>
-                      <button
-                        onClick={handleEdit}
-                        className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                      >
-                        Düzenle
-                      </button>
-                      <button
-                        onClick={handleDelete}
-                        className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-                      >
-                        Sil
-                      </button>
+                  <button
+                    onClick={handleEdit}
+                    className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Düzenle
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                  >
+                    Sil
+                  </button>
                     </>
                   )}
                 </>

@@ -9,8 +9,8 @@ import { getServerSession } from 'next-auth';
 // User type for NextAuth
 type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER';
 
-// authOptions'ı import etmek yerine burada tanımlıyoruz
-const authOptions: NextAuthOptions = {
+// authOptions'ı export ediyoruz
+export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
@@ -242,9 +242,7 @@ const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
-}; 
-
-export { authOptions };
+};
 
 export async function hasRequiredRole(requiredRole: string): Promise<boolean> {
   const session = await getServerSession(authOptions);

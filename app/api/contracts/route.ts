@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
+    const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
 
     const query = {
@@ -57,6 +57,9 @@ export async function GET(request: NextRequest) {
       type: searchParams.get('type') || undefined,
       companyId: searchParams.get('companyId') || undefined,
       search: searchParams.get('search') || undefined,
+      view: searchParams.get('view') || 'all',
+      sortBy: searchParams.get('sortBy') || 'lastActivity',
+      order: searchParams.get('order') || 'desc',
     }
 
     const user = await getCurrentUser()
@@ -186,6 +189,111 @@ export async function GET(request: NextRequest) {
       ]
     }
 
+    // Handle view filters (Ironclad-style)
+    if (query.view && query.view !== 'all') {
+      switch (query.view) {
+        case 'myworkflows':
+          // All workflows (no additional filter needed)
+          break
+        case 'assignedToMe':
+          // User has approval responsibility
+          whereClause.approvals = {
+            some: {
+              approverId: user.id,
+              status: 'PENDING'
+            }
+          }
+          break
+        case 'participating':
+          // User is either creator or has approval responsibility
+          whereClause.OR = [
+            ...(whereClause.OR || []),
+            { createdById: user.id },
+            {
+              approvals: {
+                some: {
+                  approverId: user.id
+                }
+              }
+            }
+          ]
+          break
+        case 'completed':
+          whereClause.status = { in: ['SIGNED', 'ARCHIVED'] }
+          break
+        case 'overdue':
+          whereClause.OR = [
+            {
+              endDate: {
+                lt: new Date()
+              },
+              status: { not: 'SIGNED' }
+            },
+            {
+              expirationDate: {
+                lt: new Date()
+              },
+              status: { not: 'SIGNED' }
+            }
+          ]
+          break
+        case 'procurement-rfp':
+          whereClause.type = 'RFP'
+          break
+        case 'procurement-spend':
+          whereClause.type = { in: ['PURCHASE_AGREEMENT', 'VENDOR_AGREEMENT'] }
+          whereClause.value = { gte: 1000000 }
+          break
+        case 'general-mnda':
+          whereClause.type = 'NDA'
+          whereClause.status = 'IN_REVIEW'
+          break
+        case 'sales-high-value':
+          whereClause.type = { in: ['SALES_AGREEMENT', 'SERVICE_AGREEMENT'] }
+          whereClause.value = { gte: 500000 }
+          break
+        case 'finance-business':
+          whereClause.description = { contains: 'finance' }
+          break
+        case 'ytd-completed':
+          const yearStart = new Date(new Date().getFullYear(), 0, 1)
+          whereClause.status = { in: ['SIGNED', 'ARCHIVED'] }
+          whereClause.updatedAt = { gte: yearStart }
+          break
+        default:
+          // Active/in progress contracts by default
+          whereClause.status = { in: ['DRAFT', 'IN_REVIEW', 'APPROVED'] }
+          break
+      }
+    } else {
+      // Default view - active contracts
+      whereClause.status = { in: ['DRAFT', 'IN_REVIEW', 'APPROVED'] }
+    }
+
+    // Build order by clause
+    let orderBy: Prisma.ContractOrderByWithRelationInput = {}
+    switch (query.sortBy) {
+      case 'title':
+        orderBy = { title: query.order as 'asc' | 'desc' }
+        break
+      case 'currentStage':
+        orderBy = { status: query.order as 'asc' | 'desc' }
+        break
+      case 'assignedTo':
+        orderBy = { createdBy: { name: query.order as 'asc' | 'desc' } }
+        break
+      case 'value':
+        orderBy = { value: query.order as 'asc' | 'desc' }
+        break
+      case 'createdAt':
+        orderBy = { createdAt: query.order as 'asc' | 'desc' }
+        break
+      case 'lastActivity':
+      default:
+        orderBy = { updatedAt: query.order as 'asc' | 'desc' }
+        break
+    }
+
     // Fetch contracts with department-based filtering
     const [contracts, totalCount] = await Promise.all([
       prisma.contract.findMany({
@@ -196,6 +304,21 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
             }
+          },
+          approvals: {
+            include: {
+              approver: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                }
+              }
+            },
+            where: {
+              status: 'PENDING'
+            },
+            take: 1
           },
           createdBy: {
             select: {
@@ -229,8 +352,26 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(totalCount / limit)
 
+    // Transform contracts to include assignedTo from approvals
+    const transformedContracts = contracts.map(contract => ({
+      ...contract,
+      assignedTo: contract.approvals?.[0]?.approver || null,
+      currentStage: contract.status,
+      lastActivity: contract.updatedAt.toISOString(),
+      // Mock additional fields for Ironclad-style dashboard
+      department: contract.type === 'RFP' ? 'Procurement' : 
+                 contract.type === 'NDA' ? 'Legal' :
+                 contract.type === 'SALES_AGREEMENT' ? 'Sales' : 'General',
+      contractType: contract.type,
+      riskLevel: contract.value && contract.value > 1000000 ? 'HIGH' : 
+                 contract.value && contract.value > 100000 ? 'MEDIUM' : 'LOW',
+      turnsCompleted: Math.floor(Math.random() * 3) + 1,
+      totalTurns: 5,
+      priority: contract.value && contract.value > 500000 ? 'HIGH' : 'MEDIUM'
+    }))
+
     return NextResponse.json({
-      contracts,
+      contracts: transformedContracts,
       pagination: {
         page,
         limit,

@@ -215,29 +215,29 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
         <div className="flex items-center gap-2">
           {isEditable && (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowClauseLibrary(!showClauseLibrary)}
-                className="flex items-center gap-2"
-              >
-                <BookOpen className="h-4 w-4" />
-                Smart Clauses
-              </Button>
-              
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {saving ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Kaydet
-              </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowClauseLibrary(!showClauseLibrary)}
+            className="flex items-center gap-2"
+          >
+            <BookOpen className="h-4 w-4" />
+            Smart Clauses
+          </Button>
+          
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {saving ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Kaydet
+          </Button>
             </>
           )}
           

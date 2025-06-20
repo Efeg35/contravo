@@ -27,12 +27,12 @@ async function main() {
 
   if (!company) {
     company = await prisma.company.create({
-      data: {
+    data: {
         name: 'Test Company',
         description: 'A test company for development',
-        createdById: adminUser.id,
-      },
-    });
+      createdById: adminUser.id,
+    },
+  });
   }
 
   // Create test contracts
@@ -44,7 +44,7 @@ async function main() {
         content: 'This is the content of the service agreement...',
         status: 'DRAFT',
         type: 'SERVICE',
-        value: 50000,
+      value: 50000,
         startDate: new Date(),
         endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
         createdById: adminUser.id,
