@@ -191,16 +191,16 @@ export default function TaskFocusedDashboard() {
       });
 
       const response = await fetch(`/api/contracts?${params}`);
-      if (response.ok) {
-        const data = await response.json();
+        if (response.ok) {
+          const data = await response.json();
         setContracts(data.contracts || []);
-      }
-    } catch (error) {
+        }
+      } catch (error) {
       console.error('Error fetching contracts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      } finally {
+        setLoading(false);
+      }
+    };
 
   const fetchFilterStats = async () => {
     try {
@@ -337,10 +337,10 @@ export default function TaskFocusedDashboard() {
             <div className="flex items-center">
               <BoltIconSolid className="h-5 w-5 text-teal-600 mr-2" />
               <span className="text-sm font-medium text-gray-900">Workflow Center</span>
-            </div>
-          </div>
-        </div>
-
+                </div>
+                </div>
+              </div>
+              
         {/* AI Insights Panel */}
         <div className="px-3 py-2 border-b border-gray-200">
           <button
@@ -372,7 +372,7 @@ export default function TaskFocusedDashboard() {
               </div>
             </div>
           )}
-        </div>
+          </div>
 
         {/* Main Filters */}
         <div className="px-3 py-2">
@@ -380,7 +380,7 @@ export default function TaskFocusedDashboard() {
             {filterOptions.map((option) => {
               const Icon = option.icon;
               return (
-                <button
+              <button
                   key={option.key}
                   onClick={() => handleFilterChange(option.key)}
                   className={`w-full flex items-center justify-between px-3 py-3 text-sm rounded hover:bg-gray-50 group ${
@@ -394,7 +394,7 @@ export default function TaskFocusedDashboard() {
                   <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
                     {option.count.toLocaleString()}
                   </span>
-                </button>
+              </button>
               );
             })}
           </div>
@@ -409,7 +409,7 @@ export default function TaskFocusedDashboard() {
             {myViews.map((view) => {
               const Icon = view.icon;
               return (
-                <button
+              <button
                   key={view.key}
                   onClick={() => handleFilterChange(view.key)}
                   className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded hover:bg-gray-50 ${
@@ -423,7 +423,7 @@ export default function TaskFocusedDashboard() {
                   <span className="text-xs text-gray-500">
                     {view.count.toLocaleString()}
                   </span>
-                </button>
+              </button>
               );
             })}
           </div>
@@ -438,7 +438,7 @@ export default function TaskFocusedDashboard() {
             {priorityViews.map((view) => {
               const Icon = view.icon;
               return (
-                <button
+              <button
                   key={view.key}
                   onClick={() => handleFilterChange(view.key)}
                   className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded hover:bg-gray-50 ${
@@ -452,14 +452,14 @@ export default function TaskFocusedDashboard() {
                   <span className="text-xs text-gray-500">
                     {view.count.toLocaleString()}
                   </span>
-                </button>
+              </button>
               );
             })}
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+        {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
@@ -503,12 +503,12 @@ export default function TaskFocusedDashboard() {
                         >
                           Bulk Archive
                         </button>
-                      </div>
+                    </div>
                     )}
                   </div>
                 </div>
               )}
-            </div>
+              </div>
 
             <div className="flex items-center space-x-3">
               {/* Advanced Search */}
@@ -569,10 +569,10 @@ export default function TaskFocusedDashboard() {
                     </div>
                   </div>
                 )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
 
         {/* Table */}
         <div className="flex-1 overflow-auto overflow-x-auto">
@@ -684,24 +684,24 @@ export default function TaskFocusedDashboard() {
 
                       {visibleColumns.workflowName && (
                         <td className="px-3 py-3">
-                          <Link 
+                  <Link
                             href={`/contract/${contract.id}`}
                             className="flex flex-col group-hover:text-blue-600"
                           >
                             <div className="font-semibold text-gray-900 hover:text-blue-600 text-xs leading-tight">
                               {contract.title}
-                            </div>
+                      </div>
                             {contract.otherPartyName && (
                               <div className="text-xs text-gray-500 mt-1">
                                 with {contract.otherPartyName}
-                              </div>
+                      </div>
                             )}
                             {contract.department && (
                               <div className="text-xs text-gray-400 mt-0.5">
                                 {contract.department} • {contract.contractType || 'Standard'}
-                              </div>
+                    </div>
                             )}
-                          </Link>
+                  </Link>
                         </td>
                       )}
 
@@ -719,19 +719,19 @@ export default function TaskFocusedDashboard() {
                             <div className="flex items-center">
                               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-2 shadow-sm">
                                 {contract.assignedTo.name.charAt(0).toUpperCase()}
-                              </div>
+                      </div>
                               <div className="flex flex-col">
                                 <span className="text-xs text-gray-900 font-medium truncate">{contract.assignedTo.name}</span>
                                 <span className="text-xs text-gray-500 truncate">{contract.assignedTo.email}</span>
-                              </div>
-                            </div>
+                      </div>
+                    </div>
                           ) : (
                             <div className="flex items-center">
                               <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-2">
                                 <UserIcon className="h-4 w-4 text-gray-400" />
-                              </div>
+                      </div>
                               <span className="text-xs text-gray-500">Unassigned</span>
-                            </div>
+                      </div>
                           )}
                         </td>
                       )}
@@ -749,8 +749,8 @@ export default function TaskFocusedDashboard() {
                                   width: `${((contract.turnsCompleted || 0) / (contract.totalTurns || 5)) * 100}%` 
                                 }}
                               ></div>
-                            </div>
-                          </div>
+                </div>
+              </div>
                         </td>
                       )}
 
@@ -763,7 +763,7 @@ export default function TaskFocusedDashboard() {
                                 title={contract.assignedTo.name}
                               >
                                 {contract.assignedTo.name.charAt(0).toUpperCase()}
-                              </div>
+                  </div>
                             )}
                             {/* Mock additional assignees */}
                             <div 
@@ -771,7 +771,7 @@ export default function TaskFocusedDashboard() {
                               title="Mehmet Kaya"
                             >
                               M
-                            </div>
+                </div>
                             <div 
                               className="w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold border-2 border-white shadow-sm"
                               title="Ayşe Demir"
@@ -809,7 +809,7 @@ export default function TaskFocusedDashboard() {
 
                       {visibleColumns.dateCreated && (
                         <td className="px-3 py-3 text-xs text-gray-500">
-                          {new Date(contract.createdAt).toLocaleDateString('tr-TR')}
+                              {new Date(contract.createdAt).toLocaleDateString('tr-TR')}
                         </td>
                       )}
 
@@ -825,7 +825,7 @@ export default function TaskFocusedDashboard() {
               )}
             </tbody>
           </table>
-        </div>
+              </div>
 
         {/* Pagination */}
         {!loading && contracts.length > 0 && (
@@ -870,8 +870,8 @@ export default function TaskFocusedDashboard() {
                 </nav>
               </div>
             </div>
-          </div>
-        )}
+            </div>
+          )}
       </div>
     </div>
   );
