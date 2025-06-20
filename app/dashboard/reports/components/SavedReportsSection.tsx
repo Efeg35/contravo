@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getSavedReports, deleteSavedReport } from '../actions';
+import ReportScheduleModal from './ReportScheduleModal';
 
 interface SavedReport {
   id: string;
@@ -11,6 +12,12 @@ interface SavedReport {
   configuration: any;
   createdAt: Date;
   updatedAt: Date;
+  schedule?: {
+    id: string;
+    cron: string;
+    recipients: any; // JsonValue olarak geliyor, type assertion ile çevireceğiz
+    status: string;
+  } | null;
 }
 
 interface ConfigData {
@@ -64,6 +71,7 @@ export default function SavedReportsSection() {
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [scheduleModal, setScheduleModal] = useState<{ isOpen: boolean; reportId: string; reportName: string; currentSchedule?: any } | null>(null);
 
   useEffect(() => {
     async function fetchSavedReports() {
@@ -79,6 +87,15 @@ export default function SavedReportsSection() {
 
     fetchSavedReports();
   }, []);
+
+  const refreshReports = async () => {
+    try {
+      const reports = await getSavedReports();
+      setSavedReports(reports);
+    } catch (error) {
+      console.error('Error refreshing saved reports:', error);
+    }
+  };
 
   const handleDeleteReport = async (reportId: string, reportName: string) => {
     if (!confirm(`"${reportName}" adlı raporu silmek istediğinizden emin misiniz?`)) {
@@ -133,11 +150,11 @@ export default function SavedReportsSection() {
             </div>
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {savedReports.length} rapor
+            {savedReports?.length || 0} rapor
           </div>
         </div>
 
-        {savedReports.length === 0 ? (
+        {!savedReports || savedReports.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -162,7 +179,7 @@ export default function SavedReportsSection() {
           </div>
         ) : (
           <div className="space-y-4">
-            {savedReports.map((report) => {
+            {savedReports?.map((report) => {
               const config = report.configuration as ConfigData;
               const reportUrl = buildReportUrl(config);
               
@@ -188,6 +205,15 @@ export default function SavedReportsSection() {
                                config.visualization === 'line' ? '📉 Line Chart' : 
                                '📊 Tablo'}
                             </span>
+                            {report.schedule && (
+                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                report.schedule.status === 'ACTIVE' 
+                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' 
+                                  : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                              }`}>
+                                🕒 {report.schedule.status === 'ACTIVE' ? 'Zamanlanmış' : 'Duraklatılmış'}
+                              </span>
+                            )}
                           </div>
                         </div>
                         
@@ -223,6 +249,30 @@ export default function SavedReportsSection() {
                       </Link>
                       
                       <button
+                        onClick={() => setScheduleModal({
+                          isOpen: true,
+                          reportId: report.id,
+                          reportName: report.name,
+                          currentSchedule: report.schedule ? {
+                            ...report.schedule,
+                            recipients: Array.isArray(report.schedule.recipients) 
+                              ? report.schedule.recipients 
+                              : []
+                          } : null
+                        })}
+                        className={`p-2 transition-colors ${
+                          report.schedule?.status === 'ACTIVE' 
+                            ? 'text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300' 
+                            : 'text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+                        }`}
+                        title={report.schedule ? 'Zamanlamayı düzenle' : 'Raporu zamanla'}
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </button>
+                      
+                      <button
                         onClick={() => handleDeleteReport(report.id, report.name)}
                         disabled={deletingId === report.id}
                         className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
@@ -244,6 +294,18 @@ export default function SavedReportsSection() {
           </div>
         )}
       </div>
+      
+      {/* Zamanlama Modal'ı */}
+      {scheduleModal && (
+        <ReportScheduleModal
+          isOpen={scheduleModal.isOpen}
+          onClose={() => setScheduleModal(null)}
+          reportId={scheduleModal.reportId}
+          reportName={scheduleModal.reportName}
+          currentSchedule={scheduleModal.currentSchedule}
+          onSave={refreshReports}
+        />
+      )}
     </div>
   );
 } 
