@@ -604,7 +604,25 @@ model ReportSchedule {
   savedReport   SavedReport @relation(fields: [savedReportId], references: [id], onDelete: Cascade)
   savedReportId String      @unique // Her raporun sadece bir zamanlaması olabilir
 
+  // Loglar - en yeniden eskiye doğru sıralı
+  logs          ScheduleLog[]
+
   @@index([status])
   @@index([createdAt])
   @@map("report_schedules")
+}
+
+model ScheduleLog {
+  id            String   @id @default(cuid())
+  status        String   // "SUCCESS" veya "FAILURE"
+  details       String?  // Hata mesajları veya başarı detayları için
+  executedAt    DateTime @default(now())
+
+  schedule      ReportSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduleId    String
+
+  @@index([scheduleId])
+  @@index([executedAt])
+  @@index([status])
+  @@map("schedule_logs")
 }

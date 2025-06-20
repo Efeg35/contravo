@@ -36,21 +36,21 @@ export async function GET() {
 
     // 2. Her zamanlama için kontrol et
     for (const schedule of activeSchedules) {
-      try {
-        // Cron ifadesini parse et
-        const cronExpression = cronParser.parseExpression(schedule.cron);
-        
-        // Son çalışma zamanından şimdi arasında bu cron'un tetiklenmesi gerekip gerekmediğini kontrol et
-        // Basit kontrol: son 15 dakika içinde bu zamanın gelmesi gerekiyorsa çalıştır
-        const last15Minutes = new Date(currentTime.getTime() - 15 * 60 * 1000);
-        const nextRun = cronExpression.prev().toDate();
-        
-        console.log(`[CRON] Schedule ${schedule.id}: Son çalışma ${nextRun}, Kontrol aralığı: ${last15Minutes}`);
+      // Cron ifadesini parse et
+      const cronExpression = cronParser.parseExpression(schedule.cron);
+      
+      // Son çalışma zamanından şimdi arasında bu cron'un tetiklenmesi gerekip gerekmediğini kontrol et
+      // Basit kontrol: son 15 dakika içinde bu zamanın gelmesi gerekiyorsa çalıştır
+      const last15Minutes = new Date(currentTime.getTime() - 15 * 60 * 1000);
+      const nextRun = cronExpression.prev().toDate();
+      
+      console.log(`[CRON] Schedule ${schedule.id}: Son çalışma ${nextRun}, Kontrol aralığı: ${last15Minutes}`);
 
-        // Eğer son 15 dakika içinde bu cron zamanı geldiyse
-        if (nextRun >= last15Minutes && nextRun <= currentTime) {
-          console.log(`[CRON] Rapor çalıştırılacak: ${schedule.savedReport.name}`);
+      // Eğer son 15 dakika içinde bu cron zamanı geldiyse
+      if (nextRun >= last15Minutes && nextRun <= currentTime) {
+        console.log(`[CRON] Rapor çalıştırılacak: ${schedule.savedReport.name}`);
 
+        try {
           // 3. Rapor verisini çek
           const reportData = await generateReportData(schedule.savedReport.configuration);
           
@@ -84,27 +84,55 @@ export async function GET() {
             }]
           });
 
+          // 6. SUCCESS LOG KAYDI - Başarılı işlem kaydı
+          await db.scheduleLog.create({
+            data: {
+              scheduleId: schedule.id,
+              status: 'SUCCESS',
+              details: `Rapor başarıyla oluşturulup ${recipients.length} alıcıya gönderildi. Alıcılar: ${recipients.join(', ')}. Veri kaynağı: ${reportData.dataSource}, ${reportData.totalCount} kayıt işlendi.`,
+              executedAt: new Date()
+            }
+          });
+
           processedReports.push({
             scheduleId: schedule.id,
             reportName: schedule.savedReport.name,
             recipients: recipients,
             emailResult: emailResult,
-            processedAt: currentTime.toISOString()
+            processedAt: currentTime.toISOString(),
+            status: 'SUCCESS'
           });
 
-          console.log(`[CRON] Rapor başarıyla gönderildi: ${schedule.savedReport.name}`);
-        } else {
-          console.log(`[CRON] Rapor zamanı henüz gelmedi: ${schedule.savedReport.name}`);
-        }
+          console.log(`[CRON] Rapor başarıyla gönderildi ve loglandı: ${schedule.savedReport.name}`);
 
-      } catch (scheduleError) {
-        const errorMessage = scheduleError instanceof Error ? scheduleError.message : 'Bilinmeyen hata';
-        console.error(`[CRON] Schedule ${schedule.id} işlenirken hata:`, scheduleError);
-        processedReports.push({
-          scheduleId: schedule.id,
-          error: errorMessage,
-          processedAt: currentTime.toISOString()
-        });
+        } catch (scheduleError) {
+          // 7. FAILURE LOG KAYDI - Hata durumu kaydı
+          const errorMessage = scheduleError instanceof Error ? scheduleError.message : 'Bilinmeyen hata';
+          
+          try {
+            await db.scheduleLog.create({
+              data: {
+                scheduleId: schedule.id,
+                status: 'FAILURE',
+                details: `Rapor çalıştırma hatası: ${errorMessage}. Rapor: ${schedule.savedReport.name}. Hata detayı: ${scheduleError instanceof Error ? scheduleError.stack : 'Stack trace bulunamadı'}`,
+                executedAt: new Date()
+              }
+            });
+          } catch (logError) {
+            console.error(`[CRON] Log kaydı yazılırken hata oluştu:`, logError);
+          }
+
+          console.error(`[CRON] Schedule ${schedule.id} işlenirken hata:`, scheduleError);
+          processedReports.push({
+            scheduleId: schedule.id,
+            reportName: schedule.savedReport.name,
+            error: errorMessage,
+            processedAt: currentTime.toISOString(),
+            status: 'FAILURE'
+          });
+        }
+      } else {
+        console.log(`[CRON] Rapor zamanı henüz gelmedi: ${schedule.savedReport.name}`);
       }
     }
 
