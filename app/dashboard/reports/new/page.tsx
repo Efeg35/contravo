@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import NewReportClient from './components/NewReportClient';
 
@@ -109,7 +109,7 @@ function createWhereClause(dataSource: string, filters: Filter[]): any {
     // Nested field handling
     let fieldPath = filter.field;
     if (filter.field === 'author' && dataSource === 'contracts') {
-      fieldPath = 'author.name';
+      fieldPath = 'createdBy.name';
     } else if (filter.field === 'company' && dataSource === 'contracts') {
       fieldPath = 'company.name';
     } else if (filter.field === 'lead' && dataSource === 'teams') {
@@ -245,7 +245,7 @@ function createSelectObject(dataSource: string, fields: string[]): any {
   
   for (const field of validatedFields) {
     if (field === 'author' && dataSource === 'contracts') {
-      selectObj.author = { select: { name: true, email: true } };
+      selectObj.createdBy = { select: { name: true, email: true } };
     } else if (field === 'company' && dataSource === 'contracts') {
       selectObj.company = { select: { name: true } };
     } else if (field === 'lead' && dataSource === 'teams') {
@@ -268,7 +268,7 @@ async function fetchReportData(dataSource: string, fields: string[], filters: Fi
 
     switch (dataSource) {
       case 'contracts':
-        return await prisma.contract.findMany({
+        return await db.contract.findMany({
           select: selectObj,
           where: whereClause,
           take: 50, // İlk 50 kayıt
@@ -276,7 +276,7 @@ async function fetchReportData(dataSource: string, fields: string[], filters: Fi
         });
       
       case 'users':
-        return await prisma.user.findMany({
+        return await db.user.findMany({
           select: selectObj,
           where: whereClause,
           take: 50,

@@ -509,6 +509,93 @@ function createExportUrl(format: string, dataSource: string, fields: string[], f
   return `/api/reports/export/${format}?${params.toString()}`;
 }
 
+// PDF indirme fonksiyonu
+async function downloadPDF(dataSource: string, fields: string[], filters: Filter[]) {
+  try {
+    // Filtreleri API formatına çevir
+    const apiFilters: any = {};
+    
+    // Basit filtre dönüşümü (daha karmaşık bir yapı gerekebilir)
+    filters.forEach(filter => {
+      if (filter.field && filter.value) {
+        if (filter.field.includes('Date') || filter.field.includes('At')) {
+          // Tarih filtreleri için date range yapısı
+          if (!apiFilters.dateRange) {
+            apiFilters.dateRange = {};
+          }
+          if (filter.operator === 'gte' || filter.operator === 'gt') {
+            apiFilters.dateRange.from = filter.value;
+          } else if (filter.operator === 'lte' || filter.operator === 'lt') {
+            apiFilters.dateRange.to = filter.value;
+          }
+        } else if (filter.field === 'status') {
+          // Durum filtreleri
+          if (!apiFilters.status) {
+            apiFilters.status = [];
+          }
+          apiFilters.status.push(filter.value);
+        } else if (filter.field === 'company') {
+          // Şirket filtreleri
+          if (!apiFilters.companies) {
+            apiFilters.companies = [];
+          }
+          apiFilters.companies.push(filter.value);
+        }
+      }
+    });
+
+    const requestBody = {
+      title: `${dataSource === 'contracts' ? 'Sözleşme' : 'Madde'} Raporu`,
+      dataSource: dataSource === 'contracts' ? 'contracts' : 'clauses',
+      fields,
+      filters: apiFilters,
+      sortBy: {
+        field: 'createdAt',
+        direction: 'desc' as const
+      }
+    };
+
+    const response = await fetch('/api/reports/download', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'PDF oluşturulurken bir hata oluştu');
+    }
+
+    // PDF'i blob olarak al
+    const blob = await response.blob();
+    
+    // Dosya adını oluştur
+    const sanitizedDataSource = dataSource === 'contracts' ? 'sozlesmeler' : 'maddeler';
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const filename = `${sanitizedDataSource}_raporu_${timestamp}.pdf`;
+    
+    // İndirme işlemi
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    // Başarı mesajı göster
+    alert('PDF başarıyla indirildi!');
+    
+  } catch (error) {
+    console.error('PDF indirme hatası:', error);
+    alert(error instanceof Error ? error.message : 'PDF indirirken bir hata oluştu');
+  }
+}
+
 // Veri tablosunu format et
 
 
@@ -782,17 +869,16 @@ export default function NewReportClient({
                     
                     {/* Ek Export Seçenekleri */}
                     <div className="flex items-center space-x-2">
-                      <a
-                        href={createExportUrl('pdf', selectedDataSource, selectedFields, filters)}
-                        download
+                      <button
+                        onClick={() => downloadPDF(selectedDataSource, selectedFields, filters)}
                         className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200"
                         title="PDF olarak indir"
                       >
                         <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
-                        PDF
-                      </a>
+                        PDF Olarak İndir
+                      </button>
                     </div>
                   </div>
                 )}
