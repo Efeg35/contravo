@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { TableReport, BarChartReport, LineChartReport } from './visualizations';
 
 // Veri kaynağı seçenekleri
 const DATA_SOURCES = [
@@ -93,6 +94,7 @@ interface NewReportClientProps {
   initialDataSource: string;
   initialFields: string[];
   initialFilters: Filter[];
+  initialVisualization?: string;
   reportData: any[];
   availableFields: any;
 }
@@ -358,6 +360,138 @@ function FilterSelector({
   );
 }
 
+// Visualization Selector Component
+function VisualizationSelector({
+  dataSource,
+  selectedFields,
+  selectedVisualization,
+  onVisualizationChange,
+  availableFields
+}: {
+  dataSource: string;
+  selectedFields: string[];
+  selectedVisualization: string;
+  onVisualizationChange: (viz: string) => void;
+  availableFields: any;
+}) {
+  const fieldOptions = availableFields[dataSource] || [];
+  
+  // Seçilen alanlarda sayısal veya tarihsel veri var mı kontrol et
+  const hasNumericOrDateFields = selectedFields.some(fieldKey => {
+    const fieldMeta = FIELD_META[dataSource as keyof typeof FIELD_META];
+    const fieldType = fieldMeta?.[fieldKey as keyof typeof fieldMeta]?.type;
+    return fieldType === 'number' || fieldType === 'date';
+  });
+
+  const visualizationOptions = [
+    {
+      key: 'table',
+      label: 'Tablo',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0V4a1 1 0 011-1h3M7 3v18M17 3v18m0 0h3a1 1 0 001-1V4a1 1 0 00-1-1h-3" />
+        </svg>
+      ),
+      disabled: false,
+      tooltip: 'Verileri tablo formatında göster'
+    },
+    {
+      key: 'bar',
+      label: 'Bar Grafik',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      ),
+      disabled: !hasNumericOrDateFields,
+      tooltip: hasNumericOrDateFields 
+        ? 'Verileri bar grafik formatında göster'
+        : 'Grafik oluşturmak için en az bir sayısal veya tarihsel alan seçmelisiniz'
+    },
+    {
+      key: 'line',
+      label: 'Çizgi Grafik',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+        </svg>
+      ),
+      disabled: !hasNumericOrDateFields,
+      tooltip: hasNumericOrDateFields 
+        ? 'Verileri çizgi grafik formatında göster'
+        : 'Grafik oluşturmak için en az bir sayısal veya tarihsel alan seçmelisiniz'
+    }
+  ];
+
+  if (!dataSource) return null;
+
+  return (
+    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+      <label className="block text-sm font-medium text-gray-900 dark:text-white mb-4">
+        3. Görselleştirme Türü
+      </label>
+      
+      <div className="grid grid-cols-3 gap-3">
+        {visualizationOptions.map((option) => (
+          <div key={option.key} className="relative group">
+            <button
+              type="button"
+              disabled={option.disabled}
+              onClick={() => !option.disabled && onVisualizationChange(option.key)}
+              className={`
+                w-full p-4 rounded-xl border-2 transition-all duration-200 flex flex-col items-center space-y-2
+                ${selectedVisualization === option.key
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                  : option.disabled
+                    ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:text-blue-600 dark:hover:text-blue-300'
+                }
+              `}
+            >
+              <div className={`
+                ${selectedVisualization === option.key
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : option.disabled
+                    ? 'text-gray-400 dark:text-gray-600'
+                    : 'text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }
+              `}>
+                {option.icon}
+              </div>
+              <span className="text-xs font-medium text-center">
+                {option.label}
+              </span>
+              
+              {/* Aktif işareti */}
+              {selectedVisualization === option.key && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-800">
+                  <div className="w-full h-full bg-blue-500 rounded-full animate-pulse"></div>
+                </div>
+              )}
+            </button>
+            
+            {/* Tooltip */}
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-nowrap">
+              {option.tooltip}
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {selectedVisualization && (
+        <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/50 rounded-lg">
+          <p className="text-sm text-purple-700 dark:text-purple-300">
+            <span className="font-medium">
+              {visualizationOptions.find(v => v.key === selectedVisualization)?.label}
+            </span> görselleştirme seçildi
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Export URL oluşturucu
 function createExportUrl(format: string, dataSource: string, fields: string[], filters: Filter[]): string {
   const params = new URLSearchParams();
@@ -375,37 +509,13 @@ function createExportUrl(format: string, dataSource: string, fields: string[], f
 }
 
 // Veri tablosunu format et
-function formatCellData(data: any, fieldKey: string): string {
-  if (!data) return '-';
-  
-  // Nested object handling (author, company, etc.)
-  if (typeof data === 'object' && data !== null) {
-    if (data.name) return data.name;
-    if (data.email) return data.email;
-    return JSON.stringify(data);
-  }
-  
-  // Date formatting
-  if (fieldKey.includes('Date') || fieldKey.includes('At')) {
-    try {
-      return new Date(data).toLocaleDateString('tr-TR');
-    } catch {
-      return String(data);
-    }
-  }
-  
-  // Boolean values
-  if (typeof data === 'boolean') {
-    return data ? 'Evet' : 'Hayır';
-  }
-  
-  return String(data);
-}
+
 
 export default function NewReportClient({ 
   initialDataSource, 
   initialFields, 
   initialFilters, 
+  initialVisualization = 'table',
   reportData, 
   availableFields 
 }: NewReportClientProps) {
@@ -415,12 +525,14 @@ export default function NewReportClient({
   const [selectedDataSource, setSelectedDataSource] = useState<string>(initialDataSource);
   const [selectedFields, setSelectedFields] = useState<string[]>(initialFields);
   const [filters, setFilters] = useState<Filter[]>(initialFilters);
+  const [selectedVisualization, setSelectedVisualization] = useState<string>(initialVisualization);
 
   // Veri kaynağı değiştiğinde URL'yi güncelle ve alanları temizle
   const handleDataSourceChange = (dataSource: string) => {
     setSelectedDataSource(dataSource);
     setSelectedFields([]);
     setFilters([]);
+    setSelectedVisualization('table');
     
     const params = new URLSearchParams(searchParams.toString());
     if (dataSource) {
@@ -465,6 +577,16 @@ export default function NewReportClient({
     } else {
       params.delete('filters');
     }
+    
+    router.push(`/dashboard/reports/new?${params.toString()}`);
+  };
+
+  // Görselleştirme seçimi değiştiğinde URL'yi güncelle
+  const handleVisualizationChange = (viz: string) => {
+    setSelectedVisualization(viz);
+    
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('visualization', viz);
     
     router.push(`/dashboard/reports/new?${params.toString()}`);
   };
@@ -534,6 +656,15 @@ export default function NewReportClient({
                 availableFields={availableFields}
               />
 
+              {/* Visualization Selector */}
+              <VisualizationSelector
+                dataSource={selectedDataSource}
+                selectedFields={selectedFields}
+                selectedVisualization={selectedVisualization}
+                onVisualizationChange={handleVisualizationChange}
+                availableFields={availableFields}
+              />
+
               {/* Gelecek adımlar için placeholder */}
               {selectedDataSource && (
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -542,7 +673,7 @@ export default function NewReportClient({
                       <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-3">
                         <span className="text-xs font-medium">4</span>
                       </div>
-                      Sırala
+                      Sırala & Dışa Aktar
                     </div>
                   </div>
                 </div>
@@ -620,88 +751,33 @@ export default function NewReportClient({
             <div className="flex-1 flex items-center justify-center">
               {selectedDataSource ? (
                 selectedFields.length > 0 ? (
-                  // Gerçek verilerle tablo göster
+                  // Seçilen görselleştirme türüne göre bileşen göster
                   <div className="w-full">
-                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          Canlı Veri Tablosu
-                        </h3>
-                        <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
-                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                          <span>Güncel Veriler</span>
-                        </div>
-                      </div>
-                      
-                      {/* Gerçek Tablo */}
-                      <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                          <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
-                            <tr>
-                              {selectedFields.map((fieldKey) => {
-                                const field = availableFields[selectedDataSource]?.find((f: any) => f.key === fieldKey);
-                                return (
-                                  <th
-                                    key={fieldKey}
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                                  >
-                                    {field?.label || fieldKey}
-                                  </th>
-                                );
-                              })}
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                            {reportData.length > 0 ? (
-                              reportData.map((row, index) => (
-                                <tr key={row.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150">
-                                  {selectedFields.map((fieldKey) => (
-                                    <td
-                                      key={fieldKey}
-                                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300"
-                                    >
-                                      {formatCellData(row[fieldKey], fieldKey)}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan={selectedFields.length} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                                  <div className="flex flex-col items-center space-y-3">
-                                    <svg className="w-16 h-16 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-2.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 009.586 13H7" />
-                                    </svg>
-                                    <div className="text-center">
-                                      <div className="font-medium text-gray-700 dark:text-gray-300 mb-1">Veri bulunamadı</div>
-                                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                                        Seçilen kriterlere uygun kayıt bulunmuyor
-                                      </div>
-                                      <div className="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3 max-w-sm">
-                                        <strong>Olası nedenler:</strong><br/>
-                                        • Veritabanında henüz {selectedDataSource === 'contracts' ? 'sözleşme' : selectedDataSource === 'users' ? 'kullanıcı' : 'takım'} verisi yok<br/>
-                                        • Seçilen alanlar için uygun veri mevcut değil<br/>
-                                        • Veritabanı bağlantı sorunu olabilir
-                                      </div>
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      <div className="mt-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                        <span>
-                          <span className="font-medium">{selectedFields.length}</span> sütun • 
-                          <span className="font-medium text-green-600 dark:text-green-400"> {reportData.length}</span> kayıt gösteriliyor
-                        </span>
-                        <span className="text-xs">
-                          Son güncelleme: {new Date().toLocaleTimeString('tr-TR')}
-                        </span>
-                      </div>
-                    </div>
+                    {(() => {
+                      switch (selectedVisualization) {
+                        case 'bar':
+                          return <BarChartReport 
+                            data={reportData} 
+                            selectedFields={selectedFields}
+                            availableFields={availableFields}
+                            dataSource={selectedDataSource}
+                          />;
+                        case 'line':
+                          return <LineChartReport 
+                            data={reportData} 
+                            selectedFields={selectedFields}
+                            availableFields={availableFields}
+                            dataSource={selectedDataSource}
+                          />;
+                        default:
+                          return <TableReport 
+                            data={reportData} 
+                            selectedFields={selectedFields}
+                            availableFields={availableFields}
+                            dataSource={selectedDataSource}
+                          />;
+                      }
+                    })()}
                   </div>
                 ) : (
                   // Veri kaynağı seçildi ama sütunlar seçilmedi

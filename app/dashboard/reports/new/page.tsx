@@ -314,6 +314,7 @@ export default async function NewReportPage({ searchParams }: PageProps) {
   const dataSource = typeof resolvedSearchParams.dataSource === 'string' ? resolvedSearchParams.dataSource : '';
   const fieldsParam = typeof resolvedSearchParams.fields === 'string' ? resolvedSearchParams.fields : '';
   const filtersParam = typeof resolvedSearchParams.filters === 'string' ? resolvedSearchParams.filters : '';
+  const visualization = typeof resolvedSearchParams.visualization === 'string' ? resolvedSearchParams.visualization : 'table';
   
   const fields = fieldsParam ? fieldsParam.split(',').filter(Boolean) : [];
   const filters = parseFilters(filtersParam);
@@ -377,6 +378,7 @@ export default async function NewReportPage({ searchParams }: PageProps) {
             initialDataSource={dataSource}
             initialFields={fields}
             initialFilters={filters}
+            initialVisualization={visualization}
             reportData={reportData}
             availableFields={AVAILABLE_FIELDS}
           />
