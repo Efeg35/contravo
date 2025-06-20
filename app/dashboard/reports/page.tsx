@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import StatusDistributionWidget from './widgets/StatusDistributionWidget';
 import MonthlyVolumeWidget from './widgets/MonthlyVolumeWidget';
-import PerformanceMetricsWidget from './widgets/PerformanceMetricsWidget';
+import PerformanceMetricsWidget, { useGlobalStats } from './widgets/PerformanceMetricsWidget';
+import SavedReportsSection from './components/SavedReportsSection';
 
 // Performans verileri için interface
 interface PerformanceData {
@@ -19,6 +20,68 @@ interface PerformanceData {
 // Sparkline veri yapısı
 interface SparklineData {
   value: number;
+}
+
+// Quick Stats Component - Client component  
+function QuickStatsBar() {
+  const statsData = useGlobalStats();
+
+  if (!statsData) {
+    return (
+      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-gray-700/50 shadow-xl p-6">
+        <div className="animate-pulse">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-gray-700/50 shadow-xl p-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {statsData.totalContracts}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Toplam Sözleşme
+          </div>
+        </div>
+        
+        <div className="text-center">
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+            {statsData.activeContracts}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Aktif Süreçte
+          </div>
+        </div>
+        
+        <div className="text-center">
+          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+            {statsData.pendingContracts}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Bekleyen Onay
+          </div>
+        </div>
+        
+        <div className="text-center">
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            {statsData.signedContracts}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            İmzalanmış
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Dropdown menu component
@@ -412,6 +475,11 @@ export default function ReportsPage() {
       {/* Main Content - Modern Grid Layout */}
       <main className="max-w-7xl mx-auto py-16 sm:px-6 lg:px-8">
         <div className="px-4 sm:px-0 space-y-16">
+          
+          {/* Kaydedilmiş Raporlar Bölümü */}
+          <section>
+            <SavedReportsSection />
+          </section>
           
           {/* Grafikler Bölümü - Yan Yana İki Sütun */}
           <section>

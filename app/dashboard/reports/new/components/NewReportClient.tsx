@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TableReport, BarChartReport, LineChartReport } from './visualizations';
+import { saveReport } from '../actions';
 
 // Veri kaynağı seçenekleri
 const DATA_SOURCES = [
@@ -526,6 +527,12 @@ export default function NewReportClient({
   const [selectedFields, setSelectedFields] = useState<string[]>(initialFields);
   const [filters, setFilters] = useState<Filter[]>(initialFilters);
   const [selectedVisualization, setSelectedVisualization] = useState<string>(initialVisualization);
+  
+  // Modal state'leri
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [reportName, setReportName] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Veri kaynağı değiştiğinde URL'yi güncelle ve alanları temizle
   const handleDataSourceChange = (dataSource: string) => {
@@ -589,6 +596,40 @@ export default function NewReportClient({
     params.set('visualization', viz);
     
     router.push(`/dashboard/reports/new?${params.toString()}`);
+  };
+
+  // Raporu kaydet
+  const handleSaveReport = async () => {
+    if (!reportName.trim()) return;
+    
+    setIsSaving(true);
+    
+    try {
+      // URL'den tüm configuration'ı al
+      const configuration = {
+        dataSource: selectedDataSource,
+        fields: selectedFields,
+        filters: filters,
+        visualization: selectedVisualization,
+        // Zamanlama bilgisini de ekle
+        savedAt: new Date().toISOString()
+      };
+      
+      await saveReport(reportName.trim(), reportDescription.trim() || null, configuration);
+      
+      // Modal'ı kapat ve form'u temizle
+      setShowSaveModal(false);
+      setReportName('');
+      setReportDescription('');
+      
+      // Başarı mesajı (toast olarak gösterilebilir)
+      alert('Rapor başarıyla kaydedildi!');
+    } catch (error) {
+      console.error('Error saving report:', error);
+      alert('Rapor kaydedilirken bir hata oluştu.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -716,6 +757,17 @@ export default function NewReportClient({
                 {/* Ana Rapor Oluştur Butonu */}
                 {selectedDataSource && selectedFields.length > 0 && reportData.length > 0 && (
                   <div className="flex items-center space-x-3">
+                    {/* Raporu Kaydet Butonu */}
+                    <button
+                      onClick={() => setShowSaveModal(true)}
+                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      Raporu Kaydet
+                    </button>
+                    
                     {/* Ana Rapor Oluştur Butonu */}
                     <a
                       href={createExportUrl('csv', selectedDataSource, selectedFields, filters)}
@@ -837,6 +889,94 @@ export default function NewReportClient({
           </div>
         </div>
       </div>
+      
+      {/* Save Report Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Raporu Kaydet
+                </h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Rapor Adı *
+                  </label>
+                  <input
+                    type="text"
+                    value={reportName}
+                    onChange={(e) => setReportName(e.target.value)}
+                    placeholder="Rapor için bir isim girin..."
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Açıklama (İsteğe bağlı)
+                  </label>
+                  <textarea
+                    value={reportDescription}
+                    onChange={(e) => setReportDescription(e.target.value)}
+                    placeholder="Rapor hakkında kısa bir açıklama..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                
+                {/* Rapor Özeti */}
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Rapor Özeti:
+                  </h4>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                    <p><strong>Veri Kaynağı:</strong> {DATA_SOURCES.find(s => s.value === selectedDataSource)?.label}</p>
+                    <p><strong>Sütunlar:</strong> {selectedFields.length} adet</p>
+                    <p><strong>Filtreler:</strong> {filters.filter(f => f.field && f.operator && f.value).length} adet</p>
+                    <p><strong>Görselleştirme:</strong> {selectedVisualization === 'table' ? 'Tablo' : selectedVisualization === 'bar' ? 'Bar Chart' : 'Line Chart'}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowSaveModal(false);
+                    setReportName('');
+                    setReportDescription('');
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={handleSaveReport}
+                  disabled={!reportName.trim() || isSaving}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-lg font-medium transition-all duration-200 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Kaydediliyor...</span>
+                    </div>
+                  ) : (
+                    'Kaydet'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

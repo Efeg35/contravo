@@ -41,6 +41,7 @@ model User {
   notificationSettings     NotificationSettings?
   notifications            Notification[]
   createdSignaturePackages SignaturePackage[]
+  savedReports             SavedReport[]
 
   @@index([email])
   @@index([role])
@@ -570,4 +571,20 @@ model UsersOnTeams {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, teamId])
+}
+
+model SavedReport {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  configuration Json     // Raporun tüm ayarlarını (fields, filters, viz, vb.) JSON olarak saklayacağız
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  author        User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId      String
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("saved_reports")
 }
