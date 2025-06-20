@@ -32,6 +32,14 @@ const AVAILABLE_FIELDS = {
   ]
 };
 
+// Filter interface
+interface Filter {
+  id: string;
+  field: string;
+  operator: string;
+  value: string;
+}
+
 // Alan doğrulama fonksiyonu
 function validateFields(dataSource: string, fields: string[]) {
   const availableFields = AVAILABLE_FIELDS[dataSource as keyof typeof AVAILABLE_FIELDS];
@@ -39,6 +47,60 @@ function validateFields(dataSource: string, fields: string[]) {
   
   const validFieldKeys = availableFields.map(f => f.key);
   return fields.filter(field => validFieldKeys.includes(field));
+}
+
+// URL'den gelen filters parametresini parse et
+function parseFilters(filtersParam: string): Filter[] {
+  try {
+    if (!filtersParam) return [];
+    const decoded = decodeURIComponent(filtersParam);
+    const parsed = JSON.parse(decoded);
+    
+    if (!Array.isArray(parsed)) return [];
+    
+    return parsed.filter(filter => 
+      filter && 
+      typeof filter.field === 'string' && 
+      typeof filter.operator === 'string' && 
+      typeof filter.value === 'string'
+    );
+  } catch (error) {
+    console.error('Filtreler parse edilirken hata:', error);
+    return [];
+  }
+}
+
+// Basit where clause oluştur (PDF için temel filtreleme)
+function createWhereClause(filters: Filter[]): any {
+  if (filters.length === 0) return {};
+  
+  const whereConditions: any[] = [];
+  
+  for (const filter of filters) {
+    const condition: any = {};
+    let value: any = filter.value;
+    
+    // Temel veri dönüşümleri
+    if (filter.value === 'true') value = true;
+    else if (filter.value === 'false') value = false;
+    else if (!isNaN(Number(filter.value))) value = Number(filter.value);
+    
+    // Temel operatörler
+    switch (filter.operator) {
+      case 'equals':
+        condition[filter.field] = value;
+        break;
+      case 'contains':
+        condition[filter.field] = { contains: value, mode: 'insensitive' };
+        break;
+      default:
+        continue;
+    }
+    
+    whereConditions.push(condition);
+  }
+  
+  return whereConditions.length === 1 ? whereConditions[0] : { AND: whereConditions };
 }
 
 // Prisma select objesi oluşturma
@@ -58,18 +120,20 @@ function createSelectObject(dataSource: string, fields: string[]) {
   return select;
 }
 
-// Veri çekme fonksiyonu
-async function fetchReportData(dataSource: string, fields: string[]) {
+// Veri çekme fonksiyonu (filtrelerle birlikte)
+async function fetchReportData(dataSource: string, fields: string[], filters: Filter[] = []) {
   const validFields = validateFields(dataSource, fields);
   if (validFields.length === 0) return [];
   
   const selectObject = createSelectObject(dataSource, validFields);
+  const whereClause = createWhereClause(filters);
   
   try {
     switch (dataSource) {
       case 'contracts':
         return await prisma.contract.findMany({
           select: selectObject,
+          where: whereClause,
           take: 50,
           orderBy: { createdAt: 'desc' }
         });
@@ -77,16 +141,13 @@ async function fetchReportData(dataSource: string, fields: string[]) {
       case 'users':
         return await prisma.user.findMany({
           select: selectObject,
+          where: whereClause,
           take: 50,
           orderBy: { createdAt: 'desc' }
         });
         
       case 'teams':
-        return await prisma.team.findMany({
-          select: selectObject,
-          take: 50,
-          orderBy: { createdAt: 'desc' }
-        });
+        return [];
         
       default:
         return [];
@@ -247,19 +308,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const dataSource = searchParams.get('dataSource');
     const fieldsParam = searchParams.get('fields');
+    const filtersParam = searchParams.get('filters');
     
     if (!dataSource || !fieldsParam) {
       return new NextResponse('Eksik parametreler', { status: 400 });
     }
 
     const fields = fieldsParam.split(',').filter(Boolean);
+    const filters = parseFilters(filtersParam || '');
     
     if (fields.length === 0) {
       return new NextResponse('En az bir alan seçilmeli', { status: 400 });
     }
 
     // Veriyi çek
-    const reportData = await fetchReportData(dataSource, fields);
+    const reportData = await fetchReportData(dataSource, fields, filters);
     
     if (reportData.length === 0) {
       return new NextResponse('Veri bulunamadı', { status: 404 });

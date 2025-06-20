@@ -10,10 +10,89 @@ const DATA_SOURCES = [
   { value: 'teams', label: 'Takımlar', description: 'Takım performansı ve işbirliği metrikleri' }
 ];
 
+// Field types ve operatörleri
+const FIELD_TYPES = {
+  text: 'text',
+  number: 'number', 
+  date: 'date',
+  boolean: 'boolean',
+  select: 'select'
+};
+
+const OPERATORS = {
+  text: [
+    { value: 'contains', label: 'İçerir' },
+    { value: 'equals', label: 'Eşittir' },
+    { value: 'startsWith', label: 'İle başlar' },
+    { value: 'endsWith', label: 'İle biter' },
+    { value: 'notEquals', label: 'Eşit değil' }
+  ],
+  number: [
+    { value: 'equals', label: 'Eşittir' },
+    { value: 'gt', label: 'Büyüktür' },
+    { value: 'gte', label: 'Büyük eşittir' },
+    { value: 'lt', label: 'Küçüktür' },
+    { value: 'lte', label: 'Küçük eşittir' },
+    { value: 'notEquals', label: 'Eşit değil' }
+  ],
+  date: [
+    { value: 'equals', label: 'Eşittir' },
+    { value: 'gt', label: 'Sonra' },
+    { value: 'gte', label: 'Bu tarih ve sonrası' },
+    { value: 'lt', label: 'Önce' },
+    { value: 'lte', label: 'Bu tarih ve öncesi' }
+  ],
+  boolean: [
+    { value: 'equals', label: 'Eşittir' }
+  ],
+  select: [
+    { value: 'equals', label: 'Eşittir' },
+    { value: 'notEquals', label: 'Eşit değil' }
+  ]
+};
+
+// Alanların türlerini belirle
+const FIELD_META = {
+  contracts: {
+    title: { type: 'text' },
+    status: { type: 'select', options: ['DRAFT', 'PENDING', 'APPROVED', 'SIGNED', 'EXPIRED', 'CANCELLED'] },
+    expirationDate: { type: 'date' },
+    createdAt: { type: 'date' },
+    author: { type: 'text' },
+    company: { type: 'text' },
+    value: { type: 'number' },
+    category: { type: 'select', options: ['LEGAL', 'PROCUREMENT', 'HR', 'FINANCE', 'SALES', 'MARKETING'] }
+  },
+  users: {
+    name: { type: 'text' },
+    email: { type: 'text' },
+    role: { type: 'select', options: ['ADMIN', 'EDITOR', 'VIEWER'] },
+    createdAt: { type: 'date' },
+    lastLogin: { type: 'date' },
+    isActive: { type: 'boolean' }
+  },
+  teams: {
+    name: { type: 'text' },
+    memberCount: { type: 'number' },
+    createdAt: { type: 'date' },
+    lead: { type: 'text' },
+    department: { type: 'select', options: ['LEGAL', 'PROCUREMENT', 'HR', 'FINANCE', 'SALES', 'MARKETING'] }
+  }
+};
+
+// Filter interface
+interface Filter {
+  id: string;
+  field: string;
+  operator: string;
+  value: string;
+}
+
 // Props interface
 interface NewReportClientProps {
   initialDataSource: string;
   initialFields: string[];
+  initialFilters: Filter[];
   reportData: any[];
   availableFields: any;
 }
@@ -89,6 +168,212 @@ function FieldSelector({
   );
 }
 
+// Filter Component
+function FilterSelector({
+  dataSource,
+  filters,
+  onFiltersChange,
+  availableFields
+}: {
+  dataSource: string;
+  filters: Filter[];
+  onFiltersChange: (filters: Filter[]) => void;
+  availableFields: any;
+}) {
+  const fieldOptions = availableFields[dataSource] || [];
+
+  const addFilter = () => {
+    const newFilter: Filter = {
+      id: Date.now().toString(),
+      field: '',
+      operator: '',
+      value: ''
+    };
+    onFiltersChange([...filters, newFilter]);
+  };
+
+  const updateFilter = (id: string, updates: Partial<Filter>) => {
+    const updatedFilters = filters.map(filter => 
+      filter.id === id ? { ...filter, ...updates } : filter
+    );
+    onFiltersChange(updatedFilters);
+  };
+
+  const removeFilter = (id: string) => {
+    onFiltersChange(filters.filter(filter => filter.id !== id));
+  };
+
+  const getFieldType = (fieldKey: string) => {
+    const source = FIELD_META[dataSource as keyof typeof FIELD_META];
+    if (!source) return 'text';
+    const field = source[fieldKey as keyof typeof source];
+    return field?.type || 'text';
+  };
+
+  const getFieldOptions = (fieldKey: string) => {
+    const source = FIELD_META[dataSource as keyof typeof FIELD_META];
+    if (!source) return [];
+    const field = source[fieldKey as keyof typeof source];
+    return (field as any)?.options || [];
+  };
+
+  const getOperators = (fieldType: string) => {
+    return OPERATORS[fieldType as keyof typeof OPERATORS] || OPERATORS.text;
+  };
+
+  if (!dataSource) return null;
+
+  return (
+    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-4">
+        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+          3. Filtreler
+        </label>
+        <button
+          onClick={addFilter}
+          className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors duration-200"
+        >
+          <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Filtre Ekle
+        </button>
+      </div>
+
+      <div className="space-y-3 max-h-96 overflow-y-auto">
+        {filters.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <svg className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <p className="text-sm">Henüz filtre eklenmemiş</p>
+            <p className="text-xs mt-1">Filtreleme yapmak için "Filtre Ekle" butonuna tıklayın</p>
+          </div>
+        ) : (
+          filters.map((filter, index) => (
+            <div key={filter.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Filtre {index + 1}
+                </span>
+                <button
+                  onClick={() => removeFilter(filter.id)}
+                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                {/* Field Selection */}
+                <select
+                  value={filter.field}
+                  onChange={(e) => updateFilter(filter.id, { 
+                    field: e.target.value, 
+                    operator: '', 
+                    value: '' 
+                  })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Alan seçin...</option>
+                  {fieldOptions.map((field: any) => (
+                    <option key={field.key} value={field.key}>
+                      {field.label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Operator Selection */}
+                {filter.field && (
+                  <select
+                    value={filter.operator}
+                    onChange={(e) => updateFilter(filter.id, { 
+                      operator: e.target.value,
+                      value: '' 
+                    })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Operatör seçin...</option>
+                    {getOperators(getFieldType(filter.field)).map((op) => (
+                      <option key={op.value} value={op.value}>
+                        {op.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Value Input */}
+                {filter.field && filter.operator && (
+                  <>
+                    {getFieldType(filter.field) === 'select' ? (
+                      <select
+                        value={filter.value}
+                        onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Değer seçin...</option>
+                        {getFieldOptions(filter.field).map((option: string) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : getFieldType(filter.field) === 'boolean' ? (
+                      <select
+                        value={filter.value}
+                        onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Değer seçin...</option>
+                        <option value="true">Evet</option>
+                        <option value="false">Hayır</option>
+                      </select>
+                    ) : (
+                      <input
+                        type={getFieldType(filter.field) === 'date' ? 'date' : getFieldType(filter.field) === 'number' ? 'number' : 'text'}
+                        value={filter.value}
+                        onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
+                        placeholder="Değer girin..."
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {filters.length > 0 && (
+        <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/50 rounded-lg">
+          <p className="text-sm text-purple-700 dark:text-purple-300">
+            <span className="font-medium">{filters.filter(f => f.field && f.operator && f.value).length}</span> aktif filtre
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Export URL oluşturucu
+function createExportUrl(format: string, dataSource: string, fields: string[], filters: Filter[]): string {
+  const params = new URLSearchParams();
+  params.set('dataSource', dataSource);
+  params.set('fields', fields.join(','));
+  
+  // Sadece tamamlanmış filtreleri ekle
+  const completeFilters = filters.filter(f => f.field && f.operator && f.value);
+  if (completeFilters.length > 0) {
+    const filtersString = JSON.stringify(completeFilters);
+    params.set('filters', encodeURIComponent(filtersString));
+  }
+  
+  return `/api/reports/export/${format}?${params.toString()}`;
+}
+
 // Veri tablosunu format et
 function formatCellData(data: any, fieldKey: string): string {
   if (!data) return '-';
@@ -120,6 +405,7 @@ function formatCellData(data: any, fieldKey: string): string {
 export default function NewReportClient({ 
   initialDataSource, 
   initialFields, 
+  initialFilters, 
   reportData, 
   availableFields 
 }: NewReportClientProps) {
@@ -128,19 +414,23 @@ export default function NewReportClient({
   
   const [selectedDataSource, setSelectedDataSource] = useState<string>(initialDataSource);
   const [selectedFields, setSelectedFields] = useState<string[]>(initialFields);
+  const [filters, setFilters] = useState<Filter[]>(initialFilters);
 
   // Veri kaynağı değiştiğinde URL'yi güncelle ve alanları temizle
   const handleDataSourceChange = (dataSource: string) => {
     setSelectedDataSource(dataSource);
     setSelectedFields([]);
+    setFilters([]);
     
     const params = new URLSearchParams(searchParams.toString());
     if (dataSource) {
       params.set('dataSource', dataSource);
       params.delete('fields'); // Yeni veri kaynağı seçildiğinde alanları temizle
+      params.delete('filters'); // Filtreleri de temizle
     } else {
       params.delete('dataSource');
       params.delete('fields');
+      params.delete('filters');
     }
     
     router.push(`/dashboard/reports/new?${params.toString()}`);
@@ -155,6 +445,25 @@ export default function NewReportClient({
       params.set('fields', fields.join(','));
     } else {
       params.delete('fields');
+    }
+    
+    router.push(`/dashboard/reports/new?${params.toString()}`);
+  };
+
+  // Filtreler değiştiğinde URL'yi güncelle
+  const handleFiltersChange = (newFilters: Filter[]) => {
+    setFilters(newFilters);
+    
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // Sadece tamamlanmış filtreleri URL'e ekle
+    const completeFilters = newFilters.filter(f => f.field && f.operator && f.value);
+    
+    if (completeFilters.length > 0) {
+      const filtersString = JSON.stringify(completeFilters);
+      params.set('filters', encodeURIComponent(filtersString));
+    } else {
+      params.delete('filters');
     }
     
     router.push(`/dashboard/reports/new?${params.toString()}`);
@@ -217,23 +526,27 @@ export default function NewReportClient({
                 availableFields={availableFields}
               />
 
+              {/* Filter Selector */}
+              <FilterSelector
+                dataSource={selectedDataSource}
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                availableFields={availableFields}
+              />
+
               {/* Gelecek adımlar için placeholder */}
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm text-gray-400 dark:text-gray-500">
-                    <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-3">
-                      <span className="text-xs font-medium">3</span>
+              {selectedDataSource && (
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="space-y-3">
+                    <div className="flex items-center text-sm text-gray-400 dark:text-gray-500">
+                      <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-3">
+                        <span className="text-xs font-medium">4</span>
+                      </div>
+                      Sırala
                     </div>
-                    Filtrele
-                  </div>
-                  <div className="flex items-center text-sm text-gray-400 dark:text-gray-500">
-                    <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-3">
-                      <span className="text-xs font-medium">4</span>
-                    </div>
-                    Sırala
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -274,7 +587,7 @@ export default function NewReportClient({
                   <div className="flex items-center space-x-3">
                     {/* Ana Rapor Oluştur Butonu */}
                     <a
-                      href={`/api/reports/export/csv?dataSource=${selectedDataSource}&fields=${selectedFields.join(',')}`}
+                      href={createExportUrl('csv', selectedDataSource, selectedFields, filters)}
                       download
                       className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                     >
@@ -287,7 +600,7 @@ export default function NewReportClient({
                     {/* Ek Export Seçenekleri */}
                     <div className="flex items-center space-x-2">
                       <a
-                        href={`/api/reports/export/pdf?dataSource=${selectedDataSource}&fields=${selectedFields.join(',')}`}
+                        href={createExportUrl('pdf', selectedDataSource, selectedFields, filters)}
                         download
                         className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200"
                         title="PDF olarak indir"

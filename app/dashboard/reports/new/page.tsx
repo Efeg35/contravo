@@ -35,6 +35,14 @@ const AVAILABLE_FIELDS = {
   ]
 };
 
+// Filter interface
+interface Filter {
+  id: string;
+  field: string;
+  operator: string;
+  value: string;
+}
+
 // Güvenlik: İzin verilen alanları kontrol et
 function validateFields(dataSource: string, fields: string[]): string[] {
   const availableFields = AVAILABLE_FIELDS[dataSource as keyof typeof AVAILABLE_FIELDS];
@@ -42,6 +50,189 @@ function validateFields(dataSource: string, fields: string[]): string[] {
   
   const allowedFieldKeys = availableFields.map(f => f.key);
   return fields.filter(field => allowedFieldKeys.includes(field));
+}
+
+// Güvenlik: İzin verilen filtreleri kontrol et ve geçerli filtreleri döndür
+function validateFilters(dataSource: string, filters: Filter[]): Filter[] {
+  const availableFields = AVAILABLE_FIELDS[dataSource as keyof typeof AVAILABLE_FIELDS];
+  if (!availableFields) return [];
+  
+  const allowedFieldKeys = availableFields.map(f => f.key);
+  
+  return filters.filter(filter => {
+    // Alan geçerli mi?
+    if (!allowedFieldKeys.includes(filter.field)) return false;
+    
+    // Operator geçerli mi?
+    const allowedOperators = ['equals', 'notEquals', 'contains', 'startsWith', 'endsWith', 'gt', 'gte', 'lt', 'lte'];
+    if (!allowedOperators.includes(filter.operator)) return false;
+    
+    // Value var mı?
+    if (!filter.value && filter.value !== '0' && filter.value !== 'false') return false;
+    
+    return true;
+  });
+}
+
+// URL'den gelen filters parametresini parse et
+function parseFilters(filtersParam: string): Filter[] {
+  try {
+    if (!filtersParam) return [];
+    const decoded = decodeURIComponent(filtersParam);
+    const parsed = JSON.parse(decoded);
+    
+    if (!Array.isArray(parsed)) return [];
+    
+    return parsed.filter(filter => 
+      filter && 
+      typeof filter.field === 'string' && 
+      typeof filter.operator === 'string' && 
+      typeof filter.value === 'string'
+    );
+  } catch (error) {
+    console.error('Filtreler parse edilirken hata:', error);
+    return [];
+  }
+}
+
+// Prisma where clause oluştur
+function createWhereClause(dataSource: string, filters: Filter[]): any {
+  const validatedFilters = validateFilters(dataSource, filters);
+  
+  if (validatedFilters.length === 0) return {};
+  
+  const whereConditions: any[] = [];
+  
+  for (const filter of validatedFilters) {
+    const condition: any = {};
+    
+    // Nested field handling
+    let fieldPath = filter.field;
+    if (filter.field === 'author' && dataSource === 'contracts') {
+      fieldPath = 'author.name';
+    } else if (filter.field === 'company' && dataSource === 'contracts') {
+      fieldPath = 'company.name';
+    } else if (filter.field === 'lead' && dataSource === 'teams') {
+      fieldPath = 'lead.name';
+    }
+    
+    // Value processing
+    let value: any = filter.value;
+    
+    // Boolean conversion
+    if (filter.value === 'true') {
+      value = true;
+    } else if (filter.value === 'false') {
+      value = false;
+    } 
+    // Number conversion
+    else if (filter.field === 'value' || filter.field === 'memberCount') {
+      const numValue = parseFloat(filter.value);
+      if (!isNaN(numValue)) {
+        value = numValue;
+      }
+    }
+    // Date conversion
+    else if (filter.field.includes('Date') || filter.field.includes('At') || filter.field === 'lastLogin') {
+      const dateValue = new Date(filter.value);
+      if (!isNaN(dateValue.getTime())) {
+        value = dateValue;
+      }
+    }
+    
+    // Operator mapping
+    switch (filter.operator) {
+      case 'equals':
+        if (fieldPath.includes('.')) {
+          const [parent, child] = fieldPath.split('.');
+          condition[parent] = { [child]: { equals: value } };
+        } else {
+          condition[fieldPath] = { equals: value };
+        }
+        break;
+        
+      case 'notEquals':
+        if (fieldPath.includes('.')) {
+          const [parent, child] = fieldPath.split('.');
+          condition[parent] = { [child]: { not: value } };
+        } else {
+          condition[fieldPath] = { not: value };
+        }
+        break;
+        
+      case 'contains':
+        if (fieldPath.includes('.')) {
+          const [parent, child] = fieldPath.split('.');
+          condition[parent] = { [child]: { contains: value, mode: 'insensitive' } };
+        } else {
+          condition[fieldPath] = { contains: value, mode: 'insensitive' };
+        }
+        break;
+        
+      case 'startsWith':
+        if (fieldPath.includes('.')) {
+          const [parent, child] = fieldPath.split('.');
+          condition[parent] = { [child]: { startsWith: value, mode: 'insensitive' } };
+        } else {
+          condition[fieldPath] = { startsWith: value, mode: 'insensitive' };
+        }
+        break;
+        
+      case 'endsWith':
+        if (fieldPath.includes('.')) {
+          const [parent, child] = fieldPath.split('.');
+          condition[parent] = { [child]: { endsWith: value, mode: 'insensitive' } };
+        } else {
+          condition[fieldPath] = { endsWith: value, mode: 'insensitive' };
+        }
+        break;
+        
+      case 'gt':
+        if (fieldPath.includes('.')) {
+          const [parent, child] = fieldPath.split('.');
+          condition[parent] = { [child]: { gt: value } };
+        } else {
+          condition[fieldPath] = { gt: value };
+        }
+        break;
+        
+      case 'gte':
+        if (fieldPath.includes('.')) {
+          const [parent, child] = fieldPath.split('.');
+          condition[parent] = { [child]: { gte: value } };
+        } else {
+          condition[fieldPath] = { gte: value };
+        }
+        break;
+        
+      case 'lt':
+        if (fieldPath.includes('.')) {
+          const [parent, child] = fieldPath.split('.');
+          condition[parent] = { [child]: { lt: value } };
+        } else {
+          condition[fieldPath] = { lt: value };
+        }
+        break;
+        
+      case 'lte':
+        if (fieldPath.includes('.')) {
+          const [parent, child] = fieldPath.split('.');
+          condition[parent] = { [child]: { lte: value } };
+        } else {
+          condition[fieldPath] = { lte: value };
+        }
+        break;
+        
+      default:
+        continue; // Skip unknown operators
+    }
+    
+    whereConditions.push(condition);
+  }
+  
+  if (whereConditions.length === 0) return {};
+  
+  return whereConditions.length === 1 ? whereConditions[0] : { AND: whereConditions };
 }
 
 // Dinamik select objesi oluştur
@@ -67,16 +258,19 @@ function createSelectObject(dataSource: string, fields: string[]): any {
   return selectObj;
 }
 
-// Veritabanından veri çek
-async function fetchReportData(dataSource: string, fields: string[]) {
+// Veritabanından veri çek (filtrelerle birlikte)
+async function fetchReportData(dataSource: string, fields: string[], filters: Filter[] = []) {
   try {
     const selectObj = createSelectObject(dataSource, fields);
     if (!selectObj) return [];
+
+    const whereClause = createWhereClause(dataSource, filters);
 
     switch (dataSource) {
       case 'contracts':
         return await prisma.contract.findMany({
           select: selectObj,
+          where: whereClause,
           take: 50, // İlk 50 kayıt
           orderBy: { createdAt: 'desc' }
         });
@@ -84,6 +278,7 @@ async function fetchReportData(dataSource: string, fields: string[]) {
       case 'users':
         return await prisma.user.findMany({
           select: selectObj,
+          where: whereClause,
           take: 50,
           orderBy: { createdAt: 'desc' }
         });
@@ -118,12 +313,15 @@ export default async function NewReportPage({ searchParams }: PageProps) {
   // URL parametrelerini oku
   const dataSource = typeof resolvedSearchParams.dataSource === 'string' ? resolvedSearchParams.dataSource : '';
   const fieldsParam = typeof resolvedSearchParams.fields === 'string' ? resolvedSearchParams.fields : '';
+  const filtersParam = typeof resolvedSearchParams.filters === 'string' ? resolvedSearchParams.filters : '';
+  
   const fields = fieldsParam ? fieldsParam.split(',').filter(Boolean) : [];
+  const filters = parseFilters(filtersParam);
 
   // Eğer hem veri kaynağı hem de alanlar seçildiyse, veriyi çek
   let reportData: any[] = [];
   if (dataSource && fields.length > 0) {
-    reportData = await fetchReportData(dataSource, fields);
+    reportData = await fetchReportData(dataSource, fields, filters);
   }
 
   return (
@@ -178,6 +376,7 @@ export default async function NewReportPage({ searchParams }: PageProps) {
           <NewReportClient 
             initialDataSource={dataSource}
             initialFields={fields}
+            initialFilters={filters}
             reportData={reportData}
             availableFields={AVAILABLE_FIELDS}
           />
