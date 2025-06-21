@@ -386,6 +386,63 @@ function HeroMetricsCards() {
   );
 }
 
+// Rapor şablonları veri yapısı
+const reportTemplates = [
+  {
+    id: 'overview',
+    title: 'Sözleşmelere Genel Bakış',
+    description: 'Sözleşme durumları ve aylık trend analizi',
+    href: '/dashboard/reports/overview',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+      </svg>
+    ),
+    gradient: 'from-blue-500 to-indigo-600',
+    stats: 'Durum dağılımı • Aylık trendler'
+  },
+  {
+    id: 'performance',
+    title: 'Performans Metrikleri',
+    description: 'Süreç verimliliği ve tamamlanma analizi',
+    href: '/dashboard/reports/performance',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+      </svg>
+    ),
+    gradient: 'from-purple-500 to-violet-600',
+    stats: 'Yanıt süreleri • KPI analizi'
+  },
+  {
+    id: 'financials',
+    title: 'Finansal Trendler',
+    description: 'Gelir analizi ve mali performans',
+    href: '/dashboard/reports/financials',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+      </svg>
+    ),
+    gradient: 'from-emerald-500 to-teal-600',
+    stats: 'Gelir trendi • Mali analiz'
+  },
+  {
+    id: 'activity',
+    title: 'Kullanıcı Aktivitesi',
+    description: 'Günlük işlem ve aktivite analizi',
+    href: '/dashboard/reports/activity',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    ),
+    gradient: 'from-amber-500 to-orange-600',
+    stats: 'Günlük aktivite • Kullanıcı istatistikleri'
+  }
+];
+
 export default function ReportsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/40 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -398,7 +455,7 @@ export default function ReportsPage() {
         {/* Content */}
         <div className="relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-8">
+            <div className="flex justify-between items-center py-12">
               {/* Left side - Navigation & Title */}
               <div className="flex items-center space-x-6">
                 <Link 
@@ -413,49 +470,26 @@ export default function ReportsPage() {
                 
                 <div className="w-px h-6 bg-white/30"></div>
                 
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-white/10 backdrop-blur-sm rounded-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-white/10 backdrop-blur-sm rounded-xl">
+                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-white">Analitik Raporları</h1>
-                    <p className="text-white/70 text-sm">Sözleşme performansı ve istatistikleri</p>
+                    <h1 className="text-4xl font-bold text-white">Rapor Merkezi</h1>
+                    <p className="text-white/80 text-lg">Analitik raporları ve performans metrikleri</p>
                   </div>
                 </div>
               </div>
 
-              {/* Right side - Actions */}
+              {/* Right side - Create Custom Report Button */}
               <div className="flex items-center space-x-4">
-                {/* Filter Button - Future feature */}
-                <button 
-                  disabled
-                  className="inline-flex items-center px-4 py-2 border border-white/20 backdrop-blur-sm text-sm font-medium rounded-lg text-white/50 bg-white/5 cursor-not-allowed transition-all duration-200"
-                >
-                  <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z" />
-                  </svg>
-                  Filtrele
-                </button>
-                
-                {/* Export Button - Future feature */}
-                <button 
-                  disabled
-                  className="inline-flex items-center px-4 py-2 border border-white/20 backdrop-blur-sm text-sm font-medium rounded-lg text-white/50 bg-white/5 cursor-not-allowed transition-all duration-200"
-                >
-                  <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Dışa Aktar
-                </button>
-                
-                {/* Create Report Button */}
                 <Link 
                   href="/dashboard/reports/new"
-                  className="inline-flex items-center px-6 py-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 border border-white/20 text-sm font-medium rounded-lg text-white hover:text-white transition-all duration-200 group"
+                  className="inline-flex items-center px-8 py-3 bg-white/15 backdrop-blur-sm hover:bg-white/25 border border-white/30 text-lg font-medium rounded-xl text-white hover:text-white transition-all duration-200 group shadow-lg"
                 >
-                  <svg className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="mr-3 h-6 w-6 group-hover:rotate-90 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   Özel Rapor Oluştur
@@ -466,243 +500,127 @@ export default function ReportsPage() {
         </div>
       </header>
 
-      {/* Hero Metrics Cards - Yeni Ana KPI Bölümü */}
-      <div className="relative -mt-4 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-3xl border border-white/20 dark:border-gray-700/50 shadow-2xl p-8">
-            <HeroMetricsCards />
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content - Modern Grid Layout */}
-      <main className="max-w-7xl mx-auto py-16 sm:px-6 lg:px-8">
-        <div className="px-4 sm:px-0 space-y-16">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-12 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-0 space-y-12">
           
-          {/* Kaydedilmiş Raporlar Bölümü */}
-          <section>
-            <SavedReportsSection />
-          </section>
-          
-          {/* Ana Analitik Widget'lar - Üç Sütun Grid */}
-          <section>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Sözleşme Durum Dağılımı */}
-              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
-                <div className="p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        Durum Dağılımı
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Sözleşme durumlarının analizi
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <Suspense fallback={<ModernWidgetSkeleton />}>
-                    <StatusDistributionWidget />
-                  </Suspense>
+          {/* Kaydedilmiş Raporlarım Bölümü */}
+          <section className="relative -mt-6 z-10">
+            <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-3xl border border-white/20 dark:border-gray-700/50 shadow-2xl p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                    Kaydedilmiş Raporlarım
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    Daha önce oluşturduğunuz ve kaydettiğiniz raporlar
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
                 </div>
               </div>
-
-              {/* Aylık Sözleşme Hacmi */}
-              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
-                <div className="p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        Aylık Trend Analizi
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Son 6 aydaki sözleşme hacmi
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <Suspense fallback={<ModernWidgetSkeleton />}>
-                    <MonthlyVolumeWidget />
-                  </Suspense>
-                </div>
-              </div>
-
-              {/* Sistem Yanıt Süresi - KPI Widget */}
-              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
-                <div className="p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        Yanıt Performansı
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Ortalama tamamlanma süreleri
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <Suspense fallback={<ModernWidgetSkeleton />}>
-                    <ResponseTimeWidget />
-                  </Suspense>
-                </div>
-              </div>
+              
+              <Suspense fallback={<SavedReportsSkeleton />}>
+                <SavedReportsSection />
+              </Suspense>
             </div>
           </section>
 
-          {/* Gelişmiş Analitik Widget'lar - İki Sütun */}
+          {/* Analiz Panelleri - Hazır Rapor Şablonları */}
           <section>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Gelir Trendi */}
-              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
-                <div className="p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        Gelir Trendi
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Son 6 aydaki gelir analizi
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                      </svg>
-                    </div>
-                  </div>
-                  <Suspense fallback={<ModernWidgetSkeleton />}>
-                    <RevenueTrendWidget />
-                  </Suspense>
-                </div>
-              </div>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                Analiz Panelleri
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-400">
+                Hazır analiz şablonları ile detaylı raporlara hızlıca erişin
+              </p>
+            </div>
 
-              {/* Günlük Kullanıcı Aktivitesi */}
-              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
-                <div className="p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        Kullanıcı Aktivitesi
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Son 30 günlük işlem analizi
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
+            {/* Rapor Şablonları Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+              {reportTemplates.map((template) => (
+                <Link
+                  key={template.id}
+                  href={template.href}
+                  className="group block"
+                >
+                  <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-2xl transition-all duration-300 transform group-hover:-translate-y-1 h-full">
+                    <div className="p-8">
+                      {/* Icon */}
+                      <div className={`w-16 h-16 bg-gradient-to-br ${template.gradient} rounded-2xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                        {template.icon}
+                      </div>
+
+                      {/* Content */}
+                      <div className="space-y-3">
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
+                          {template.title}
+                        </h3>
+                        
+                        <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                          {template.description}
+                        </p>
+
+                        <div className="pt-2">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                            {template.stats}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Arrow Icon */}
+                      <div className="mt-6 flex items-center justify-between">
+                        <span className="text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300">
+                          Raporu Görüntüle
+                        </span>
+                        <svg 
+                          className="w-5 h-5 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transform group-hover:translate-x-1 transition-all duration-200" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
-                  <Suspense fallback={<ModernWidgetSkeleton />}>
-                    <UserActivityWidget />
-                  </Suspense>
-                </div>
-              </div>
+                </Link>
+              ))}
             </div>
           </section>
 
-          {/* Detaylı Analiz Bölümü */}
+          {/* İstatistikler Özeti */}
           <section>
-            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300">
-              <div className="p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      Detaylı Analiz
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      Süreç verimliliği ve tamamlanma metrikleri
-                    </p>
+            <div className="bg-gradient-to-r from-slate-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-8 border border-slate-200/60 dark:border-gray-700/40">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                    4
                   </div>
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                  </div>
-                </div>
-                <Suspense fallback={<ModernWidgetSkeleton />}>
-                  <PerformanceMetricsWidget />
-                </Suspense>
-              </div>
-            </div>
-          </section>
-
-          {/* Öngörüler ve Öneriler Bölümü */}
-          <section>
-            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300">
-              <div className="p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      Öngörüler ve Öneriler
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      AI destekli analiz ve öneriler
-                    </p>
-                  </div>
-                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
+                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Hazır Analiz Paneli
                   </div>
                 </div>
                 
-                {/* Placeholder İçerik */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/30 rounded-xl p-6 border border-blue-200/50 dark:border-blue-700/30">
-                    <div className="flex items-center mb-4">
-                      <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                      </div>
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">Trend Analizi</h4>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Son 3 ayda sözleşme onay süreleri %15 iyileşme gösteriyor.
-                    </p>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
+                    24/7
                   </div>
-                  
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/30 rounded-xl p-6 border border-green-200/50 dark:border-green-700/30">
-                    <div className="flex items-center mb-4">
-                      <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center mr-3">
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">Optimizasyon</h4>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Süreç otomasyonu ile %25 daha hızlı onay süreci mümkün.
-                    </p>
+                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Gerçek Zamanlı Veri
                   </div>
-                  
-                  <div className="bg-gradient-to-br from-amber-50 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/30 rounded-xl p-6 border border-amber-200/50 dark:border-amber-700/30">
-                    <div className="flex items-center mb-4">
-                      <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center mr-3">
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                      </div>
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">Uyarı</h4>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      3 sözleşme için son onay tarihleri yaklaşıyor.
-                    </p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
+                    ∞
+                  </div>
+                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Özel Rapor Oluşturma
                   </div>
                 </div>
               </div>
@@ -712,8 +630,8 @@ export default function ReportsPage() {
         </div>
       </main>
 
-      {/* Footer with additional info */}
-      <footer className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-t border-gray-200/50 dark:border-gray-700/50 mt-24">
+      {/* Footer */}
+      <footer className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-t border-gray-200/50 dark:border-gray-700/50 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -740,16 +658,16 @@ export default function ReportsPage() {
   );
 }
 
-// Modern Widget Loading Skeleton
-function ModernWidgetSkeleton() {
+// Saved Reports Loading Skeleton
+function SavedReportsSkeleton() {
   return (
-    <div className="animate-pulse space-y-4">
-      <div className="h-6 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-lg w-3/4"></div>
-      <div className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-xl"></div>
-      <div className="grid grid-cols-3 gap-4">
-        <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded"></div>
-        <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded"></div>
-        <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded"></div>
+    <div className="animate-pulse">
+      <div className="flex space-x-4 overflow-x-auto pb-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex-shrink-0 w-80">
+            <div className="h-32 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-xl"></div>
+          </div>
+        ))}
       </div>
     </div>
   );
