@@ -242,6 +242,7 @@ model Contract {
   updatedById       String?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
+  clauses           ClausesOnContracts[]
   clauseUsages      ClauseUsage[]
   updatedBy         User?                @relation("UpdatedContracts", fields: [updatedById], references: [id])
   createdBy         User                 @relation("CreatedContracts", fields: [createdById], references: [id])
@@ -487,6 +488,7 @@ model Clause {
   parentClauseId String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+  contracts      ClausesOnContracts[]
   parentClause   Clause?          @relation("ClauseInheritance", fields: [parentClauseId], references: [id])
   childClauses   Clause[]         @relation("ClauseInheritance")
   company        Company?         @relation("CompanyClauses", fields: [companyId], references: [id])
@@ -625,4 +627,17 @@ model ScheduleLog {
   @@index([executedAt])
   @@index([status])
   @@map("schedule_logs")
+}
+
+model ClausesOnContracts {
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contractId String
+  clause     Clause   @relation(fields: [clauseId], references: [id], onDelete: Cascade)
+  clauseId   String
+  addedAt    DateTime @default(now())
+
+  @@id([contractId, clauseId])
+  @@index([contractId])
+  @@index([clauseId])
+  @@index([addedAt])
 }

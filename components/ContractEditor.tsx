@@ -159,7 +159,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
   };
 
   // Insert clause into editor
-  const insertClause = (clause: Clause, values: Record<string, string>) => {
+  const insertClause = async (clause: Clause, values: Record<string, string>) => {
     let clauseContent = clause.content;
     
     // Replace variables with values
@@ -173,6 +173,31 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
     const cursorPosition = content.length;
     const newContent = content.slice(0, cursorPosition) + '\n\n' + clauseContent + '\n\n' + content.slice(cursorPosition);
     setContent(newContent);
+    
+    // Save clause-contract relationship to database if we have a contractId
+    if (contractId) {
+      try {
+        const response = await fetch(`/api/contracts/${contractId}/clauses`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            clauseId: clause.id
+          }),
+        });
+
+        if (response.ok) {
+          toast.success(`"${clause.title}" sözleşmeye eklendi`);
+        } else {
+          console.error('Clause-contract ilişkisi kaydedilemedi');
+          toast.error('Clause eklendi ancak veritabanı güncellenemedi');
+        }
+      } catch (error) {
+        console.error('Clause-contract ilişkisi kayıt hatası:', error);
+        toast.error('Clause eklendi ancak veritabanı güncellenemedi');
+      }
+    }
     
     // Close modals
     setShowVariableModal(false);

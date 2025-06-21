@@ -79,6 +79,20 @@ interface Attachment {
   };
 }
 
+interface Clause {
+  id: string;
+  title: string;
+  description?: string;
+  content: string;
+  category: string;
+  visibility: string;
+  createdBy: {
+    name: string;
+    email: string;
+  };
+  addedAt: string;
+}
+
 const TABS = [
   { key: 'details', label: 'Detaylar', icon: DocumentTextIcon },
   { key: 'approvals', label: 'Onay Akışı', icon: CheckCircleIcon },
@@ -96,6 +110,7 @@ export default function ContractFocusPage() {
   const [approvals, setApprovals] = useState<ApprovalStep[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [clauses, setClauses] = useState<Clause[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
   const [isEditing, setIsEditing] = useState(false);
@@ -105,6 +120,7 @@ export default function ContractFocusPage() {
     fetchApprovals();
     fetchComments();
     fetchAttachments();
+    fetchClauses();
   }, [contractId]);
 
   const fetchContract = async () => {
@@ -154,6 +170,18 @@ export default function ContractFocusPage() {
       }
     } catch (error) {
       console.error('Error fetching attachments:', error);
+    }
+  };
+
+  const fetchClauses = async () => {
+    try {
+      const response = await fetch(`/api/contracts/${contractId}/clauses`);
+      if (response.ok) {
+        const data = await response.json();
+        setClauses(data.clauses || []);
+      }
+    } catch (error) {
+      console.error('Error fetching clauses:', error);
     }
   };
 
@@ -489,8 +517,67 @@ export default function ContractFocusPage() {
 
             {activeTab === 'clauses' && (
               <div className="space-y-4">
-                <h3 className="text-sm font-medium text-gray-700">Önemli Maddeler</h3>
-                <p className="text-sm text-gray-500">Bu özellik yakında eklenecek.</p>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-700">Sözleşme Maddeleri</h3>
+                  <span className="text-xs text-gray-500">{clauses.length} madde</span>
+                </div>
+                
+                {clauses.length > 0 ? (
+                  <div className="space-y-4">
+                    {clauses.map((clause) => (
+                      <div key={clause.id} className="p-4 bg-white rounded-lg border border-gray-200">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900 mb-2">{clause.title}</h4>
+                            {clause.description && (
+                              <p className="text-sm text-gray-600 mb-3">{clause.description}</p>
+                            )}
+                            
+                            {/* Category and visibility badges */}
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {clause.category}
+                              </span>
+                              {clause.visibility === 'PUBLIC' && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  Herkese Açık
+                                </span>
+                              )}
+                              {clause.visibility === 'COMPANY' && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  Şirket İçi
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Clause content preview */}
+                            <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded border">
+                              <p className="line-clamp-3">{clause.content}</p>
+                            </div>
+                            
+                            {/* Meta information */}
+                            <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
+                              <div className="flex items-center space-x-2">
+                                <span>Oluşturan: {clause.createdBy.name}</span>
+                              </div>
+                              <span>
+                                Eklenme: {new Date(clause.addedAt).toLocaleDateString('tr-TR')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <BookOpenIcon className="mx-auto h-12 w-12 text-gray-300" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">Henüz madde eklenmemiş</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Bu sözleşmeye henüz Smart Clause eklenmemiş.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

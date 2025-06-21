@@ -46,7 +46,7 @@ const prismaClientSingleton = () => {
 // Multi-tenant filter functions will be implemented in a separate module
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
 }
 
