@@ -6,6 +6,9 @@ import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import StatusDistributionWidget from './widgets/StatusDistributionWidget';
 import MonthlyVolumeWidget from './widgets/MonthlyVolumeWidget';
 import PerformanceMetricsWidget, { useGlobalStats } from './widgets/PerformanceMetricsWidget';
+import RevenueTrendWidget from './widgets/RevenueTrendWidget';
+import UserActivityWidget from './widgets/UserActivityWidget';
+import ResponseTimeWidget from './widgets/ResponseTimeWidget';
 import SavedReportsSection from './components/SavedReportsSection';
 
 // Performans verileri için interface
@@ -481,9 +484,9 @@ export default function ReportsPage() {
             <SavedReportsSection />
           </section>
           
-          {/* Grafikler Bölümü - Yan Yana İki Sütun */}
+          {/* Ana Analitik Widget'lar - Üç Sütun Grid */}
           <section>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Sözleşme Durum Dağılımı */}
               <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
                 <div className="p-8">
@@ -529,6 +532,83 @@ export default function ReportsPage() {
                   </div>
                   <Suspense fallback={<ModernWidgetSkeleton />}>
                     <MonthlyVolumeWidget />
+                  </Suspense>
+                </div>
+              </div>
+
+              {/* Sistem Yanıt Süresi - KPI Widget */}
+              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
+                <div className="p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        Yanıt Performansı
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Ortalama tamamlanma süreleri
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <Suspense fallback={<ModernWidgetSkeleton />}>
+                    <ResponseTimeWidget />
+                  </Suspense>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Gelişmiş Analitik Widget'lar - İki Sütun */}
+          <section>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Gelir Trendi */}
+              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
+                <div className="p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        Gelir Trendi
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Son 6 aydaki gelir analizi
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
+                    </div>
+                  </div>
+                  <Suspense fallback={<ModernWidgetSkeleton />}>
+                    <RevenueTrendWidget />
+                  </Suspense>
+                </div>
+              </div>
+
+              {/* Günlük Kullanıcı Aktivitesi */}
+              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-gray-700/40 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
+                <div className="p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        Kullanıcı Aktivitesi
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Son 30 günlük işlem analizi
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <Suspense fallback={<ModernWidgetSkeleton />}>
+                    <UserActivityWidget />
                   </Suspense>
                 </div>
               </div>
