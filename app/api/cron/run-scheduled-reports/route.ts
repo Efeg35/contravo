@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sendReportEmail } from '@/lib/mail';
 import { renderToBuffer } from '@react-pdf/renderer';
@@ -8,8 +8,16 @@ import { createElement } from 'react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const cronParser = require('cron-parser');
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Check if request has proper authorization header
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     console.log('[CRON] Zamanlanmış raporlar kontrolü başlatıldı:', new Date().toISOString());
 
     // 1. Aktif zamanlamaları çek
@@ -181,7 +189,8 @@ async function generateReportData(configuration: any) {
     let data: any[] = [];
     
     if (dataSource === 'contracts') {
-      // Sözleşme verisi çek - basit
+      // Sözleşme verisi çek - SYSTEM ACCESS (All departments)
+      // Note: Cron jobs run with system privileges, showing aggregated data across all departments
       const contracts = await db.contract.findMany({
         orderBy: {
           createdAt: 'desc'
@@ -198,7 +207,8 @@ async function generateReportData(configuration: any) {
       }));
 
     } else if (dataSource === 'companies') {
-      // Şirket verisi çek - basit
+      // Şirket verisi çek - SYSTEM ACCESS (All companies)
+      // Note: System-level report, showing all companies
       const companies = await db.company.findMany({
         orderBy: {
           createdAt: 'desc'
@@ -214,7 +224,8 @@ async function generateReportData(configuration: any) {
       }));
 
     } else if (dataSource === 'users') {
-      // Kullanıcı verisi çek - basit
+      // Kullanıcı verisi çek - SYSTEM ACCESS (All users)
+      // Note: System-level report, showing all users (admin reports only)
       const users = await db.user.findMany({
         orderBy: {
           createdAt: 'desc'

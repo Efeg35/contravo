@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { getCurrentUser, userHasPermission } from '@/lib/auth-helpers';
+import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '@/lib/permissions';
+import { Prisma } from '@prisma/client';
 
 // Durum çevirileri için mapping
 const statusTranslations: { [key: string]: string } = {
@@ -30,12 +33,76 @@ const statusColors: { [key: string]: string } = {
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Check if user can view all contracts
+    const canViewAll = await userHasPermission(Permission.CONTRACT_VIEW_ALL);
+
+    // Build department-based where clause
+    const whereClause: Prisma.ContractWhereInput = (() => {
+      if (canViewAll) {
+        return {};
+      }
+
+      const accessConditions: Prisma.ContractWhereInput[] = [
+        { createdById: user.id }
+      ];
+
+      const companyAccess: Prisma.ContractWhereInput = {
+        company: {
+          OR: [
+            { createdById: user.id },
+            {
+              users: {
+                some: {
+                  userId: user.id
+                }
+              }
+            }
+          ]
+        }
+      };
+
+      if ((user as any).department && (user as any).departmentRole) {
+        const accessibleContractTypes: string[] = [];
+        
+        Object.entries(CONTRACT_TYPE_DEPARTMENT_MAPPING).forEach(([contractType, departments]) => {
+          if (departments.includes((user as any).department as Department)) {
+            if (PermissionManager.canAccessContractByType(
+              contractType, 
+              (user as any).department as Department, 
+              (user as any).departmentRole
+            )) {
+              accessibleContractTypes.push(contractType);
+            }
+          }
+        });
+
+        if (accessibleContractTypes.length > 0) {
+          accessConditions.push({
+            ...companyAccess,
+            type: {
+              in: accessibleContractTypes
+            }
+          });
+        }
+      } else {
+        accessConditions.push(companyAccess);
+      }
+
+      return { OR: accessConditions };
+    })();
+
     const statusData = await prisma.contract.groupBy({
       by: ['status'],
+      where: whereClause,
       _count: {
         status: true
       }
@@ -54,7 +121,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data,
-      total
+      total,
+      departmentInfo: {
+        department: (user as any).department,
+        canViewAll,
+        filteredByDepartment: !canViewAll
+      }
     });
 
   } catch (error) {

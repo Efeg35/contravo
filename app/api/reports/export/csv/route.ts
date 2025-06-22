@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { getCurrentUser, userHasPermission } from '@/lib/auth-helpers';
+import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '@/lib/permissions';
+import { Prisma } from '@prisma/client';
 
 // Veri kaynağına göre mevcut alanlar
 const AVAILABLE_FIELDS = {
@@ -38,6 +41,75 @@ interface Filter {
   field: string;
   operator: string;
   value: string;
+}
+
+// Build department-based access control
+async function buildDepartmentWhereClause(userId: string): Promise<Prisma.ContractWhereInput | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  // Check if user can view all contracts (ADMIN or OWNER)
+  const canViewAll = await userHasPermission(Permission.CONTRACT_VIEW_ALL);
+
+  if (canViewAll) {
+    return {}; // Can see all contracts
+  }
+
+  // Build department-based access control
+  const accessConditions: Prisma.ContractWhereInput[] = [
+    // User is the creator
+    { createdById: userId }
+  ];
+
+  // Company access
+  const companyAccess: Prisma.ContractWhereInput = {
+    company: {
+      OR: [
+        { createdById: userId },
+        {
+          users: {
+            some: {
+              userId: userId
+            }
+          }
+        }
+      ]
+    }
+  };
+
+  // If user has department and department role, add department-based filtering
+  if ((user as any).department && (user as any).departmentRole) {
+    // Get all contract types this department can access
+    const accessibleContractTypes: string[] = [];
+    
+    Object.entries(CONTRACT_TYPE_DEPARTMENT_MAPPING).forEach(([contractType, departments]) => {
+      if (departments.includes((user as any).department as Department)) {
+        // Check if user has permission to view this contract type
+        if (PermissionManager.canAccessContractByType(
+          contractType, 
+          (user as any).department as Department, 
+          (user as any).departmentRole
+        )) {
+          accessibleContractTypes.push(contractType);
+        }
+      }
+    });
+
+    if (accessibleContractTypes.length > 0) {
+      // Add department-filtered company contracts
+      accessConditions.push({
+        ...companyAccess,
+        type: {
+          in: accessibleContractTypes
+        }
+      });
+    }
+  } else {
+    // If no department role, fall back to basic company access
+    accessConditions.push(companyAccess);
+  }
+
+  return { OR: accessConditions };
 }
 
 // Güvenlik: İzin verilen alanları kontrol et
@@ -232,13 +304,30 @@ function createSelectObject(dataSource: string, fields: string[]): any {
   return selectObj;
 }
 
-// Veritabanından veri çek (filtrelerle birlikte)
-async function fetchReportData(dataSource: string, fields: string[], filters: Filter[] = []) {
+// Veritabanından veri çek (filtrelerle birlikte) - WITH DEPARTMENT SECURITY
+async function fetchReportData(dataSource: string, fields: string[], filters: Filter[] = [], userId: string) {
   try {
     const selectObj = createSelectObject(dataSource, fields);
     if (!selectObj) return [];
 
-    const whereClause = createWhereClause(dataSource, filters);
+    let whereClause = createWhereClause(dataSource, filters);
+
+    // CRITICAL: Apply department-based security filtering
+    if (dataSource === 'contracts') {
+      const departmentWhere = await buildDepartmentWhereClause(userId);
+      if (!departmentWhere) {
+        throw new Error('Department access control failed');
+      }
+      
+      // Combine filter clause with department security
+      if (Object.keys(whereClause).length > 0) {
+        whereClause = {
+          AND: [departmentWhere, whereClause]
+        };
+      } else {
+        whereClause = departmentWhere;
+      }
+    }
 
     switch (dataSource) {
       case 'contracts':
@@ -340,8 +429,8 @@ export async function GET(request: NextRequest) {
     const fields = fieldsParam.split(',').filter(Boolean);
     const filters = parseFilters(filtersParam || '');
     
-    // Veriyi çek
-    const reportData = await fetchReportData(dataSource, fields, filters);
+    // Veriyi çek - WITH USER ID FOR SECURITY
+    const reportData = await fetchReportData(dataSource, fields, filters, session.user.id);
     
     if (reportData.length === 0) {
       return new NextResponse('No data found', { status: 404 });
@@ -383,8 +472,8 @@ export async function POST(request: NextRequest) {
       return new NextResponse('Invalid parameters', { status: 400 });
     }
 
-    // Veriyi çek
-    const reportData = await fetchReportData(dataSource, fields);
+    // Veriyi çek - WITH USER ID FOR SECURITY
+    const reportData = await fetchReportData(dataSource, fields, [], session.user.id);
     
     if (reportData.length === 0) {
       return new NextResponse('No data found', { status: 404 });

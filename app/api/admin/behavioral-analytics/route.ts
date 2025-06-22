@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auditLogger, AuditLevel, AuditCategory } from '@/lib/audit-logger';
+import { checkPermissionOrThrow } from '@/lib/auth-helpers';
+import { Permission } from '@/lib/permissions';
 import {
   getBehavioralAnalyticsStats,
   generateBehavioralReport,
@@ -11,6 +13,9 @@ import {
 // GET /api/admin/behavioral-analytics - Get analytics stats and data
 export async function GET(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
     const userId = url.searchParams.get('userId');
@@ -98,6 +103,9 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/behavioral-analytics - Manage behavioral analytics
 export async function POST(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const body = await request.json();
     const { action, userId, anomalyId, data } = body;
 
@@ -263,6 +271,9 @@ export async function POST(request: NextRequest) {
 // PUT /api/admin/behavioral-analytics - Update configuration
 export async function PUT(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const body = await request.json();
     const { configType, config } = body;
 
@@ -337,6 +348,9 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/behavioral-analytics - Clean up data
 export async function DELETE(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
     const userId = url.searchParams.get('userId');

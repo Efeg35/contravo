@@ -1,21 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const resolvedParams = await params;
     const scheduleId = resolvedParams.id;
 
-    // Schedule'ın varlığını kontrol et
-    const schedule = await db.reportSchedule.findUnique({
-      where: { savedReportId: scheduleId }
+    // Schedule'ın varlığını ve kullanıcının erişim hakkını kontrol et
+    const schedule = await db.reportSchedule.findFirst({
+      where: { 
+        savedReportId: scheduleId
+      },
+      include: {
+        savedReport: true
+      }
     });
 
+    // Kullanıcının bu report'a erişim hakkı var mı kontrol et  
+    if (!schedule || schedule.savedReport.authorId !== session.user.id) {
+      return NextResponse.json({ error: 'Schedule bulunamadı veya erişim yetkiniz yok' }, { status: 404 });
+    }
+
     if (!schedule) {
-      return NextResponse.json({ error: 'Schedule bulunamadı' }, { status: 404 });
+      return NextResponse.json({ error: 'Schedule bulunamadı veya erişim yetkiniz yok' }, { status: 404 });
     }
 
     // Son 10 log kaydını çek

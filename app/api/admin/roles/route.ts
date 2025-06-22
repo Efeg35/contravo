@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { canManageUserRole } from '@/lib/auth-helpers';
+import { canManageUserRole, getCurrentUser } from '@/lib/auth-helpers';
 
 // Available roles
 const ROLES = ['ADMIN', 'EDITOR', 'VIEWER'] as const;
@@ -16,20 +16,46 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get current user for department filtering
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Build where clause with department filtering
+    const whereClause: any = ((currentUser as any).department !== 'Genel Müdürlük' && currentUser.role !== 'ADMIN') ? {
+      department: {
+        in: [(currentUser as any).department, 'Genel Müdürlük', 'Hukuk']
+      }
+    } : {};
+
     const users = await prisma.user.findMany({
+      where: whereClause,
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        department: true,
+        departmentRole: true,
         createdAt: true,
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [
+        { department: 'asc' },
+        { departmentRole: 'asc' },
+        { createdAt: 'desc' }
+      ],
     });
 
-    return NextResponse.json({ users, roles: ROLES });
+    return NextResponse.json({ 
+      users, 
+      roles: ROLES,
+      departmentInfo: {
+        currentUserDepartment: (currentUser as any).department,
+        canViewAllDepartments: (currentUser as any).department === 'Genel Müdürlük' || currentUser.role === 'ADMIN',
+        totalUsers: users.length
+      }
+    });
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

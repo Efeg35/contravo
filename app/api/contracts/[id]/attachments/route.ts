@@ -5,6 +5,8 @@ import { authOptions } from '../../../../../lib/auth'
 import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import crypto from 'crypto'
+import { getCurrentUser, userHasPermission } from '../../../../../lib/auth-helpers'
+import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '../../../../../lib/permissions'
 
 export async function POST(
   request: NextRequest,
@@ -130,28 +132,75 @@ export async function GET(
 
     const { id: contractId } = await params
 
-    // Check if user has access to this contract
-    const contract = await prisma.contract.findFirst({
-      where: {
-        id: contractId,
-        OR: [
-          { createdById: session.user.id },
-          {
+    // Get current user with department info
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Check if user can view all contracts
+    const canViewAll = await userHasPermission(Permission.CONTRACT_VIEW_ALL);
+
+    // Build department-based access control for contract
+    const contractAccessWhere: any = {
+      id: contractId,
+      ...((!canViewAll) ? {
+        OR: (() => {
+          const accessConditions: any[] = [
+            { createdById: user.id }
+          ];
+
+          const companyAccess = {
             company: {
               OR: [
-                { createdById: session.user.id },
+                { createdById: user.id },
                 {
                   users: {
                     some: {
-                      userId: session.user.id
+                      userId: user.id
                     }
                   }
                 }
               ]
             }
+          };
+
+          // If user has department and department role, add department-based filtering
+          if ((user as any).department && (user as any).departmentRole) {
+            const accessibleContractTypes: string[] = [];
+            
+            Object.entries(CONTRACT_TYPE_DEPARTMENT_MAPPING).forEach(([contractType, departments]) => {
+              if (departments.includes((user as any).department as Department)) {
+                if (PermissionManager.canAccessContractByType(
+                  contractType, 
+                  (user as any).department as Department, 
+                  (user as any).departmentRole
+                )) {
+                  accessibleContractTypes.push(contractType);
+                }
+              }
+            });
+
+            if (accessibleContractTypes.length > 0) {
+              accessConditions.push({
+                ...companyAccess,
+                type: {
+                  in: accessibleContractTypes
+                }
+              });
+            }
+          } else {
+            accessConditions.push(companyAccess);
           }
-        ]
-      }
+
+          return accessConditions;
+        })()
+      } : {})
+    };
+
+    // Check if user has access to this contract - WITH DEPARTMENT FILTERING
+    const contract = await prisma.contract.findFirst({
+      where: contractAccessWhere
     })
 
     if (!contract) {

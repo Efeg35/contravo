@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import prisma from '../../../../lib/prisma'
 import { authOptions } from '../../../../lib/auth'
 import { z } from 'zod'
+import { getCurrentUser, userHasPermission } from '../../../../lib/auth-helpers'
+import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '../../../../lib/permissions'
+import { Prisma } from '@prisma/client'
 
 const companyUpdateSchema = z.object({
   name: z.string().min(2, 'Company name must be at least 2 characters').optional(),
@@ -154,9 +157,82 @@ export async function DELETE(
 
     const { id } = await params
     
-    // Check if company has contracts
+    // Get current user for department filtering
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Check if user can view all contracts (ADMIN or OWNER)
+    const canViewAll = await userHasPermission(Permission.CONTRACT_VIEW_ALL);
+
+    // Build department-based where clause for contract count
+    let contractWhereClause: Prisma.ContractWhereInput = { companyId: id };
+
+    if (!canViewAll) {
+      // Build department-based access control
+      const accessConditions: Prisma.ContractWhereInput[] = [
+        // User is the creator
+        { createdById: user.id }
+      ];
+
+      // Company access
+      const companyAccess: Prisma.ContractWhereInput = {
+        company: {
+          OR: [
+            { createdById: user.id },
+            {
+              users: {
+                some: {
+                  userId: user.id
+                }
+              }
+            }
+          ]
+        }
+      };
+
+      // If user has department and department role, add department-based filtering
+      if ((user as any).department && (user as any).departmentRole) {
+        // Get all contract types this department can access
+        const accessibleContractTypes: string[] = [];
+        
+        Object.entries(CONTRACT_TYPE_DEPARTMENT_MAPPING).forEach(([contractType, departments]) => {
+          if (departments.includes((user as any).department as Department)) {
+            // Check if user has permission to view this contract type
+            if (PermissionManager.canAccessContractByType(
+              contractType, 
+              (user as any).department as Department, 
+              (user as any).departmentRole
+            )) {
+              accessibleContractTypes.push(contractType);
+            }
+          }
+        });
+
+        if (accessibleContractTypes.length > 0) {
+          // Add department-filtered company contracts
+          accessConditions.push({
+            ...companyAccess,
+            type: {
+              in: accessibleContractTypes
+            }
+          });
+        }
+      } else {
+        // If no department role, fall back to basic company access
+        accessConditions.push(companyAccess);
+      }
+
+      contractWhereClause = {
+        companyId: id,
+        OR: accessConditions
+      };
+    }
+    
+    // Check if company has contracts - WITH DEPARTMENT FILTERING
     const contractCount = await prisma.contract.count({
-      where: { companyId: id }
+      where: contractWhereClause
     })
 
     if (contractCount > 0) {

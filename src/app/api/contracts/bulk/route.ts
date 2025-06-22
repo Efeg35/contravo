@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
+import { getCurrentUser, userHasPermission } from '@/lib/auth-helpers';
+import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '@/lib/permissions';
+
 
 interface BulkAssignment {
   contractId: string;
@@ -9,8 +12,6 @@ interface BulkAssignment {
   status?: 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SIGNED' | 'ARCHIVED';
   type?: 'general' | 'procurement' | 'service' | 'sales' | 'employment' | 'partnership' | 'nda' | 'rental';
 }
-
-const prisma = new PrismaClient();
 
 // Toplu işlemler
 export async function POST(request: NextRequest) {
@@ -27,24 +28,91 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Geçersiz istek parametreleri' }, { status: 400 });
     }
 
-    // Kullanıcının yetki sahibi olduğu sözleşmeleri kontrol et
-    const userContracts = await prisma.contract.findMany({
-      where: {
-        id: { in: contractIds },
-        OR: [
-          { createdById: session.user.id },
-          {
-            company: {
-              users: {
-                some: {
-                  userId: session.user.id,
-                  role: { in: ['ADMIN', 'EDITOR'] }
-                }
+    // Get current user for department filtering
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Check if user can view all contracts
+    const canViewAll = await userHasPermission(Permission.CONTRACT_VIEW_ALL);
+
+    // Build department-based access control for bulk operations
+    const contractWhereClause: any = {
+      id: { in: contractIds }
+    };
+
+    if (!canViewAll) {
+      const accessConditions: any[] = [
+        // User is the creator
+        { createdById: user.id }
+      ];
+
+      // Company access
+      const companyAccess = {
+        company: {
+          users: {
+            some: {
+              userId: user.id,
+              role: { in: ['ADMIN', 'EDITOR'] }
+            }
+          }
+        }
+      };
+
+      // If user has department and department role, add department-based filtering
+      if ((user as any).department && (user as any).departmentRole) {
+        // Get all contract types this department can access
+        const accessibleContractTypes: string[] = [];
+        
+        Object.entries(CONTRACT_TYPE_DEPARTMENT_MAPPING).forEach(([contractType, departments]) => {
+          if (departments.includes((user as any).department as Department)) {
+            // Check if user has permission to view this contract type
+            if (PermissionManager.canAccessContractByType(
+              contractType, 
+              (user as any).department as Department, 
+              (user as any).departmentRole
+            )) {
+              accessibleContractTypes.push(contractType);
+            }
+          }
+        });
+
+        if (accessibleContractTypes.length > 0) {
+          // Add department-filtered company contracts
+          accessConditions.push({
+            ...companyAccess,
+            type: {
+              in: accessibleContractTypes
+            }
+          });
+        }
+      } else {
+        // If no department role, fall back to basic company access
+        accessConditions.push(companyAccess);
+      }
+
+      contractWhereClause.OR = accessConditions;
+    } else {
+      // Admin users can access all contracts but still need basic company access for bulk ops
+      contractWhereClause.OR = [
+        { createdById: user.id },
+        {
+          company: {
+            users: {
+              some: {
+                userId: user.id,
+                role: { in: ['ADMIN', 'EDITOR'] }
               }
             }
           }
-        ]
-      },
+        }
+      ];
+    }
+
+    // Kullanıcının yetki sahibi olduğu sözleşmeleri kontrol et - WITH DEPARTMENT FILTERING
+    const userContracts = await prisma.contract.findMany({
+      where: contractWhereClause,
       include: {
         createdBy: {
           select: { id: true, name: true, email: true }

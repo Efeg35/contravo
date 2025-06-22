@@ -13,10 +13,15 @@ import {
   AnonymizationTechnique
 } from '@/lib/data-protection';
 import { auditLogger, AuditLevel, AuditCategory } from '@/lib/audit-logger';
+import { checkPermissionOrThrow } from '@/lib/auth-helpers';
+import { Permission } from '@/lib/permissions';
 
 // GET /api/admin/data-protection - Get data protection stats and compliance info
 export async function GET(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
     const dataSubjectId = url.searchParams.get('dataSubjectId');
@@ -147,6 +152,9 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/data-protection - Manage data protection operations
 export async function POST(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const body = await request.json();
     const { action, dataSubjectId, data } = body;
 
@@ -351,6 +359,9 @@ export async function POST(request: NextRequest) {
 // PUT /api/admin/data-protection - Update data protection configuration
 export async function PUT(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const body = await request.json();
     const { configType, config } = body;
 
@@ -435,6 +446,9 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/data-protection - Data cleanup and deletion
 export async function DELETE(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
     const dataSubjectId = url.searchParams.get('dataSubjectId');

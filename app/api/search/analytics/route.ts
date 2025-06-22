@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSearchMetrics, getSearchInsights, getRealTimeSearchStats, exportSearchAnalytics } from '@/lib/search-analytics';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { checkPermissionOrThrow } from '@/lib/auth-helpers';
+import { Permission } from '@/lib/permissions';
 
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check admin permissions - only admins can see search analytics
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'metrics';
     const format = searchParams.get('format') as 'json' | 'csv' || 'json';

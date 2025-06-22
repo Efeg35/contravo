@@ -13,10 +13,15 @@ import {
   DetectionSource
 } from '@/lib/incident-response';
 import { auditLogger, AuditLevel, AuditCategory } from '@/lib/audit-logger';
+import { checkPermissionOrThrow } from '@/lib/auth-helpers';
+import { Permission } from '@/lib/permissions';
 
 // GET /api/admin/incident-response - Get incident response data
 export async function GET(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
     const incidentId = url.searchParams.get('incidentId');
@@ -130,6 +135,9 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/incident-response - Manage incident response operations
 export async function POST(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const body = await request.json();
     const { action, incidentId, data } = body;
 
@@ -359,6 +367,9 @@ export async function POST(request: NextRequest) {
 // PUT /api/admin/incident-response - Update incident response configuration
 export async function PUT(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const body = await request.json();
     const { configType, config } = body;
 
@@ -443,6 +454,9 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/incident-response - Cleanup and archival
 export async function DELETE(request: NextRequest) {
   try {
+    // Check admin permissions
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const url = new URL(request.url);
     const action = url.searchParams.get('action');
     const incidentId = url.searchParams.get('incidentId');

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { notificationQueue, sendEmail, sendBatchEmails, sendSMS, createNotification } from '../../../../lib/notification-queue';
 import { sendTemplatedSMS } from '../../../../lib/sms-service';
+import { checkPermissionOrThrow } from '@/lib/auth-helpers';
+import { Permission } from '@/lib/permissions';
 
 // GET - Queue statistics
 export async function GET() {
   try {
+    // Check admin permissions - only admins can see queue stats
+    await checkPermissionOrThrow(Permission.NOTIFICATION_MANAGE);
+
     const stats = await notificationQueue.getQueueStats();
     
     return NextResponse.json({
@@ -24,6 +29,9 @@ export async function GET() {
 // POST - Add job to queue
 export async function POST(request: NextRequest) {
   try {
+    // Check admin permissions - only admins can add jobs to queue
+    await checkPermissionOrThrow(Permission.NOTIFICATION_MANAGE);
+
     const body = await request.json();
     const { type, data } = body;
 

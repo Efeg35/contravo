@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { securityHeaders } from '@/lib/security-headers';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { checkPermissionOrThrow } from '@/lib/auth-helpers';
+import { Permission } from '@/lib/permissions';
 
 // CSP Violation Report interface
 interface CSPViolationReport {
@@ -82,6 +86,15 @@ export async function POST(request: NextRequest) {
 // GET /api/security/csp-report - Get CSP violation statistics (admin only)
 export async function GET() {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check admin permissions - only admins can see CSP violation stats
+    await checkPermissionOrThrow(Permission.SYSTEM_ADMIN);
+
     const stats = securityHeaders.getStats();
     
     return NextResponse.json({

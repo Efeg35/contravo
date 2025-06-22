@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { handleApiError, createSuccessResponse } from '@/lib/api-error-handler';
+import { getCurrentUser, userHasPermission } from '@/lib/auth-helpers';
+import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '@/lib/permissions';
+import { Prisma } from '@prisma/client';
 
 // 🚀 PROAKTIF DASHBOARD API - "Kör Depolama" Probleminin Çözümü
 export async function GET() {
@@ -16,6 +19,80 @@ export async function GET() {
       );
     }
 
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Check if user can view all contracts (ADMIN or OWNER)
+    const canViewAll = await userHasPermission(Permission.CONTRACT_VIEW_ALL);
+
+    // Build department-based access control
+    const getBaseWhereClause = (additionalWhere: Prisma.ContractWhereInput = {}): Prisma.ContractWhereInput => {
+      if (canViewAll) {
+        return additionalWhere; // Can see all contracts
+      }
+
+      // Build department-based access control
+      const accessConditions: Prisma.ContractWhereInput[] = [
+        // User is the creator
+        { createdById: user.id }
+      ];
+
+      // Company access
+      const companyAccess: Prisma.ContractWhereInput = {
+        company: {
+          OR: [
+            { createdById: user.id },
+            {
+              users: {
+                some: {
+                  userId: user.id
+                }
+              }
+            }
+          ]
+        }
+      };
+
+      // If user has department and department role, add department-based filtering
+      if ((user as any).department && (user as any).departmentRole) {
+        // Get all contract types this department can access
+        const accessibleContractTypes: string[] = [];
+        
+        Object.entries(CONTRACT_TYPE_DEPARTMENT_MAPPING).forEach(([contractType, departments]) => {
+          if (departments.includes((user as any).department as Department)) {
+            // Check if user has permission to view this contract type
+            if (PermissionManager.canAccessContractByType(
+              contractType, 
+              (user as any).department as Department, 
+              (user as any).departmentRole
+            )) {
+              accessibleContractTypes.push(contractType);
+            }
+          }
+        });
+
+        if (accessibleContractTypes.length > 0) {
+          // Add department-filtered company contracts
+          accessConditions.push({
+            ...companyAccess,
+            type: {
+              in: accessibleContractTypes
+            }
+          });
+        }
+      } else {
+        // If no department role, fall back to basic company access
+        accessConditions.push(companyAccess);
+      }
+
+      return {
+        ...additionalWhere,
+        OR: accessConditions
+      };
+    };
+
     const today = new Date();
     
     // 🔔 YAKLAŞAN TARİHLER - Çoklu Seviyeli Hatırlatma
@@ -27,158 +104,101 @@ export async function GET() {
       overdueContracts, // 🔴 Süresi Dolmuş
       renewalsDue       // 🔄 Yenilemesi Gelen
     ] = await Promise.all([
-      // Kritik: 7 gün içinde bitenler
+      // Kritik: 7 gün içinde bitenler - WITH DEPARTMENT FILTERING
       prisma.contract.findMany({
-        where: {
-          OR: [
-            { createdById: session.user.id },
-            {
-              company: {
-                OR: [
-                  { createdById: session.user.id },
-                  {
-                    users: {
-                      some: { userId: session.user.id }
-                    }
-                  }
-                ]
-              }
-            }
-          ],
+        where: getBaseWhereClause({
           status: { in: ['APPROVED', 'SIGNED'] },
           endDate: {
             gte: today,
             lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
           }
-        },
+        }),
         select: {
           id: true,
           title: true,
           endDate: true,
           type: true,
           otherPartyName: true,
-          value: true
+          value: true,
+          createdBy: {
+            select: {
+              name: true,
+              department: true
+            }
+          }
         },
         orderBy: { endDate: 'asc' },
         take: 10
       }),
 
-      // Acil: 30 gün içinde bitenler  
+      // Acil: 30 gün içinde bitenler - WITH DEPARTMENT FILTERING
       prisma.contract.findMany({
-        where: {
-          OR: [
-            { createdById: session.user.id },
-            {
-              company: {
-                OR: [
-                  { createdById: session.user.id },
-                  {
-                    users: {
-                      some: { userId: session.user.id }
-                    }
-                  }
-                ]
-              }
-            }
-          ],
+        where: getBaseWhereClause({
           status: { in: ['APPROVED', 'SIGNED'] },
           endDate: {
             gt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
           }
-        },
+        }),
         select: {
           id: true,
           title: true,
           endDate: true,
           type: true,
-          otherPartyName: true
+          otherPartyName: true,
+          createdBy: {
+            select: {
+              name: true,
+              department: true
+            }
+          }
         },
         orderBy: { endDate: 'asc' },
         take: 5
       }),
 
-      // Yaklaşan: 60 gün içinde bitenler
+      // Yaklaşan: 60 gün içinde bitenler - WITH DEPARTMENT FILTERING
       prisma.contract.count({
-        where: {
-          OR: [
-            { createdById: session.user.id },
-            {
-              company: {
-                OR: [
-                  { createdById: session.user.id },
-                  {
-                    users: {
-                      some: { userId: session.user.id }
-                    }
-                  }
-                ]
-              }
-            }
-          ],
+        where: getBaseWhereClause({
           status: { in: ['APPROVED', 'SIGNED'] },
           endDate: {
             gt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             lte: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
           }
-        }
+        })
       }),
 
-      // Planlama: 90 gün içinde bitenler
+      // Planlama: 90 gün içinde bitenler - WITH DEPARTMENT FILTERING
       prisma.contract.count({
-        where: {
-          OR: [
-            { createdById: session.user.id },
-            {
-              company: {
-                OR: [
-                  { createdById: session.user.id },
-                  {
-                    users: {
-                      some: { userId: session.user.id }
-                    }
-                  }
-                ]
-              }
-            }
-          ],
+        where: getBaseWhereClause({
           status: { in: ['APPROVED', 'SIGNED'] },
           endDate: {
             gt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
             lte: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
           }
-        }
+        })
       }),
 
-      // Süresi dolmuş ama henüz arşivlenmemiş
+      // Süresi dolmuş ama henüz arşivlenmemiş - WITH DEPARTMENT FILTERING
       prisma.contract.findMany({
-        where: {
-          OR: [
-            { createdById: session.user.id },
-            {
-              company: {
-                OR: [
-                  { createdById: session.user.id },
-                  {
-                    users: {
-                      some: { userId: session.user.id }
-                    }
-                  }
-                ]
-              }
-            }
-          ],
+        where: getBaseWhereClause({
           status: { in: ['APPROVED', 'SIGNED'] },
           endDate: {
             lt: today
           }
-        },
+        }),
         select: {
           id: true,
           title: true,
           endDate: true,
           type: true,
-          otherPartyName: true
+          otherPartyName: true,
+          createdBy: {
+            select: {
+              name: true,
+              department: true
+            }
+          }
         },
         orderBy: { endDate: 'desc' },
         take: 5
@@ -188,26 +208,11 @@ export async function GET() {
       Promise.resolve([])
     ]);
 
-    // 📊 İSTATİSTİKLER VE TRENDLERİ
+    // 📊 İSTATİSTİKLER VE TRENDLERİ - WITH DEPARTMENT FILTERING
     const totalActive = await prisma.contract.count({
-      where: {
-        OR: [
-          { createdById: session.user.id },
-          {
-            company: {
-              OR: [
-                { createdById: session.user.id },
-                {
-                  users: {
-                    some: { userId: session.user.id }
-                  }
-                }
-              ]
-            }
-          }
-        ],
+      where: getBaseWhereClause({
         status: { in: ['APPROVED', 'SIGNED'] }
-      }
+      })
     });
 
     // 💰 TOPLAM DEĞERLENDİRME
