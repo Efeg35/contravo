@@ -31,7 +31,12 @@ export async function GET() {
         variables: true,
         _count: {
           select: {
-            usageStats: true
+            usageStats: true,
+            contracts: {
+              where: {
+                isModified: true
+              }
+            }
           }
         }
       },

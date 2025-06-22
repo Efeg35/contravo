@@ -483,6 +483,7 @@ model Clause {
   approvalStatus String           @default("DRAFT")
   isActive       Boolean          @default(true)
   version        Int              @default(1)
+  usageCount     Int              @default(0)
   createdById    String
   companyId      String?
   parentClauseId String?
@@ -635,9 +636,11 @@ model ClausesOnContracts {
   clause     Clause   @relation(fields: [clauseId], references: [id], onDelete: Cascade)
   clauseId   String
   addedAt    DateTime @default(now())
+  isModified Boolean  @default(false)
 
   @@id([contractId, clauseId])
   @@index([contractId])
   @@index([clauseId])
   @@index([addedAt])
+  @@index([isModified])
 }

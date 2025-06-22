@@ -172,17 +172,29 @@ export async function POST(
       return NextResponse.json({ error: 'Bu clause zaten sözleşmede mevcut' }, { status: 400 });
     }
 
-    // Create the relationship
-    await db.contract.update({
-      where: { id: contractId },
-      data: {
-        clauses: {
-          create: {
-            clauseId: clauseId
+    // Create the relationship and increment usage count
+    await db.$transaction([
+      // Add clause to contract
+      db.contract.update({
+        where: { id: contractId },
+        data: {
+          clauses: {
+            create: {
+              clauseId: clauseId
+            }
           }
         }
-      }
-    });
+      }),
+      // Increment clause usage count
+      db.clause.update({
+        where: { id: clauseId },
+        data: {
+          usageCount: {
+            increment: 1
+          }
+        }
+      })
+    ]);
 
     // Get the created relation with clause details
     const updatedContract = await db.contract.findFirst({

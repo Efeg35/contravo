@@ -32,6 +32,7 @@ interface Clause {
   approvalStatus: string;
   isActive: boolean;
   version: number;
+  usageCount: number;
   createdBy: {
     name: string;
     email: string;
@@ -41,6 +42,9 @@ interface Clause {
   };
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    modifiedUsages: number;
+  };
 }
 
 interface ClauseFormData {
@@ -317,6 +321,18 @@ const AdminClausesPage = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Görünürlük</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div className="flex items-center justify-center gap-1">
+                        <TrendingUp className="h-4 w-4" />
+                        Kullanım
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div className="flex items-center justify-center gap-1">
+                        <Edit className="h-4 w-4" />
+                        Değiştirilme %
+                      </div>
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oluşturan</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
@@ -341,6 +357,34 @@ const AdminClausesPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(clause.approvalStatus, clause.isActive)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="inline-flex items-center gap-2">
+                          <span className="text-2xl font-bold text-blue-600">{clause.usageCount || 0}</span>
+                          <span className="text-xs text-gray-500">kez</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {(() => {
+                          const usageCount = clause.usageCount || 0;
+                          const modifiedCount = clause._count?.modifiedUsages || 0;
+                          const modificationRate = usageCount > 0 ? Math.round((modifiedCount / usageCount) * 100) : 0;
+                          
+                          return (
+                            <div className="inline-flex items-center gap-2">
+                              <span className={`text-lg font-semibold ${
+                                modificationRate > 50 ? 'text-red-600' : 
+                                modificationRate > 25 ? 'text-yellow-600' : 
+                                'text-green-600'
+                              }`}>
+                                %{modificationRate}
+                              </span>
+                              <div className="text-xs text-gray-500">
+                                {modifiedCount}/{usageCount}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
