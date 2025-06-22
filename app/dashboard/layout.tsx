@@ -19,6 +19,8 @@ import {
   BellIcon,
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
+  PlusIcon,
+  FolderIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavigationItem {
@@ -50,70 +52,6 @@ export default function DashboardLayout({
 
   const isAdmin = session?.user?.role === 'ADMIN';
 
-  const navigation: NavigationItem[] = [
-    {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: HomeIcon,
-      current: pathname === '/dashboard',
-    },
-    {
-      name: 'Depo',
-      icon: DocumentTextIcon,
-      children: [
-        {
-          name: 'Sözleşmeler',
-          href: '/dashboard/contracts',
-          icon: DocumentTextIcon,
-          current: pathname.startsWith('/dashboard/contracts'),
-        },
-        {
-          name: 'Şirketler',
-          href: '/dashboard/companies',
-          icon: BuildingOfficeIcon,
-          current: pathname.startsWith('/dashboard/companies'),
-        },
-        {
-          name: 'Şablonlar',
-          href: '/dashboard/templates',
-          icon: DocumentDuplicateIcon,
-          current: pathname.startsWith('/dashboard/templates'),
-        },
-      ],
-    },
-    {
-      name: 'Raporlar',
-      href: '/dashboard/reports',
-      icon: ChartBarIcon,
-      current: pathname.startsWith('/dashboard/reports'),
-    },
-    {
-      name: 'Yönetici',
-      icon: Cog6ToothIcon,
-      requiresAdmin: true,
-      children: [
-        {
-          name: 'Kullanıcı Yönetimi',
-          href: '/dashboard/admin/users',
-          icon: UsersIcon,
-          current: pathname.startsWith('/dashboard/admin/users'),
-        },
-        {
-          name: 'Takım Yönetimi',
-          href: '/dashboard/admin/teams',
-          icon: UsersIcon,
-          current: pathname.startsWith('/dashboard/admin/teams'),
-        },
-        {
-          name: 'Madde Kütüphanesi',
-          href: '/dashboard/clauses',
-          icon: BookOpenIcon,
-          current: pathname.startsWith('/dashboard/clauses'),
-        },
-      ],
-    },
-  ];
-
   const toggleDropdown = (name: string) => {
     setOpenDropdowns(prev =>
       prev.includes(name)
@@ -125,6 +63,18 @@ export default function DashboardLayout({
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' });
   };
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdowns([]);
+    };
+
+    if (openDropdowns.length > 0) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openDropdowns]);
 
   if (status === 'loading') {
     return (
@@ -144,10 +94,11 @@ export default function DashboardLayout({
       <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo and Main Navigation */}
+            
+            {/* Left Side - Logo and Main Navigation */}
             <div className="flex items-center space-x-8">
               {/* Logo */}
-              <Link href="/dashboard" className="flex items-center">
+              <Link href="/dashboard" className="flex items-center flex-shrink-0">
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                   <DocumentTextIcon className="w-5 h-5 text-white" />
                 </div>
@@ -156,92 +107,248 @@ export default function DashboardLayout({
 
               {/* Main Navigation Menu */}
               <div className="hidden md:flex items-center space-x-1">
-                {navigation.map((item) => {
-                  if (item.requiresAdmin && !isAdmin) return null;
+                {/* Dashboard Link */}
+                <Link
+                  href="/dashboard"
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/dashboard'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <HomeIcon className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Link>
 
-                  if (item.children) {
-                    const isOpen = openDropdowns.includes(item.name);
-                    const hasActivChild = item.children.some(child => child.current);
-                    
-                    return (
-                      <div key={item.name} className="relative">
-                        <button
-                          onClick={() => toggleDropdown(item.name)}
-                          className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                            hasActivChild || isOpen
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                          }`}
-                        >
-                          <item.icon className="w-4 h-4 mr-2" />
-                          {item.name}
-                          <ChevronDownIcon 
-                            className={`w-4 h-4 ml-1 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
-                          />
-                        </button>
+                {/* Repository Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleDropdown('repository');
+                    }}
+                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      pathname.startsWith('/dashboard/contracts') || 
+                      pathname.startsWith('/dashboard/companies') || 
+                      pathname.startsWith('/dashboard/templates') ||
+                      openDropdowns.includes('repository')
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <FolderIcon className="w-4 h-4 mr-2" />
+                    Depo
+                    <ChevronDownIcon 
+                      className={`w-4 h-4 ml-1 transition-transform ${
+                        openDropdowns.includes('repository') ? 'rotate-180' : ''
+                      }`} 
+                    />
+                  </button>
 
-                        {/* Dropdown Menu */}
-                        {isOpen && (
-                          <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                            {item.children.map((child) => (
-                              <Link
-                                key={child.name}
-                                href={child.href!}
-                                className={`flex items-center px-4 py-2 text-sm transition-colors ${
-                                  child.current
-                                    ? 'bg-blue-50 text-blue-700'
-                                    : 'text-gray-700 hover:bg-gray-50'
-                                }`}
-                                onClick={() => setOpenDropdowns([])}
-                              >
-                                <child.icon className="w-4 h-4 mr-3" />
-                                {child.name}
-                              </Link>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
+                  {/* Repository Dropdown Menu */}
+                  {openDropdowns.includes('repository') && (
+                    <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                      <Link
+                        href="/dashboard/contracts"
+                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                          pathname.startsWith('/dashboard/contracts')
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setOpenDropdowns([])}
+                      >
+                        <DocumentTextIcon className="w-4 h-4 mr-3" />
+                        Sözleşmeler
+                      </Link>
+                      <Link
+                        href="/dashboard/companies"
+                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                          pathname.startsWith('/dashboard/companies')
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setOpenDropdowns([])}
+                      >
+                        <BuildingOfficeIcon className="w-4 h-4 mr-3" />
+                        Şirketler
+                      </Link>
+                      <Link
+                        href="/dashboard/templates"
+                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                          pathname.startsWith('/dashboard/templates')
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setOpenDropdowns([])}
+                      >
+                        <DocumentDuplicateIcon className="w-4 h-4 mr-3" />
+                        Şablonlar
+                      </Link>
+                    </div>
+                  )}
+                </div>
 
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href!}
-                      className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        item.current
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      <item.icon className="w-4 h-4 mr-2" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
+                {/* Insights/Reports Link */}
+                <Link
+                  href="/dashboard/reports"
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname.startsWith('/dashboard/reports')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <ChartBarIcon className="w-4 h-4 mr-2" />
+                  Raporlar
+                </Link>
               </div>
             </div>
 
-            {/* Right Side - Notifications and User Menu */}
-            <div className="flex items-center space-x-4">
-              {/* Notifications */}
-              <Link
-                href="/dashboard/notifications"
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
-              >
-                <BellIcon className="w-5 h-5" />
-              </Link>
-
-              {/* User Menu */}
+            {/* Right Side - Action Buttons and User Menu */}
+            <div className="flex items-center space-x-3">
+              
+              {/* + New Button */}
               <div className="relative">
                 <button
-                  onClick={() => toggleDropdown('user')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleDropdown('new');
+                  }}
+                  className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  <PlusIcon className="w-4 h-4 mr-1" />
+                  Yeni
+                </button>
+
+                {/* New Dropdown Menu */}
+                {openDropdowns.includes('new') && (
+                  <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                    <Link
+                      href="/dashboard/contracts/new"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setOpenDropdowns([])}
+                    >
+                      <DocumentTextIcon className="w-4 h-4 mr-3" />
+                      Yeni Sözleşme
+                    </Link>
+                    <Link
+                      href="/dashboard/companies/new"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setOpenDropdowns([])}
+                    >
+                      <BuildingOfficeIcon className="w-4 h-4 mr-3" />
+                      Yeni Şirket
+                    </Link>
+                    <Link
+                      href="/dashboard/templates"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setOpenDropdowns([])}
+                    >
+                      <DocumentDuplicateIcon className="w-4 h-4 mr-3" />
+                      Yeni Şablon
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Notification Bell */}
+              <button
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors relative"
+                title="Bildirimler"
+              >
+                <BellIcon className="w-5 h-5" />
+                {/* You can add notification badge here */}
+                {/* <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span> */}
+              </button>
+
+              {/* Admin Menu - Only visible to ADMIN users */}
+              {isAdmin && (
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleDropdown('admin');
+                    }}
+                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      pathname.startsWith('/dashboard/admin') ||
+                      pathname.startsWith('/dashboard/clauses') ||
+                      openDropdowns.includes('admin')
+                        ? 'bg-orange-50 text-orange-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Cog6ToothIcon className="w-4 h-4 mr-1" />
+                    Yönetici
+                    <ChevronDownIcon 
+                      className={`w-4 h-4 ml-1 transition-transform ${
+                        openDropdowns.includes('admin') ? 'rotate-180' : ''
+                      }`} 
+                    />
+                  </button>
+
+                  {/* Admin Dropdown Menu */}
+                  {openDropdowns.includes('admin') && (
+                    <div className="absolute top-full right-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                      <Link
+                        href="/dashboard/admin/users"
+                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                          pathname.startsWith('/dashboard/admin/users')
+                            ? 'bg-orange-50 text-orange-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setOpenDropdowns([])}
+                      >
+                        <UsersIcon className="w-4 h-4 mr-3" />
+                        Kullanıcı Yönetimi
+                      </Link>
+                      <Link
+                        href="/dashboard/admin/teams"
+                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                          pathname.startsWith('/dashboard/admin/teams')
+                            ? 'bg-orange-50 text-orange-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setOpenDropdowns([])}
+                      >
+                        <UsersIcon className="w-4 h-4 mr-3" />
+                        Takım Yönetimi
+                      </Link>
+                      <Link
+                        href="/dashboard/admin/clauses"
+                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                          pathname.startsWith('/dashboard/admin/clauses')
+                            ? 'bg-orange-50 text-orange-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setOpenDropdowns([])}
+                      >
+                        <BookOpenIcon className="w-4 h-4 mr-3" />
+                        Madde Kütüphanesi
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* User Profile Menu */}
+              <div className="relative">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleDropdown('user');
+                  }}
                   className="flex items-center space-x-2 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
                 >
-                  <UserCircleIcon className="w-6 h-6" />
-                  <span className="hidden sm:block text-sm font-medium">
-                    {session.user?.name || session.user?.email}
-                  </span>
+                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                    <UserCircleIcon className="w-6 h-6 text-gray-600" />
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <div className="text-sm font-medium text-gray-900">
+                      {session.user?.name || 'Kullanıcı'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {session.user?.email}
+                    </div>
+                  </div>
                   <ChevronDownIcon className="w-4 h-4" />
                 </button>
 
@@ -254,8 +361,9 @@ export default function DashboardLayout({
                       onClick={() => setOpenDropdowns([])}
                     >
                       <UserCircleIcon className="w-4 h-4 mr-3" />
-                      Profil
+                      Ayarlar
                     </Link>
+                    <hr className="my-1 border-gray-200" />
                     <button
                       onClick={handleSignOut}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -269,14 +377,6 @@ export default function DashboardLayout({
             </div>
           </div>
         </div>
-
-        {/* Click outside to close dropdowns */}
-        {openDropdowns.length > 0 && (
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setOpenDropdowns([])}
-          />
-        )}
       </nav>
 
       {/* Main Content */}
