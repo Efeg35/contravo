@@ -196,14 +196,21 @@ export async function PUT(
     }
 
     // 🔒 GÜVENLİK KONTROLÜ: İmzalanmış sözleşmeler düzenlenemez!
+    // Ancak SIGNED -> ARCHIVED status değişikliğine izin ver
     if (existingContract.status === 'SIGNED') {
-      return NextResponse.json(
-        { 
-          error: 'İmzalanmış sözleşmeler düzenlenemez',
-          message: 'Bu sözleşme imzalanmış olduğu için düzenleyemezsiniz. Değişiklik yapmak için "Değişiklik Yap" butonunu kullanın.'
-        }, 
-        { status: 403 }
-      )
+      const isArchivingOnly = validatedData.status === 'ARCHIVED' && 
+        Object.keys(validatedData).length === 1 && 
+        Object.keys(validatedData)[0] === 'status';
+      
+      if (!isArchivingOnly) {
+        return NextResponse.json(
+          { 
+            error: 'İmzalanmış sözleşmeler düzenlenemez',
+            message: 'Bu sözleşme imzalanmış olduğu için düzenleyemezsiniz. Değişiklik yapmak için "Değişiklik Yap" butonunu kullanın.'
+          }, 
+          { status: 403 }
+        )
+      }
     }
 
     // Transaction ile onaycıları ve sözleşmeyi güncelle

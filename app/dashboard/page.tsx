@@ -61,6 +61,7 @@ interface FilterStats {
   assignedToMe: number;
   participating: number;
   completed: number;
+  archived: number;
   overdue: number;
   expiringSoon: number;
   procurementRfp: number;
@@ -154,6 +155,13 @@ export default function TaskFocusedDashboard() {
       count: filterStats?.completed || 1803,
       icon: CheckIcon,
       color: 'text-gray-600'
+    },
+    { 
+      key: 'archived', 
+      label: 'Archived', 
+      count: filterStats?.archived || 0,
+      icon: CalendarIcon,
+      color: 'text-gray-500'
     },
     { 
       key: 'overdue', 

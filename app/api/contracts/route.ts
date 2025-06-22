@@ -219,7 +219,10 @@ export async function GET(request: NextRequest) {
           ]
           break
         case 'completed':
-          whereClause.status = { in: ['SIGNED', 'ARCHIVED'] }
+          whereClause.status = 'SIGNED'
+          break
+        case 'archived':
+          whereClause.status = 'ARCHIVED'
           break
         case 'overdue':
           whereClause.OR = [

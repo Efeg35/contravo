@@ -116,7 +116,13 @@ export async function GET(request: NextRequest) {
     const completedCount = await prisma.contract.count({
       where: { 
         ...baseWhere,
-        status: { in: ['SIGNED', 'ARCHIVED'] } 
+        status: 'SIGNED'
+      }
+    });
+    const archivedCount = await prisma.contract.count({
+      where: { 
+        ...baseWhere,
+        status: 'ARCHIVED'
       }
     });
     const overdueCount = await prisma.contract.count({
@@ -182,7 +188,7 @@ export async function GET(request: NextRequest) {
     const ytdCompletedCount = await prisma.contract.count({
       where: { 
         ...baseWhere,
-        status: { in: ['SIGNED', 'ARCHIVED'] },
+        status: 'SIGNED',
         updatedAt: { gte: new Date(new Date().getFullYear(), 0, 1) }
       }
     });
@@ -193,6 +199,7 @@ export async function GET(request: NextRequest) {
       assignedToMe: assignedToMeCount,
       participating: participatingCount,
       completed: completedCount,
+      archived: archivedCount,
       overdue: overdueCount,
       expiringSoon: expiringSoonCount,
       procurementRfp: procurementRfpCount,

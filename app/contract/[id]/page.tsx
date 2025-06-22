@@ -422,6 +422,45 @@ export default function ContractFocusPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Archive Action - Only show for SIGNED contracts */}
+                {contract.status === 'SIGNED' && (
+                  <div className="border-t border-gray-200 pt-6">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">Sözleşme Yönetimi</h3>
+                    <button
+                      onClick={async () => {
+                        if (confirm('Bu sözleşmeyi arşive göndermek istediğinizden emin misiniz?')) {
+                          try {
+                            const response = await fetch(`/api/contracts/${contractId}`, {
+                              method: 'PUT',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({ 
+                                status: 'ARCHIVED'
+                              }),
+                            });
+                            
+                            if (response.ok) {
+                              // Refresh contract data
+                              fetchContract();
+                              alert('Sözleşme başarıyla arşive gönderildi.');
+                            } else {
+                              alert('Arşive gönderme sırasında hata oluştu.');
+                            }
+                          } catch (error) {
+                            console.error('Error archiving contract:', error);
+                            alert('Arşive gönderme sırasında hata oluştu.');
+                          }
+                        }
+                      }}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      <CalendarIcon className="w-4 h-4" />
+                      <span>Arşive Gönder</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
