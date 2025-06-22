@@ -92,7 +92,7 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-gray-50">
       {/* Top Navigation Bar */}
       <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             
             {/* Left Side - Logo and Main Navigation */}
@@ -256,8 +256,6 @@ export default function DashboardLayout({
                 title="Bildirimler"
               >
                 <BellIcon className="w-5 h-5" />
-                {/* You can add notification badge here */}
-                {/* <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span> */}
               </button>
 
               {/* Admin Menu - Only visible to ADMIN users */}
@@ -380,7 +378,7 @@ export default function DashboardLayout({
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full">
         {children}
       </main>
     </div>
