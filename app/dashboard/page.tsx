@@ -119,6 +119,11 @@ export default function TaskFocusedDashboard() {
   const [sortBy, setSortBy] = useState('lastActivity');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showAIInsights, setShowAIInsights] = useState(false);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const contractsPerPage = 12;
 
   const filterOptions = [
     { 
@@ -201,14 +206,15 @@ export default function TaskFocusedDashboard() {
   useEffect(() => {
     fetchContracts();
     fetchFilterStats();
-  }, [currentView, sortBy, sortOrder]);
+  }, [currentView, sortBy, sortOrder, currentPage]);
 
   const fetchContracts = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
         view: currentView,
-        limit: '50',
+        limit: contractsPerPage.toString(),
+        page: currentPage.toString(),
         sortBy: sortBy,
         order: sortOrder,
         ...(searchQuery && { search: searchQuery })
@@ -217,7 +223,9 @@ export default function TaskFocusedDashboard() {
       const response = await fetch(`/api/contracts?${params}`);
         if (response.ok) {
           const data = await response.json();
-        setContracts(data.contracts || []);
+          setContracts(data.contracts || []);
+          setTotalCount(data.pagination?.totalCount || 0);
+          setTotalPages(data.pagination?.totalPages || 1);
         }
       } catch (error) {
       console.error('Error fetching contracts:', error);
@@ -239,9 +247,27 @@ export default function TaskFocusedDashboard() {
   };
 
   const handleFilterChange = (filterKey: string) => {
+    setCurrentPage(1); // Reset to first page when filter changes
     const url = new URL(window.location.href);
     url.searchParams.set('view', filterKey);
     router.push(url.pathname + url.search);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      handlePageChange(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      handlePageChange(currentPage + 1);
+    }
   };
 
   const handleSelectContract = (contractId: string) => {
@@ -353,7 +379,7 @@ export default function TaskFocusedDashboard() {
 
   const SortableHeader = ({ column, children, className = "" }: { column: string, children: React.ReactNode, className?: string }) => (
     <th 
-      className={`px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 ${className}`}
+      className={`px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 ${className}`}
       onClick={() => handleSort(column)}
     >
       <div className="flex items-center space-x-1">
@@ -373,7 +399,7 @@ export default function TaskFocusedDashboard() {
     const currentStageLabel = CONTRACT_STAGES[currentStageIndex]?.label || 'Bilinmiyor';
     
     return (
-      <div className="flex flex-col space-y-1 items-center">
+      <div className="flex flex-col items-center">
         <div className="flex items-center space-x-1">
           {CONTRACT_STAGES.map((stage, index) => {
             const isCompleted = index <= currentStageIndex;
@@ -382,9 +408,9 @@ export default function TaskFocusedDashboard() {
             return (
               <div key={stage.key} className="flex items-center">
                 <div 
-                  className={`relative w-2 h-2 rounded-full transition-all duration-200 group ${
+                  className={`relative w-1.5 h-1.5 rounded-full transition-all duration-200 group ${
                     isCurrent 
-                      ? 'w-2.5 h-2.5 bg-blue-500 ring-2 ring-blue-200' 
+                      ? 'w-2 h-2 bg-blue-500 ring-1 ring-blue-200' 
                       : isCompleted 
                         ? 'bg-green-400' 
                         : 'bg-gray-300'
@@ -392,7 +418,7 @@ export default function TaskFocusedDashboard() {
                   title={stage.label}
                 >
                   {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-1.5 py-0.5 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
                     {stage.label}
                   </div>
                 </div>
@@ -400,7 +426,7 @@ export default function TaskFocusedDashboard() {
                 {/* Connection line between stages */}
                 {index < CONTRACT_STAGES.length - 1 && (
                   <div 
-                    className={`w-3 h-0.5 ${
+                    className={`w-2 h-0.5 ${
                       index < currentStageIndex ? 'bg-green-400' : 'bg-gray-300'
                     }`}
                   />
@@ -410,7 +436,7 @@ export default function TaskFocusedDashboard() {
           })}
         </div>
         {/* Current stage label - perfectly centered */}
-        <div className="text-xs text-gray-600 text-center w-full">
+        <div className="text-xs text-gray-600 text-center w-full mt-0.5">
           {currentStageLabel}
         </div>
       </div>
@@ -552,9 +578,9 @@ export default function TaskFocusedDashboard() {
         {/* Main Content - Full width with left margin for sidebar */}
       <div className="w-full flex flex-col overflow-hidden min-w-0 ml-64 h-[calc(100vh-4rem)]">
                   {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-6 py-2 shrink-0">
+          <div className="bg-white border-b border-gray-200 pl-0 pr-6 py-2 shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 pl-6">
               <h1 className="text-xl font-semibold text-gray-900">
                 {filterOptions.find(f => f.key === currentView)?.label || 'All Workflows'}
               </h1>
@@ -609,7 +635,12 @@ export default function TaskFocusedDashboard() {
                   placeholder="Search for a workflow..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && fetchContracts()}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      setCurrentPage(1); // Reset to first page when searching
+                      fetchContracts();
+                    }
+                  }}
                   className="w-80 pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -685,23 +716,23 @@ export default function TaskFocusedDashboard() {
         </div>
 
                   {/* Table Container - Now with horizontal scroll capability */}
-          <div className="flex-1 overflow-auto px-4">
+          <div className="flex-1 overflow-auto">
                       <table className="min-w-[1200px] bg-white table-fixed text-left">
             <thead className="bg-gray-50 sticky top-0">
               <tr>
                                   {showCheckboxes && (
-                  <th className="px-1 py-2 w-8 text-left">
+                  <th className="pl-6 pr-1 py-1.5 w-8 text-left">
                     <input
                       type="checkbox"
                       checked={selectedContracts.length === contracts.length && contracts.length > 0}
                       onChange={handleSelectAll}
-                      className="rounded border-gray-300 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      className="rounded border-gray-300 h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
                   </th>
                 )}
 
                 {visibleColumns.workflowName && (
-                  <SortableHeader column="title" className="w-80 border-r border-gray-200">
+                  <SortableHeader column="title" className={`w-80 border-r border-gray-200 ${showCheckboxes ? '' : 'pl-6'}`}>
                     WORKFLOW NAME
                   </SortableHeader>
                 )}
@@ -719,13 +750,13 @@ export default function TaskFocusedDashboard() {
                 )}
 
                 {visibleColumns.noTurns && (
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                     NO. TURNS
                   </th>
                 )}
 
                 {visibleColumns.assignees && (
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                  <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                     ASSIGNEES
                   </th>
                 )}
@@ -755,14 +786,14 @@ export default function TaskFocusedDashboard() {
                 )}
 
                 {visibleColumns.actions && (
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                  <th className="px-3 py-1.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     ACTIONS
                   </th>
                 )}
               </tr>
             </thead>
             
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={getVisibleColumnsCount()} className="text-center py-8 text-gray-500">
@@ -782,27 +813,27 @@ export default function TaskFocusedDashboard() {
                                   contracts.map((contract) => (
                     <tr key={contract.id} className="hover:bg-gray-50 group border-b border-gray-100">
                       {showCheckboxes && (
-                        <td className="px-3 py-2 text-left">
+                        <td className="pl-6 pr-3 py-2 text-left">
                           <input
                             type="checkbox"
                             checked={selectedContracts.includes(contract.id)}
                             onChange={() => handleSelectContract(contract.id)}
-                            className="rounded border-gray-300 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                            className="rounded border-gray-300 h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300"
                           />
                         </td>
                       )}
 
                       {visibleColumns.workflowName && (
-                        <td className="px-3 py-2 text-left border-r border-gray-200">
+                        <td className={`py-2 text-left border-r border-gray-200 ${showCheckboxes ? 'px-3' : 'pl-6 pr-3'}`}>
                           <Link
                             href={`/contract/${contract.id}`}
                             className="flex flex-col group-hover:text-blue-600"
                           >
-                            <div className="text-gray-900 hover:text-blue-600 text-sm leading-tight truncate max-w-[300px]" title={contract.title}>
+                            <div className="text-gray-900 hover:text-blue-600 text-xs leading-tight truncate max-w-[300px]" title={contract.title}>
                               {contract.title}
                             </div>
                             {contract.otherPartyName && (
-                              <div className="text-xs text-gray-500 mt-0.5 truncate max-w-[300px]" title={`with ${contract.otherPartyName}`}>
+                              <div className="text-xs text-gray-500 truncate max-w-[300px]" title={`with ${contract.otherPartyName}`}>
                                 with {contract.otherPartyName}
                               </div>
                             )}
@@ -820,7 +851,7 @@ export default function TaskFocusedDashboard() {
                         <td className="px-3 py-2 text-left">
                           {contract.assignedTo ? (
                             <div className="flex items-center">
-                              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-2 shadow-sm">
+                              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold mr-2 shadow-sm">
                                 {contract.assignedTo.name.charAt(0).toUpperCase()}
                       </div>
                               <div className="flex flex-col">
@@ -830,8 +861,8 @@ export default function TaskFocusedDashboard() {
                     </div>
                           ) : (
                             <div className="flex items-center">
-                              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-2">
-                                <UserIcon className="h-4 w-4 text-gray-400" />
+                              <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center mr-2">
+                                <UserIcon className="h-3 w-3 text-gray-400" />
                       </div>
                               <span className="text-xs text-gray-500">Unassigned</span>
                       </div>
@@ -845,7 +876,7 @@ export default function TaskFocusedDashboard() {
                             <span className="text-xs text-gray-900">
                               {contract.turnsCompleted || 0}/{contract.totalTurns || 5}
                             </span>
-                            <div className="ml-1 w-8 bg-gray-200 rounded-full h-1">
+                            <div className="ml-1 w-6 bg-gray-200 rounded-full h-1">
                               <div 
                                 className="bg-blue-500 h-1 rounded-full" 
                                 style={{ 
@@ -891,7 +922,7 @@ export default function TaskFocusedDashboard() {
                       {visibleColumns.riskLevel && (
                         <td className="px-3 py-2 text-left">
                           {contract.riskLevel && (
-                            <span className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full ${RISK_COLORS[contract.riskLevel]}`}>
+                            <span className={`inline-flex px-1 py-0.5 text-xs font-medium rounded-full ${RISK_COLORS[contract.riskLevel]}`}>
                               {contract.riskLevel}
                             </span>
                           )}
@@ -919,7 +950,7 @@ export default function TaskFocusedDashboard() {
                       {visibleColumns.actions && (
                         <td className="px-3 py-2 text-left">
                           <button className="text-gray-400 hover:text-gray-600">
-                            <EllipsisHorizontalIcon className="h-4 w-4" />
+                            <EllipsisHorizontalIcon className="h-3 w-3" />
                           </button>
                         </td>
                       )}
@@ -931,50 +962,84 @@ export default function TaskFocusedDashboard() {
               </div>
 
         {/* Pagination */}
-        {!loading && contracts.length > 0 && (
+        {!loading && totalPages > 1 && (
           <div className="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between shrink-0">
             <div className="flex-1 flex justify-between sm:hidden">
-              <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Previous
+              <button 
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Önceki
               </button>
-              <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Next
+              <button 
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sonraki
               </button>
             </div>
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">1</span> to <span className="font-medium">{contracts.length}</span> of{' '}
-                  <span className="font-medium">{filterStats?.total || contracts.length}</span> results
+                  Toplam <span className="font-medium">{totalCount}</span> sonuçtan{' '}
+                  <span className="font-medium">{((currentPage - 1) * contractsPerPage) + 1}</span> -{' '}
+                  <span className="font-medium">{Math.min(currentPage * contractsPerPage, totalCount)}</span> arası gösteriliyor
                 </p>
               </div>
               <div>
                 <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                  <button 
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <span className="sr-only">Previous</span>
                     <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
-                  <button
-                    aria-current="page"
-                    className="z-10 bg-blue-50 border-blue-500 text-blue-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+                  
+                  {/* Page Numbers */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNumber;
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i;
+                    } else {
+                      pageNumber = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => handlePageChange(pageNumber)}
+                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                          currentPage === pageNumber
+                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  })}
+                  
+                  <button 
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    1
-                  </button>
-                  <button className="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
-                    2
-                  </button>
-                  <button className="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
-                    3
-                  </button>
-                  <button className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                     <span className="sr-only">Next</span>
                     <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </nav>
               </div>
             </div>
-            </div>
-          )}
+          </div>
+        )}
       </div>
     </div>
   );
