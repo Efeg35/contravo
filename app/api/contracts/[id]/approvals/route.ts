@@ -9,11 +9,13 @@ const createApprovalSchema = z.object({
   approverIds: z.array(z.string()).min(1, 'En az bir onaylayıcı seçmelisiniz'),
 });
 
-// Şu anda kullanılmıyor ama gelecekte kullanılabilir
-// const updateApprovalSchema = z.object({
-//   status: z.enum(['APPROVED', 'REJECTED']),
-//   comment: z.string().optional(),
-// });
+const updateApprovalSchema = z.object({
+  action: z.enum(['APPROVE', 'REJECT']),
+  status: z.enum(['APPROVED', 'REJECTED']),
+  comment: z.string().optional(),
+});
+
+
 
 // GET /api/contracts/[id]/approvals - Get contract approvals
 export async function GET(
@@ -76,9 +78,49 @@ export async function POST(
     }
 
     const { id } = await params;
-    const { approverIds } = await request.json();
+    const body = await request.json();
+    
+    console.log('Request body:', body);
+    
+    // Eğer approverIds yoksa, varsayılan onaylayıcıları belirle
+    let approverIds = body.approverIds;
+    
+    if (!approverIds || !Array.isArray(approverIds) || approverIds.length === 0) {
+      // Varsayılan olarak şirket yöneticilerini veya sözleşme sahibini onaylayıcı yap
+      const contract = await prisma.contract.findUnique({
+        where: { id },
+        include: {
+          createdBy: true,
+          company: {
+            include: {
+              users: {
+                where: {
+                  role: { in: ['ADMIN', 'MANAGER'] }
+                },
+                include: {
+                  user: {
+                    select: { id: true, name: true, email: true }
+                  }
+                }
+              }
+            }
+          }
+        },
+      });
+      
+      if (!contract) {
+        return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
+      }
+      
+      // Şirket yöneticileri varsa onları, yoksa sözleşme sahibini onaylayıcı yap
+      if (contract.company && contract.company.users.length > 0) {
+        approverIds = contract.company.users.map(cu => cu.user.id);
+      } else {
+        approverIds = [contract.createdById];
+      }
+    }
 
-    // Sözleşmeyi ve onaylayıcıları bul
+    // Sözleşmeyi tekrar al (eğer yukarıda alınmadıysa)
     const contract = await prisma.contract.findUnique({
       where: { id },
       include: {
@@ -88,6 +130,19 @@ export async function POST(
 
     if (!contract) {
       return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
+    }
+
+    // Sözleşme durumunu 'IN_REVIEW' yap
+    await prisma.contract.update({
+      where: { id },
+      data: { status: 'IN_REVIEW' }
+    });
+
+    console.log('Final approverIds before map:', approverIds);
+    
+    // ApproverIds'in array olduğundan emin ol
+    if (!Array.isArray(approverIds) || approverIds.length === 0) {
+      return NextResponse.json({ error: 'Onaylayıcı bulunamadı' }, { status: 400 });
     }
 
     // Onaylayıcıları ekle
@@ -129,6 +184,129 @@ export async function POST(
     });
   } catch (error) {
     console.error('Onay isteği gönderme hatası:', error);
+    return NextResponse.json(
+      { error: 'Sunucu hatası' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/contracts/[id]/approvals - Approve or reject contract
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Yetkilendirme gerekli' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    
+    console.log('PUT Request body:', body);
+    
+    // Validation
+    const validatedData = updateApprovalSchema.parse(body);
+    
+    // Sözleşmeyi kontrol et
+    const contract = await prisma.contract.findUnique({
+      where: { id },
+      include: {
+        createdBy: true,
+        approvals: {
+          include: {
+            approver: true
+          }
+        }
+      },
+    });
+
+    if (!contract) {
+      return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
+    }
+
+    // Kullanıcının bu sözleşmeyi onaylama yetkisi olup olmadığını kontrol et
+    const userApproval = contract.approvals.find(
+      approval => approval.approverId === session.user.id && approval.status === 'PENDING'
+    );
+
+    if (!userApproval) {
+      return NextResponse.json({ 
+        error: 'Bu sözleşmeyi onaylama yetkiniz yok veya zaten işlem yapılmış' 
+      }, { status: 403 });
+    }
+
+    // Onay durumunu güncelle
+    await prisma.contractApproval.update({
+      where: { id: userApproval.id },
+      data: {
+        status: validatedData.status,
+        comment: validatedData.comment,
+        approvedAt: validatedData.status === 'APPROVED' ? new Date() : null,
+      },
+    });
+
+    // Tüm onayları kontrol et
+    const updatedContract = await prisma.contract.findUnique({
+      where: { id },
+      include: {
+        approvals: true,
+      },
+    });
+
+    if (!updatedContract) {
+      return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
+    }
+
+    // Eğer tüm onaylar APPROVED ise sözleşme durumunu güncelle
+    const allApproved = updatedContract.approvals.every(
+      approval => approval.status === 'APPROVED'
+    );
+    
+    const hasRejected = updatedContract.approvals.some(
+      approval => approval.status === 'REJECTED'
+    );
+
+    let newContractStatus = updatedContract.status;
+    
+    if (hasRejected) {
+      newContractStatus = 'REJECTED';
+    } else if (allApproved) {
+      newContractStatus = 'APPROVED';
+    }
+
+    // Sözleşme durumunu güncelle
+    if (newContractStatus !== updatedContract.status) {
+      await prisma.contract.update({
+        where: { id },
+        data: { status: newContractStatus },
+      });
+    }
+
+    // Sözleşme sahibine bilgilendirme e-postası gönder
+    if (newContractStatus === 'APPROVED' || newContractStatus === 'REJECTED') {
+      try {
+        await sendNotificationEmail({
+          to: contract.createdBy.email,
+          baslik: `Sözleşme ${newContractStatus === 'APPROVED' ? 'Onaylandı' : 'Reddedildi'}`,
+          mesaj: `${contract.title} sözleşmesi ${newContractStatus === 'APPROVED' ? 'onaylandı' : 'reddedildi'}.`,
+          link: `${process.env.NEXTAUTH_URL}/dashboard/contracts/${id}`,
+          linkText: 'Sözleşmeyi Görüntüle',
+        });
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: validatedData.status === 'APPROVED' ? 'Sözleşme onaylandı' : 'Sözleşme reddedildi',
+      contractStatus: newContractStatus,
+    });
+  } catch (error) {
+    console.error('Onay güncelleme hatası:', error);
     return NextResponse.json(
       { error: 'Sunucu hatası' },
       { status: 500 }
