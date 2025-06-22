@@ -1,17 +1,20 @@
 import { type NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
-import prisma from './prisma';
+import { PrismaClient } from '@prisma/client';
 import { SessionMiddleware } from './session-middleware';
 import { passwordManager } from './password-manager';
 import { getServerSession } from 'next-auth';
+
+// Create a simple Prisma client for auth purposes only
+const authPrisma = new PrismaClient();
 
 // User type for NextAuth
 type UserRole = 'ADMIN' | 'EDITOR' | 'VIEWER';
 
 // authOptions'ı export ediyoruz
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(authPrisma),
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -24,7 +27,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const user = await prisma.user.findUnique({
+        const user = await authPrisma.user.findUnique({
           where: {
             email: credentials.email,
           },
@@ -84,7 +87,7 @@ export const authOptions: NextAuthOptions = {
         await passwordManager.clearFailedAttempts(credentials.email);
 
         // Update last login timestamp
-        await prisma.user.update({
+        await authPrisma.user.update({
           where: { id: user.id },
           data: { 
             updatedAt: new Date(),
@@ -147,7 +150,7 @@ export const authOptions: NextAuthOptions = {
       if (tokenAge > refreshThreshold) {
         try {
           // Fetch fresh user data
-          const freshUser = await prisma.user.findUnique({
+          const freshUser = await authPrisma.user.findUnique({
             where: { id: token.id as string },
             select: {
               id: true,
