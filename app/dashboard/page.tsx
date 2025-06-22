@@ -87,6 +87,14 @@ const RISK_COLORS = {
   'HIGH': 'bg-red-100 text-red-800'
 };
 
+// Contract workflow stages
+const CONTRACT_STAGES = [
+  { key: 'DRAFT', label: 'Taslak', color: 'bg-gray-400' },
+  { key: 'IN_REVIEW', label: 'İncelemede', color: 'bg-yellow-400' },
+  { key: 'SIGNED', label: 'İmzalandı', color: 'bg-green-400' },
+  { key: 'ARCHIVED', label: 'Arşivlendi', color: 'bg-gray-400' }
+];
+
 export default function TaskFocusedDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -99,6 +107,8 @@ export default function TaskFocusedDashboard() {
   const [selectedContracts, setSelectedContracts] = useState<string[]>([]);
   const [showBatchActions, setShowBatchActions] = useState(false);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showCheckboxes, setShowCheckboxes] = useState(false);
   const [sortBy, setSortBy] = useState('lastActivity');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showAIInsights, setShowAIInsights] = useState(false);
@@ -311,6 +321,22 @@ export default function TaskFocusedDashboard() {
     }).format(value);
   };
 
+  const getVisibleColumnsCount = () => {
+    let count = 0;
+    if (showCheckboxes) count++;
+    if (visibleColumns.workflowName) count++;
+    if (visibleColumns.stage) count++;
+    if (visibleColumns.turn) count++;
+    if (visibleColumns.noTurns) count++;
+    if (visibleColumns.assignees) count++;
+    if (visibleColumns.riskLevel) count++;
+    if (visibleColumns.contractValue) count++;
+    if (visibleColumns.latestActivity) count++;
+    if (visibleColumns.dateCreated) count++;
+    if (visibleColumns.actions) count++;
+    return count;
+  };
+
   const SortableHeader = ({ column, children, className = "" }: { column: string, children: React.ReactNode, className?: string }) => (
     <th 
       className={`px-1 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 ${className}`}
@@ -326,6 +352,56 @@ export default function TaskFocusedDashboard() {
       </div>
     </th>
   );
+
+  // Stepper Component for Workflow Stages
+  const WorkflowStepper = ({ currentStage }: { currentStage: string }) => {
+    const currentStageIndex = CONTRACT_STAGES.findIndex(stage => stage.key === currentStage);
+    const currentStageLabel = CONTRACT_STAGES[currentStageIndex]?.label || 'Bilinmiyor';
+    
+    return (
+      <div className="flex flex-col space-y-1 items-center">
+        <div className="flex items-center space-x-1">
+          {CONTRACT_STAGES.map((stage, index) => {
+            const isCompleted = index <= currentStageIndex;
+            const isCurrent = index === currentStageIndex;
+            
+            return (
+              <div key={stage.key} className="flex items-center">
+                <div 
+                  className={`relative w-2 h-2 rounded-full transition-all duration-200 group ${
+                    isCurrent 
+                      ? 'w-2.5 h-2.5 bg-blue-500 ring-2 ring-blue-200' 
+                      : isCompleted 
+                        ? 'bg-green-400' 
+                        : 'bg-gray-300'
+                  }`}
+                  title={stage.label}
+                >
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                    {stage.label}
+                  </div>
+                </div>
+                
+                {/* Connection line between stages */}
+                {index < CONTRACT_STAGES.length - 1 && (
+                  <div 
+                    className={`w-3 h-0.5 ${
+                      index < currentStageIndex ? 'bg-green-400' : 'bg-gray-300'
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {/* Current stage label - perfectly centered */}
+        <div className="text-xs text-gray-600 text-center w-full">
+          {currentStageLabel}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="w-full h-screen bg-white">
@@ -469,7 +545,7 @@ export default function TaskFocusedDashboard() {
                 {filterOptions.find(f => f.key === currentView)?.label || 'All Workflows'}
               </h1>
               
-              {selectedContracts.length > 0 && (
+              {showCheckboxes && selectedContracts.length > 0 && (
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-600">
                     {selectedContracts.length} selected
@@ -530,9 +606,29 @@ export default function TaskFocusedDashboard() {
                 Start workflow
               </button>
 
-              <button className="px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
-                More
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  className="px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 flex items-center"
+                >
+                  More
+                  <ChevronDownIcon className="ml-1 h-4 w-4" />
+                </button>
+
+                {showMoreMenu && (
+                  <div className="absolute top-10 right-0 w-48 bg-white border border-gray-200 rounded shadow-lg z-10 p-2">
+                    <button
+                      onClick={() => {
+                        setShowCheckboxes(!showCheckboxes);
+                        setShowMoreMenu(false);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded"
+                    >
+                      {showCheckboxes ? 'Seçimi Kapat' : 'Seç'}
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <button className="px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 flex items-center">
                 <FunnelIcon className="h-4 w-4 mr-1" />
@@ -574,78 +670,78 @@ export default function TaskFocusedDashboard() {
           </div>
         </div>
 
-        {/* Table Container - Now with horizontal scroll capability */}
-        <div className="flex-1 overflow-auto px-6">
-          <table className="w-full bg-white table-auto">
+                  {/* Table Container - Now with horizontal scroll capability */}
+          <div className="flex-1 overflow-auto px-4">
+                      <table className="min-w-[1200px] bg-white table-fixed text-left">
             <thead className="bg-gray-50 sticky top-0">
               <tr>
-                {visibleColumns.checkbox && (
-                  <th className="px-1 py-2 w-8">
+                                  {showCheckboxes && (
+                  <th className="px-1 py-2 w-8 text-left">
                     <input
                       type="checkbox"
                       checked={selectedContracts.length === contracts.length && contracts.length > 0}
                       onChange={handleSelectAll}
-                      className="rounded border-gray-300"
+                      className="rounded border-gray-300 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
                   </th>
                 )}
 
                 {visibleColumns.workflowName && (
-                  <SortableHeader column="title" className="min-w-[200px] max-w-[250px]">
+                  <SortableHeader column="title" className="w-80">
                     WORKFLOW NAME
                   </SortableHeader>
                 )}
 
                 {visibleColumns.stage && (
-                  <SortableHeader column="currentStage" className="w-16">
+                  <SortableHeader column="currentStage" className="w-32">
                     STAGE
                   </SortableHeader>
                 )}
 
                 {visibleColumns.turn && (
-                  <SortableHeader column="assignedTo" className="w-20">
+                  <SortableHeader column="assignedTo" className="w-48">
                     TURN
                   </SortableHeader>
                 )}
 
                 {visibleColumns.noTurns && (
-                  <th className="px-1 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                  <th className="px-1 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                     NO. TURNS
                   </th>
                 )}
 
                 {visibleColumns.assignees && (
-                  <th className="px-1 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                  <th className="px-1 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                     ASSIGNEES
                   </th>
                 )}
 
                 {visibleColumns.riskLevel && (
-                  <SortableHeader column="riskLevel" className="w-16">
+                  <SortableHeader column="riskLevel" className="w-28">
                     RISK LEVEL
                   </SortableHeader>
                 )}
 
                 {visibleColumns.contractValue && (
-                  <SortableHeader column="value" className="w-24">
+                  <SortableHeader column="value" className="w-32">
                     CONTRACT VALUE
                   </SortableHeader>
                 )}
 
                 {visibleColumns.latestActivity && (
-                  <SortableHeader column="lastActivity" className="w-20">
+                  <SortableHeader column="lastActivity" className="w-32">
                     LATEST ACTIVITY
                   </SortableHeader>
                 )}
 
                 {visibleColumns.dateCreated && (
-                  <SortableHeader column="createdAt" className="w-20">
+                  <SortableHeader column="createdAt" className="w-28">
                     DATE CREATED
                   </SortableHeader>
                 )}
 
                 {visibleColumns.actions && (
-                  <th className="px-1 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                  <th className="px-1 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     ACTIONS
                   </th>
                 )}
@@ -655,14 +751,14 @@ export default function TaskFocusedDashboard() {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-8 text-gray-500">
+                  <td colSpan={getVisibleColumnsCount()} className="text-center py-8 text-gray-500">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                     <div className="mt-2">Loading workflows...</div>
                   </td>
                 </tr>
               ) : contracts.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-12 text-gray-500">
+                  <td colSpan={getVisibleColumnsCount()} className="text-center py-12 text-gray-500">
                     <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" />
                     <div className="text-lg font-medium">No workflows found</div>
                     <div className="text-sm">Try adjusting your filters or search criteria</div>
@@ -670,20 +766,20 @@ export default function TaskFocusedDashboard() {
                 </tr>
               ) : (
                                   contracts.map((contract) => (
-                    <tr key={contract.id} className="hover:bg-gray-50 group">
-                      {visibleColumns.checkbox && (
-                        <td className="px-1 py-2">
+                    <tr key={contract.id} className="hover:bg-gray-50 group border-b border-gray-100">
+                      {showCheckboxes && (
+                        <td className="px-1 py-2 text-left">
                           <input
                             type="checkbox"
                             checked={selectedContracts.includes(contract.id)}
                             onChange={() => handleSelectContract(contract.id)}
-                            className="rounded border-gray-300"
+                            className="rounded border-gray-300 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                           />
                         </td>
                       )}
 
                       {visibleColumns.workflowName && (
-                        <td className="px-1 py-2">
+                        <td className="px-1 py-2 text-left">
                   <Link
                             href={`/contract/${contract.id}`}
                             className="flex flex-col group-hover:text-blue-600"
@@ -701,15 +797,13 @@ export default function TaskFocusedDashboard() {
                       )}
 
                       {visibleColumns.stage && (
-                        <td className="px-1 py-2">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStageBadgeColor(contract.currentStage)}`}>
-                            {getStageDisplay(contract.currentStage)}
-                          </span>
+                        <td className="px-1 py-2 text-left">
+                          <WorkflowStepper currentStage={contract.currentStage} />
                         </td>
                       )}
 
                       {visibleColumns.turn && (
-                        <td className="px-1 py-2">
+                        <td className="px-1 py-2 text-left">
                           {contract.assignedTo ? (
                             <div className="flex items-center">
                               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-2 shadow-sm">
@@ -732,7 +826,7 @@ export default function TaskFocusedDashboard() {
                       )}
 
                       {visibleColumns.noTurns && (
-                        <td className="px-1 py-2">
+                        <td className="px-1 py-2 text-left">
                           <div className="flex items-center">
                             <span className="text-xs text-gray-900">
                               {contract.turnsCompleted || 0}/{contract.totalTurns || 5}
@@ -750,7 +844,7 @@ export default function TaskFocusedDashboard() {
                       )}
 
                       {visibleColumns.assignees && (
-                        <td className="px-1 py-2">
+                        <td className="px-1 py-2 text-left">
                           <div className="flex -space-x-2">
                             {contract.assignedTo && (
                               <div 
@@ -781,7 +875,7 @@ export default function TaskFocusedDashboard() {
                       )}
 
                       {visibleColumns.riskLevel && (
-                        <td className="px-1 py-2">
+                        <td className="px-1 py-2 text-left">
                           {contract.riskLevel && (
                             <span className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full ${RISK_COLORS[contract.riskLevel]}`}>
                               {contract.riskLevel}
@@ -791,25 +885,25 @@ export default function TaskFocusedDashboard() {
                       )}
 
                       {visibleColumns.contractValue && (
-                        <td className="px-1 py-2 text-xs text-gray-900">
+                        <td className="px-1 py-2 text-xs text-gray-900 text-left">
                           {formatCurrency(contract.value)}
                         </td>
                       )}
 
                       {visibleColumns.latestActivity && (
-                        <td className="px-1 py-2 text-xs text-gray-500">
+                        <td className="px-1 py-2 text-xs text-gray-500 text-left">
                           {getRelativeTime(contract.lastActivity)}
                         </td>
                       )}
 
                       {visibleColumns.dateCreated && (
-                        <td className="px-1 py-2 text-xs text-gray-500">
+                        <td className="px-1 py-2 text-xs text-gray-500 text-left">
                               {new Date(contract.createdAt).toLocaleDateString('tr-TR')}
                         </td>
                       )}
 
                       {visibleColumns.actions && (
-                        <td className="px-1 py-2">
+                        <td className="px-1 py-2 text-left">
                           <button className="text-gray-400 hover:text-gray-600">
                             <EllipsisHorizontalIcon className="h-4 w-4" />
                           </button>
