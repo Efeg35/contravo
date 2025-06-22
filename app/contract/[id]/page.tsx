@@ -19,6 +19,7 @@ import {
   PencilIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
+import ContractEditor from '@/components/ContractEditor';
 
 interface Contract {
   id: string;
@@ -301,10 +302,25 @@ export default function ContractFocusPage() {
         <div className="flex-1 flex flex-col">
           <div className="flex-1 p-6 overflow-auto">
             {isEditing ? (
-              <textarea
-                className="w-full h-full p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                defaultValue={contract.content}
-                placeholder="Sözleşme içeriğini buraya yazın..."
+              <ContractEditor
+                contractId={contractId}
+                initialContent={contract?.content || ''}
+                onSave={async (content: string) => {
+                  // Save contract content
+                  const response = await fetch(`/api/contracts/${contractId}`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content }),
+                  });
+                  
+                  if (response.ok) {
+                    // Refresh contract data
+                    fetchContract();
+                  }
+                }}
+                isEditable={true}
               />
             ) : (
               <div className="prose max-w-none">
