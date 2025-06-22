@@ -11,15 +11,93 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Mock data for now, you can later replace with actual database queries
+    // Get real contract counts from database
+    const userId = session.user.id;
+    
+    // Basic counts
+    const totalCount = await prisma.contract.count();
+    const inProgressCount = await prisma.contract.count({
+      where: { status: { notIn: ['COMPLETED', 'ARCHIVED', 'CANCELLED'] } }
+    });
+    const assignedToMeCount = await prisma.contract.count({
+      where: { createdById: userId }
+    });
+    const participatingCount = await prisma.contract.count({
+      where: { 
+        OR: [
+          { createdById: userId },
+          { updatedById: userId }
+        ]
+      }
+    });
+    const completedCount = await prisma.contract.count({
+      where: { status: 'COMPLETED' }
+    });
+    const overdueCount = await prisma.contract.count({
+      where: { 
+        endDate: { lt: new Date() },
+        status: { notIn: ['COMPLETED', 'ARCHIVED', 'CANCELLED'] }
+      }
+    });
+    const expiringSoonCount = await prisma.contract.count({
+      where: { 
+        endDate: { 
+          gte: new Date(),
+          lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        },
+        status: { notIn: ['COMPLETED', 'ARCHIVED', 'CANCELLED'] }
+      }
+    });
+
+    // Specific category counts based on contract types
+    const procurementRfpCount = await prisma.contract.count({
+      where: { 
+        type: { contains: 'RFP' }
+      }
+    });
+    const procurementSpendCount = await prisma.contract.count({
+      where: { 
+        value: { gt: 1000000 },
+        type: { contains: 'Procurement' }
+      }
+    });
+    const generalMndaCount = await prisma.contract.count({
+      where: { 
+        type: { contains: 'MNDA' }
+      }
+    });
+    const salesHighValueCount = await prisma.contract.count({
+      where: { 
+        value: { gt: 500000 },
+        type: { contains: 'Sales' }
+      }
+    });
+    const financeBusinessCount = await prisma.contract.count({
+      where: { 
+        type: { contains: 'Finance' }
+      }
+    });
+    const ytdCompletedCount = await prisma.contract.count({
+      where: { 
+        status: 'COMPLETED',
+        createdAt: { gte: new Date(new Date().getFullYear(), 0, 1) }
+      }
+    });
+
     const stats = {
-      total: 10590,
-      inProgress: 7907,
-      assignedToMe: 71,
-      participating: 87,
-      completed: 1803,
-      overdue: 24,
-      expiringSoon: 15
+      total: totalCount,
+      inProgress: inProgressCount,
+      assignedToMe: assignedToMeCount,
+      participating: participatingCount,
+      completed: completedCount,
+      overdue: overdueCount,
+      expiringSoon: expiringSoonCount,
+      procurementRfp: procurementRfpCount,
+      procurementSpend: procurementSpendCount,
+      generalMnda: generalMndaCount,
+      salesHighValue: salesHighValueCount,
+      financeBusiness: financeBusinessCount,
+      ytdCompleted: ytdCompletedCount
     };
 
     return NextResponse.json(stats);
