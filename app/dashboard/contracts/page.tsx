@@ -28,6 +28,9 @@ import {
 } from 'lucide-react';
 import ContractFilters from './ContractFilters';
 import SortableHeader from './components/SortableHeader';
+import { getCurrentUser } from '@/lib/auth-helpers';
+import { getContractsVisibilityFilter } from '@/lib/permissions';
+import { redirect } from 'next/navigation';
 // import BulkOperations from '@/components/BulkOperations';
 
 interface Contract {
@@ -71,6 +74,12 @@ export default async function ContractsPage({
     order?: 'asc' | 'desc';
   }> 
 }) {
+  // Kullanıcı kimlik doğrulaması
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect('/auth/login');
+  }
+
   const params = await searchParams;
   const q = params.q || '';
   const status = params.status || 'all';
@@ -78,23 +87,25 @@ export default async function ContractsPage({
   const sortBy = params.sortBy || 'createdAt';
   const order = params.order || 'desc';
 
-  // Dinamik where koşulu oluştur
-  const where: any = {};
-  if (q) {
-    where.title = { contains: q, mode: 'insensitive' };
-  }
-  if (status && status !== 'all') {
-    where.status = status;
-  }
-  if (typeFilter && typeFilter !== 'all') {
-    where.type = typeFilter;
-  }
+  // Güvenlik: Kullanıcının görme yetkisi olan sözleşmeler için filtre oluştur
+  const visibilityFilter = await getContractsVisibilityFilter(user.id, user.role);
 
-  // Paralel veri çekme
+  // Dinamik where koşulu oluştur
+  const where: any = {
+    AND: [
+      visibilityFilter, // Güvenlik filtresi eklendi
+      // Mevcut arama filtreleri
+      ...(q ? [{ title: { contains: q, mode: 'insensitive' } }] : []),
+      ...(status && status !== 'all' ? [{ status }] : []),
+      ...(typeFilter && typeFilter !== 'all' ? [{ type: typeFilter }] : [])
+    ]
+  };
+
+  // Paralel veri çekme - artık güvenlik filtresiyle
   const [totalCount, reviewingCount, signedCount, contracts] = await Promise.all([
-    prisma.contract.count(),
-    prisma.contract.count({ where: { status: 'IN_REVIEW' } }),
-    prisma.contract.count({ where: { status: 'SIGNED' } }),
+    prisma.contract.count({ where: { AND: [visibilityFilter] } }), // Güvenlik filtresi eklendi
+    prisma.contract.count({ where: { AND: [visibilityFilter, { status: 'IN_REVIEW' }] } }), // Güvenlik filtresi eklendi
+    prisma.contract.count({ where: { AND: [visibilityFilter, { status: 'SIGNED' }] } }), // Güvenlik filtresi eklendi
     prisma.contract.findMany({
       where,
       orderBy: { [sortBy]: order },

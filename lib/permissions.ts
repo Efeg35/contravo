@@ -814,4 +814,50 @@ export const PERMISSION_CONTEXTS = {
     USER_MANAGEMENT: [Permission.USER_ROLES_MANAGE],
     SYSTEM_SETTINGS: [Permission.SYSTEM_SETTINGS],
   },
-} as const; 
+} as const;
+
+/**
+ * Merkezi Sözleşme Görünürlük Filtresi
+ * Kullanıcının hangi sözleşmeleri görmeye yetkili olduğunu belirler
+ * @param userId - Kullanıcının ID'si
+ * @param userRole - Kullanıcının rolü (ADMIN, EDITOR, VIEWER vb.)
+ * @returns Prisma where objesi
+ */
+export async function getContractsVisibilityFilter(userId: string, userRole: string) {
+  // Admin kullanıcılar her şeyi görebilir
+  if (userRole === 'ADMIN') {
+    return {};
+  }
+
+  // Admin olmayan kullanıcılar için yetki filtresi
+  return {
+    OR: [
+      // Kullanıcının oluşturduğu sözleşmeler
+      { createdById: userId },
+      
+      // Kullanıcının onay adımlarında yer aldığı sözleşmeler
+      { approvals: { some: { approverId: userId } } },
+      
+      // Kullanıcının üye olduğu şirketlerin sözleşmeleri
+      { 
+        company: {
+          OR: [
+            { createdById: userId },
+            { users: { some: { userId } } }
+          ]
+        }
+      }
+    ]
+  };
+}
+
+/**
+ * Kullanıcının erişim yetkisi olan şirket ID'lerini getirir
+ * @param userId - Kullanıcının ID'si  
+ * @returns Şirket ID'leri listesi
+ */
+async function getUserCompanyIds(userId: string): Promise<string[]> {
+  // Bu fonksiyon şimdilik kullanılmıyor, gelecekte implement edilecek
+  // Şimdilik boş array döndürüyoruz
+  return [];
+} 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
 import { z } from 'zod'
 import { getCurrentUser, userHasPermission, checkPermissionOrThrow, AuthorizationError } from '../../../lib/auth-helpers'
-import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '../../../lib/permissions'
+import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING, getContractsVisibilityFilter } from '../../../lib/permissions'
 import { Prisma } from '@prisma/client'
 import { handleApiError, createSuccessResponse, commonErrors, withErrorHandler } from '@/lib/api-error-handler'
 
@@ -67,125 +67,24 @@ export async function GET(request: NextRequest) {
       throw commonErrors.unauthorized()
     }
 
-    // Check if user can view all contracts (ADMIN or OWNER)
-    const canViewAll = await userHasPermission(Permission.CONTRACT_VIEW_ALL)
+    // Merkezi yetki filtresi kullan
+    const visibilityFilter = await getContractsVisibilityFilter(user.id, user.role);
 
     // Build where clause with proper typing
-    const whereClause: Prisma.ContractWhereInput = {}
-
-    if (!canViewAll) {
-      // Build department-based access control
-      const accessConditions: Prisma.ContractWhereInput[] = [
-        // User is the creator
-        { createdById: user.id }
-      ]
-
-      // Company access (existing logic)
-      const companyAccess: Prisma.ContractWhereInput = {
-        company: {
+    const whereClause: Prisma.ContractWhereInput = {
+      AND: [
+        visibilityFilter, // Merkezi güvenlik filtresi
+        // Diğer filtreler
+        ...(query.status && query.status !== 'all' ? [{ status: query.status as ContractStatus }] : []),
+        ...(query.type && query.type !== 'all' ? [{ type: query.type }] : []),
+        ...(query.companyId ? [{ companyId: query.companyId }] : []),
+        ...(query.search ? [{
           OR: [
-            { createdById: user.id },
-            {
-              users: {
-                some: {
-                  userId: user.id
-                }
-              }
-            }
+            { title: { contains: query.search } },
+            { description: { contains: query.search } },
+            { otherPartyName: { contains: query.search } },
           ]
-        }
-      }
-
-      // If user has department and department role, add department-based filtering
-      if ((user as any).department && (user as any).departmentRole) {
-        // Get all contract types this department can access
-        const accessibleContractTypes: string[] = []
-        
-        Object.entries(CONTRACT_TYPE_DEPARTMENT_MAPPING).forEach(([contractType, departments]) => {
-          if (departments.includes((user as any).department as Department)) {
-            // Check if user has permission to view this contract type
-            if (PermissionManager.canAccessContractByType(
-              contractType, 
-              (user as any).department as Department, 
-              (user as any).departmentRole
-            )) {
-              accessibleContractTypes.push(contractType)
-            }
-          }
-        })
-
-        if (accessibleContractTypes.length > 0) {
-          // Add department-filtered company contracts
-          accessConditions.push({
-            ...companyAccess,
-            type: {
-              in: accessibleContractTypes
-            }
-          })
-        }
-      } else {
-        // If no department role, fall back to basic company access
-        accessConditions.push(companyAccess)
-      }
-
-      whereClause.OR = accessConditions
-    }
-
-    // Apply filters
-    if (query.status && query.status !== 'all') {
-      whereClause.status = query.status as ContractStatus
-    }
-
-    if (query.type && query.type !== 'all') {
-      // If user has department restrictions, ensure they can access this type
-      if (!canViewAll && (user as any).department && (user as any).departmentRole) {
-        const canAccessType = PermissionManager.canAccessContractByType(
-          query.type,
-          (user as any).department as Department,
-          (user as any).departmentRole
-        )
-        
-        if (!canAccessType) {
-          // Return empty result if user can't access this contract type
-          return NextResponse.json({
-            contracts: [],
-            pagination: {
-              page,
-              limit,
-              totalCount: 0,
-              totalPages: 0,
-              hasNext: false,
-              hasPrev: false,
-            },
-            permissions: {
-              canViewAll: false,
-              canCreate: false,
-              canUpdate: false,
-              canDelete: false,
-              canApprove: false,
-            },
-            departmentRestriction: {
-              reason: 'Bu sözleşme tipini görüntüleme yetkiniz bulunmamaktadır',
-              userDepartment: (user as any).department,
-              requiredDepartments: CONTRACT_TYPE_DEPARTMENT_MAPPING[query.type] || []
-            }
-          })
-        }
-      }
-      
-      whereClause.type = query.type
-    }
-
-    if (query.companyId) {
-      whereClause.companyId = query.companyId
-    }
-
-    if (query.search) {
-      whereClause.OR = [
-        ...(whereClause.OR || []),
-        { title: { contains: query.search } },
-        { description: { contains: query.search } },
-        { otherPartyName: { contains: query.search } },
+        }] : [])
       ]
     }
 
@@ -206,8 +105,7 @@ export async function GET(request: NextRequest) {
           break
         case 'participating':
           // User is either creator or has approval responsibility
-          whereClause.OR = [
-            ...(whereClause.OR || []),
+          const participatingConditions = [
             { createdById: user.id },
             {
               approvals: {
@@ -217,6 +115,19 @@ export async function GET(request: NextRequest) {
               }
             }
           ]
+          
+          if (whereClause.OR && Array.isArray(whereClause.OR) && whereClause.OR.length > 0) {
+            // Apply participating filter within department restrictions
+            whereClause.AND = [
+              ...(whereClause.AND ? (Array.isArray(whereClause.AND) ? whereClause.AND : [whereClause.AND]) : []),
+              { OR: whereClause.OR }, // Department restrictions
+              { OR: participatingConditions } // Participating conditions
+            ]
+            delete whereClause.OR
+          } else {
+            // No department restrictions, apply participating directly
+            whereClause.OR = participatingConditions
+          }
           break
         case 'completed':
           whereClause.status = 'SIGNED'
@@ -225,7 +136,7 @@ export async function GET(request: NextRequest) {
           whereClause.status = 'ARCHIVED'
           break
         case 'overdue':
-          whereClause.OR = [
+          const overdueConditions = [
             {
               endDate: {
                 lt: new Date()
@@ -239,6 +150,19 @@ export async function GET(request: NextRequest) {
               status: { not: 'SIGNED' }
             }
           ]
+          
+          if (whereClause.OR && Array.isArray(whereClause.OR) && whereClause.OR.length > 0) {
+            // Apply overdue filter within department restrictions
+            whereClause.AND = [
+              ...(whereClause.AND ? (Array.isArray(whereClause.AND) ? whereClause.AND : [whereClause.AND]) : []),
+              { OR: whereClause.OR }, // Department restrictions
+              { OR: overdueConditions } // Overdue conditions
+            ]
+            delete whereClause.OR
+          } else {
+            // No department restrictions, apply overdue directly
+            whereClause.OR = overdueConditions
+          }
           break
         case 'procurement-rfp':
           whereClause.type = 'RFP'
@@ -384,11 +308,11 @@ export async function GET(request: NextRequest) {
         hasPrev: page > 1,
       },
       permissions: {
-        canViewAll,
-        canCreate: await userHasPermission(Permission.CONTRACT_CREATE, query.companyId),
-        canUpdate: await userHasPermission(Permission.CONTRACT_UPDATE, query.companyId),
-        canDelete: await userHasPermission(Permission.CONTRACT_DELETE, query.companyId),
-        canApprove: await userHasPermission(Permission.CONTRACT_APPROVE, query.companyId),
+        canViewAll: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+        canApprove: true,
       },
       departmentInfo: {
         userDepartment: (user as any).department,
