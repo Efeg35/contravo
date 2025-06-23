@@ -1,881 +1,538 @@
 import { PrismaClient } from '@prisma/client';
+import { faker } from '@faker-js/faker';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+// Türkçe isimler ve soyadlar
+const turkishNames = [
+  'Ahmet', 'Mehmet', 'Ayşe', 'Fatma', 'Mustafa', 'Emine', 'Ali', 'Hatice', 
+  'Hüseyin', 'Zeynep', 'İbrahim', 'Özlem', 'Ömer', 'Elif', 'Yusuf', 'Derya',
+  'Hasan', 'Merve', 'İsmail', 'Seda', 'Emre', 'Büşra', 'Serkan', 'Gülşen',
+  'Burak', 'Deniz', 'Can', 'Selin', 'Barış', 'Pınar', 'Kaan', 'Ece'
+];
+
+const turkishSurnames = [
+  'Yılmaz', 'Kaya', 'Demir', 'Şahin', 'Çelik', 'Yıldız', 'Yıldırım', 'Öztürk',
+  'Aydın', 'Özdemir', 'Arslan', 'Doğan', 'Kılıç', 'Aslan', 'Çetin', 'Kara',
+  'Koç', 'Kurt', 'Özkan', 'Şimşek', 'Ergün', 'Polat', 'Erdoğan', 'Güler',
+  'Aktaş', 'Bayram', 'Çakır', 'Acar', 'Korkmaz', 'Türk', 'Uçar', 'Güven'
+];
+
+// Departmanlar
+const departments = [
+  { name: 'Satış', code: 'SALES' },
+  { name: 'Pazarlama', code: 'MARKETING' },
+  { name: 'Hukuk', code: 'LEGAL' },
+  { name: 'Finans', code: 'FINANCE' },
+  { name: 'İnsan Kaynakları', code: 'HR' },
+  { name: 'Teknoloji', code: 'TECH' },
+  { name: 'Yönetim', code: 'MANAGEMENT' }
+];
+
+// Departmana göre gerçekçi sözleşme başlıkları
+const contractTemplatesByDepartment = {
+  SALES: [
+    'Kurumsal Müşteri Yıllık Satış Sözleşmesi',
+    'Distribütör Anlaşması',
+    'Bayi Satış Sözleşmesi',
+    'E-ticaret Platform Sözleşmesi',
+    'Ürün Tedarik Anlaşması',
+    'Satış Temsilcisi Komisyon Sözleşmesi',
+    'Müşteri Hizmet Anlaşması',
+    'Franchise Sözleşmesi',
+    'İhracat Satış Sözleşmesi',
+    'Toptan Satış Anlaşması',
+    'Perakende Satış Sözleşmesi',
+    'Online Satış Platform Anlaşması'
+  ],
+  MARKETING: [
+    'Sosyal Medya Influencer Sözleşmesi',
+    'Reklam Ajansı Hizmet Anlaşması',
+    'Dijital Pazarlama Danışmanlık Sözleşmesi',
+    'Marka Sponsorluk Anlaşması',
+    'Etkinlik Organizasyon Sözleşmesi',
+    'Google Ads Yönetim Sözleşmesi',
+    'İçerik Üretim Anlaşması',
+    'PR Ajansı Sözleşmesi',
+    'Grafik Tasarım Hizmet Sözleşmesi',
+    'Video Prodüksiyon Anlaşması',
+    'SEO Danışmanlık Sözleşmesi',
+    'Marka Ambassador Anlaşması'
+  ],
+  LEGAL: [
+    'Hukuki Danışmanlık Sözleşmesi',
+    'Dava Vekalet Anlaşması',
+    'Şirket Birleşme Sözleşmesi',
+    'Fikri Mülkiyet Lisans Anlaşması',
+    'Ticaret Sırrı Gizlilik Sözleşmesi',
+    'İcra Takip Sözleşmesi',
+    'Hukuki İnceleme Hizmet Anlaşması',
+    'Patent Başvuru Sözleşmesi',
+    'Marka Tescil Anlaşması',
+    'Sözleşme İnceleme Hizmet Anlaşması',
+    'Uyumluluk Danışmanlık Sözleşmesi',
+    'Hukuki Risk Analizi Sözleşmesi'
+  ],
+  FINANCE: [
+    'Bankacılık Hizmetleri Sözleşmesi',
+    'Kredi Anlaşması',
+    'Faktoring Hizmet Sözleşmesi',
+    'Muhasebe Hizmetleri Anlaşması',
+    'Mali Müşavir Sözleşmesi',
+    'Sigorta Poliçe Anlaşması',
+    'Yatırım Danışmanlık Sözleşmesi',
+    'Bağımsız Denetim Sözleşmesi',
+    'Finansal Raporlama Hizmet Anlaşması',
+    'Vergi Danışmanlık Sözleşmesi',
+    'Leasing Anlaşması',
+    'Treasury Yönetim Sözleşmesi'
+  ],
+  HR: [
+    'Kıdemli Yazılımcı İş Sözleşmesi',
+    'Performans Değerlendirme Politikası',
+    'İK Danışmanlık Hizmet Sözleşmesi',
+    'Eğitim ve Gelişim Anlaşması',
+    'Bordro Hizmetleri Sözleşmesi',
+    'İşe Alım Süreç Danışmanlık Anlaşması',
+    'Çalışan Memnuniyet Araştırması Sözleşmesi',
+    'Özlük İşleri Hizmet Anlaşması',
+    'İş Sağlığı ve Güvenliği Danışmanlık Sözleşmesi',
+    'Kariyer Danışmanlık Anlaşması',
+    'İşten Çıkarma Danışmanlık Sözleşmesi',
+    'Çalışan Hakları Eğitim Sözleşmesi'
+  ],
+  TECH: [
+    'Yazılım Geliştirme Sözleşmesi',
+    'IT Danışmanlık Hizmet Anlaşması',
+    'Cloud Hosting Hizmet Sözleşmesi',
+    'Cybersecurity Danışmanlık Anlaşması',
+    'Mobil Uygulama Geliştirme Sözleşmesi',
+    'Sistem Entegrasyon Anlaşması',
+    'Veritabanı Yönetim Hizmet Sözleşmesi',
+    'DevOps Danışmanlık Anlaşması',
+    'Yazılım Lisans Sözleşmesi',
+    'IT Destek Hizmet Anlaşması',
+    'Backup ve Recovery Hizmet Sözleşmesi',
+    'Network Altyapı Kurulum Sözleşmesi'
+  ],
+  MANAGEMENT: [
+    'Stratejik Danışmanlık Sözleşmesi',
+    'Yönetim Kurulu Danışmanlık Anlaşması',
+    'İş Süreç Optimizasyon Sözleşmesi',
+    'Organizasyonel Gelişim Danışmanlık Anlaşması',
+    'Change Management Sözleşmesi',
+    'Executive Coaching Anlaşması',
+    'Risk Yönetim Danışmanlık Sözleşmesi',
+    'Kurumsal Yönetişim Sözleşmesi',
+    'Performance Management Anlaşması',
+    'Digital Transformation Danışmanlık Sözleşmesi',
+    'Operational Excellence Sözleşmesi',
+    'Business Intelligence Danışmanlık Anlaşması'
+  ]
+};
+
+function getRandomTurkishName(): string {
+  const firstName = faker.helpers.arrayElement(turkishNames);
+  const lastName = faker.helpers.arrayElement(turkishSurnames);
+  return `${firstName} ${lastName}`;
+}
+
+function generateTurkishEmail(name: string): string {
+  const nameParts = name.toLowerCase().split(' ');
+  const firstName = nameParts[0]
+    .replace('ç', 'c')
+    .replace('ğ', 'g')
+    .replace('ı', 'i')
+    .replace('ö', 'o')
+    .replace('ş', 's')
+    .replace('ü', 'u');
+  const lastName = nameParts[1]
+    .replace('ç', 'c')
+    .replace('ğ', 'g')
+    .replace('ı', 'i')
+    .replace('ö', 'o')
+    .replace('ş', 's')
+    .replace('ü', 'u');
+  
+  // Benzersizlik için rastgele sayı ekleyelim
+  const randomNum = faker.number.int({ min: 100, max: 9999 });
+  return `${firstName}.${lastName}${randomNum}@contravo.com`;
+}
+
 async function main() {
-  // --- Geçici olarak silme işlemleri yoruma alındı ---
-  // await prisma.contractVersion.deleteMany();
-  // await prisma.contractApproval.deleteMany();
-  // await prisma.contractAttachment.deleteMany();
-  // await prisma.contract.deleteMany();
-  // await prisma.user.deleteMany();
+  console.log('🚀 Seed işlemi başlıyor...');
+  
+  // 1. Mevcut verileri temizle (doğru sırada)
+  console.log('🧹 Mevcut veriler temizleniyor...');
+  
+  await prisma.workflowTemplateStep.deleteMany();
+  await prisma.workflowTemplate.deleteMany();
+  await prisma.clausesOnContracts.deleteMany();
+  await prisma.scheduleLog.deleteMany();
+  await prisma.reportSchedule.deleteMany();
+  await prisma.savedReport.deleteMany();
+  await prisma.usersOnTeams.deleteMany();
+  await prisma.clauseApproval.deleteMany();
+  await prisma.clauseUsage.deleteMany();
+  await prisma.clauseVariable.deleteMany();
+  await prisma.clause.deleteMany();
+  await prisma.signaturePackage.deleteMany();
+  await prisma.digitalSignature.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.notificationSettings.deleteMany();
+  await prisma.contractVersion.deleteMany();
+  await prisma.contractApproval.deleteMany();
+  await prisma.contractAttachment.deleteMany();
+  await prisma.contract.deleteMany();
+  await prisma.contractTemplate.deleteMany();
+  await prisma.companyInvite.deleteMany();
+  await prisma.companyUser.deleteMany();
+  await prisma.companySettings.deleteMany();
+  await prisma.company.deleteMany();
+  await prisma.sessionActivity.deleteMany();
+  await prisma.userSession.deleteMany();
+  await prisma.session.deleteMany();
+  await prisma.account.deleteMany();
+  await prisma.loginAttempt.deleteMany();
+  await prisma.passwordHistory.deleteMany();
+  await prisma.tokenBlacklist.deleteMany();
+  await prisma.team.deleteMany();
+  await prisma.user.deleteMany();
 
-  // Test kullanıcısı oluştur
-  const testUser = await prisma.user.upsert({
-    where: { email: 'test@contravo.com' },
-    update: {},
-    create: {
-      email: 'test@contravo.com',
-      name: 'Test User',
-      role: 'ADMIN',
-    },
-  });
-
-  // Efe Gökçe kullanıcısı
-  const efeUser = await prisma.user.upsert({
-    where: { email: 'efegokce235@gmail.com' },
-    update: {},
-    create: {
-      email: 'efegokce235@gmail.com',
-      name: 'Efe Gökçe',
-      role: 'ADMIN',
-    },
-  });
-
-  // Test clause'ları oluştur
-  const clause1 = await prisma.clause.create({
-    data: {
-      title: 'Gizlilik Maddesi',
-      description: 'Standart gizlilik koşulları',
-      content: 'Taraflar, bu sözleşme kapsamında elde ettikleri bilgileri gizli tutmayı ve üçüncü kişilerle paylaşmamayı taahhüt ederler.',
-      category: 'PRIVACY',
-      visibility: 'PUBLIC',
-      approvalStatus: 'APPROVED',
-      createdById: testUser.id,
-    },
-  });
-
-  const clause2 = await prisma.clause.create({
-    data: {
-      title: 'Ödeme Koşulları',
-      description: 'Standart ödeme maddeleri',
-      content: 'Ödeme, hizmet tesliminden sonra 30 gün içinde yapılacaktır. Geç ödeme durumunda aylık %2 gecikme faizi uygulanır.',
-      category: 'PAYMENT',
-      visibility: 'PUBLIC',
-      approvalStatus: 'APPROVED',
-      createdById: testUser.id,
-    },
-  });
-
-  // Test sözleşmesi oluştur
-  const testContract = await prisma.contract.create({
-    data: {
-      title: 'Test Sözleşmesi',
-      description: 'Bildirim sistemi testi için oluşturuldu',
-      content: 'Test içerik',
-      status: 'DRAFT',
-      type: 'SERVICE',
-      value: 1000,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 gün sonra
-      createdById: testUser.id,
-      updatedById: testUser.id,
-    },
-  });
-
-  // Sözleşmeye clause'ları ekle
-  await prisma.clausesOnContracts.createMany({
-    data: [
-      {
-        contractId: testContract.id,
-        clauseId: clause1.id,
+  // 2. Departmanları (Team olarak) oluştur
+  console.log('🏢 Departmanlar oluşturuluyor...');
+  const createdTeams: { [key: string]: any } = {};
+  
+  for (const dept of departments) {
+    const team = await prisma.team.create({
+      data: {
+        name: dept.name,
       },
-      {
-        contractId: testContract.id,
-        clauseId: clause2.id,
-      },
-    ],
-  });
-
-  // === 15-20 GERÇEKÇİ SÖZLEŞME ÖRNEKLERİ ===
-  const realContracts = [
-    {
-      title: 'Microsoft Office 365 Lisans Sözleşmesi',
-      description: 'Şirket geneli Office 365 yazılım lisansı',
-      content: `Bu sözleşme, ABC Şirketi ve Microsoft Corporation arasında Office 365 Business Premium lisanslarının tedariki için düzenlenmiştir.
-
-KAPSAM:
-- 150 kullanıcı lisansı
-- Word, Excel, PowerPoint, Outlook, Teams
-- OneDrive ve SharePoint erişimi
-- 12 aylık lisans süresi
-
-ÖDEME KOŞULLARI:
-- Aylık 15$ per kullanıcı
-- Toplam aylık tutar: 2,250$
-- Yıllık ödeme %10 indirimli
-
-GEÇERLİLİK SÜRESİ:
-- Başlangıç: 1 Ocak 2024
-- Bitiş: 31 Aralık 2024
-- Otomatik yenileme seçeneği`,
-      status: 'SIGNED',
-      type: 'SERVICE_AGREEMENT',
-      value: 27000,
-      startDate: new Date('2024-01-01'),
-      endDate: new Date('2024-12-31'),
-      otherPartyName: 'Microsoft Corporation',
-      otherPartyEmail: 'contracts@microsoft.com',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-01-15'),
-      updatedAt: new Date('2024-01-20'),
-    },
-    {
-      title: 'AWS Cloud Hizmetleri Anlaşması',
-      description: 'Bulut altyapısı ve hosting hizmetleri',
-      content: `Amazon Web Services ile bulut altyapısı hizmetleri sözleşmesi.
-
-HİZMET KAPSAMI:
-- EC2 Instance'lar (t3.large x 5)
-- RDS PostgreSQL Veritabanı
-- S3 Storage (1TB)
-- CloudFront CDN
-- Load Balancer
-
-ÖDEME MODELİ:
-- Pay-as-you-use model
-- Aylık minimum: 2,500$
-- Maksimum limit: 5,000$
-
-GÜVENLİK:
-- SSL/TLS şifreleme
-- IAM kullanıcı yönetimi
-- Backup ve disaster recovery`,
-      status: 'IN_REVIEW',
-      type: 'SERVICE_AGREEMENT',
-      value: 60000,
-      startDate: new Date('2024-03-01'),
-      endDate: new Date('2025-02-28'),
-      otherPartyName: 'Amazon Web Services',
-      otherPartyEmail: 'enterprise@aws.com',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-02-10'),
-      updatedAt: new Date('2024-02-15'),
-    },
-    {
-      title: 'Mobil Uygulama Geliştirme Sözleşmesi',
-      description: 'iOS ve Android e-ticaret uygulaması geliştirme',
-      content: `TechCorp ile mobil uygulama geliştirme projesi sözleşmesi.
-
-PROJE KAPSAMI:
-- Native iOS uygulaması (Swift)
-- Native Android uygulaması (Kotlin)
-- Admin paneli (React)
-- API Backend (Node.js)
-- Ödeme entegrasyonu
-- Push notification sistemi
-
-TESLİMAT AŞAMALARI:
-1. UI/UX Tasarım - 4 hafta
-2. Frontend Geliştirme - 8 hafta  
-3. Backend Geliştirme - 6 hafta
-4. Test ve Debug - 4 hafta
-5. App Store yayınlama - 2 hafta
-
-ÖDEME PLANI:
-- %30 proje başlangıcı
-- %40 prototype teslimi
-- %30 final teslim`,
-      status: 'APPROVED',
-      type: 'SERVICE_AGREEMENT',
-      value: 85000,
-      startDate: new Date('2024-04-01'),
-      endDate: new Date('2024-10-01'),
-      otherPartyName: 'TechCorp Solutions',
-      otherPartyEmail: 'contracts@techcorp.com',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-03-05'),
-      updatedAt: new Date('2024-03-20'),
-    },
-    {
-      title: 'Ofis Kira Sözleşmesi - Maslak Plaza',
-      description: 'İstanbul Maslak\'ta 500m² ofis kiralama',
-      content: `Maslak Plaza\'da ofis alanı kiralama sözleşmesi.
-
-KONUM VE ALAN:
-- Adres: Maslak Plaza, Kat 15, Daire 1501-1502
-- Toplam Alan: 500 m²
-- Açık ofis alanı: 350 m²
-- Toplantı odaları: 4 adet
-- Mutfak ve sosyal alan: 150 m²
-
-KİRA KOŞULLARI:
-- Aylık kira: 75,000 TL
-- Aidat: 15,000 TL
-- Depozito: 3 aylık kira (225,000 TL)
-- Kira artış oranı: Yıllık TÜFE + %5
-
-SÜRESİ:
-- 3 yıl (36 ay)
-- Erken çıkış: 6 ay önce ihbar
-- Yenileme opsiyonu`,
-      status: 'SIGNED',
-      type: 'LEASE_AGREEMENT',
-      value: 3240000, // 36 ay x 90,000 TL
-      startDate: new Date('2024-01-01'),
-      endDate: new Date('2026-12-31'),
-      otherPartyName: 'Maslak Plaza Yönetimi',
-      otherPartyEmail: 'yonetim@maslakplaza.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2023-11-15'),
-      updatedAt: new Date('2023-12-20'),
-    },
-    {
-      title: 'Grafik Tasarım Hizmetleri Sözleşmesi',
-      description: 'Brand identity ve dijital tasarım hizmetleri',
-      content: `Creative Studio ile grafik tasarım hizmetleri sözleşmesi.
-
-HİZMET KAPSAMI:
-- Logo tasarımı ve brand identity
-- Kurumsal kimlik kılavuzu
-- Web sitesi UI/UX tasarımı
-- Sosyal medya template'leri
-- Broşür ve katalog tasarımları
-- Ambalaj tasarımları
-
-ÇALIŞMA SÜRECİ:
-- İlk konsept sunumu: 1 hafta
-- Revizyon süreci: 2 hafta
-- Final dosya teslimi: 1 hafta
-- Revizyon hakkı: 3 major, unlimited minor
-
-FİKRİ MÜLKİYET:
-- Tüm haklar müşteriye devredilir
-- Kaynak dosyalar (AI, PSD) dahil
-- Portfolio kullanım izni`,
-      status: 'DRAFT',
-      type: 'SERVICE_AGREEMENT',
-      value: 45000,
-      startDate: new Date('2024-04-15'),
-      endDate: new Date('2024-07-15'),
-      otherPartyName: 'Creative Studio İstanbul',
-      otherPartyEmail: 'hello@creativestudio.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-04-01'),
-      updatedAt: new Date('2024-04-01'),
-    },
-    {
-      title: 'Bilgi Güvenliği Danışmanlığı',
-      description: 'ISO 27001 sertifikasyon süreç danışmanlığı',
-      content: `CyberSec Consulting ile bilgi güvenliği danışmanlık sözleşmesi.
-
-PROJE KAPSAMI:
-- Mevcut durum analizi (Gap Analysis)
-- ISO 27001 standart uygunluk çalışması
-- Risk değerlendirmesi ve yönetimi
-- Politika ve prosedür geliştirme
-- Çalışan eğitimleri
-- İç denetim süreçleri
-- Sertifikasyon süreç yönetimi
-
-ÇALIŞMA PLANI:
-- Faz 1: Analiz ve Planlama (4 hafta)
-- Faz 2: Sistem Kurulumu (8 hafta)
-- Faz 3: Test ve Optimizasyon (4 hafta)
-- Faz 4: Sertifikasyon Desteği (4 hafta)
-
-SONUÇ ÇIKTILARI:
-- ISO 27001 hazırlık raporu
-- BGYS dokümantasyonu
-- Eğitim materyalleri`,
-      status: 'IN_REVIEW',
-      type: 'CONSULTING_AGREEMENT',
-      value: 120000,
-      startDate: new Date('2024-05-01'),
-      endDate: new Date('2024-12-31'),
-      otherPartyName: 'CyberSec Consulting',
-      otherPartyEmail: 'contracts@cybersec.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-04-10'),
-      updatedAt: new Date('2024-04-18'),
-    },
-    {
-      title: 'Tedarikçi Çerçeve Anlaşması - Teknoloji',
-      description: 'Donanım ve yazılım tedariki çerçeve sözleşmesi',
-      content: `TechSupply A.Ş. ile teknoloji ürünleri tedarik sözleşmesi.
-
-ÜRÜN KATEGORİLERİ:
-- Bilgisayar ve laptop'lar
-- Server ve network ekipmanları
-- Yazılım lisansları
-- Mobil cihazlar (telefon, tablet)
-- Ofis ekipmanları (printer, projektör)
-
-TİCARİ KOŞULLAR:
-- Volume discount: %5-15 arası
-- Ödeme vadesi: 60 gün
-- Garanti süresi: Minimum 2 yıl
-- Teknik destek: 7/24
-
-LOJİSTİK:
-- Ücretsiz kargo (2,000 TL üzeri)
-- Express teslimat seçeneği
-- Kurulum hizmeti
-- Eski cihaz geri alım`,
-      status: 'SIGNED',
-      type: 'PURCHASE_AGREEMENT',
-      value: 2500000,
-      startDate: new Date('2024-01-01'),
-      endDate: new Date('2024-12-31'),
-      otherPartyName: 'TechSupply A.Ş.',
-      otherPartyEmail: 'satış@techsupply.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2023-12-05'),
-      updatedAt: new Date('2023-12-28'),
-    },
-    {
-      title: 'Gizlilik Anlaşması - Ar-Ge Projesi',
-      description: 'Yapay zeka projesi için karşılıklı gizlilik anlaşması',
-      content: `ABC Şirketi ve XYZ Teknoloji arasında AI projesi NDA'sı.
-
-GİZLİ BİLGİ KAPSAMI:
-- Yapay zeka algoritmaları
-- Müşteri verileri ve analizler
-- İş süreçleri ve methodolojiler
-- Finansal projeksiyon ve planlar
-- Teknik dökümanlar ve kaynak kodlar
-
-GİZLİLİK SÜRESI:
-- Anlaşma süresi: 5 yıl
-- Proje bitiminden sonra: 3 yıl ek
-- Hassas veriler için: 10 yıl
-
-YÜKÜMLÜLÜKLER:
-- Bilgilerin üçüncü kişilerle paylaşılmaması
-- Güvenli saklama ve imha prosedürleri
-- Çalışan eğitimleri
-- Veri ihlali bildirim süreci
-
-İHLAL DURUMU:
-- Tazminat miktarı: 500,000 TL
-- Hukuki işlem hakları`,
-      status: 'APPROVED',
-      type: 'NDA',
-      value: 0,
-      startDate: new Date('2024-03-01'),
-      endDate: new Date('2029-03-01'),
-      otherPartyName: 'XYZ Teknoloji A.Ş.',
-      otherPartyEmail: 'legal@xyztech.com',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-02-20'),
-      updatedAt: new Date('2024-02-28'),
-    },
-    {
-      title: 'Pazarlama Ajansı Hizmet Sözleşmesi',
-      description: 'Dijital pazarlama ve reklam kampanyası yönetimi',
-      content: `Digital Boost Agency ile pazarlama hizmetleri sözleşmesi.
-
-HİZMET KAPSAMI:
-- Google Ads yönetimi
-- Facebook & Instagram reklamları
-- SEO optimizasyon
-- Content marketing
-- Email marketing kampanyaları
-- Sosyal medya yönetimi
-- Influencer marketing
-
-HEDEF METRIKLƏR:
-- Website trafiği: %150 artış
-- Conversion rate: %25 iyileştirme
-- ROAS: Minimum 4:1
-- Social media engagement: %200 artış
-
-ÇALIŞMA MODELİ:
-- Aylık strategi toplantıları
-- Haftalık performans raporları
-- A/B test süreçleri
-- Competitor analysis
-
-REKLAM BÜTÇE:
-- Aylık ad spend: 50,000 TL
-- Ajans komisyonu: %15`,
-      status: 'IN_REVIEW',
-      type: 'SERVICE_AGREEMENT',
-      value: 540000, // 12 ay x (50k + 7.5k ajans)
-      startDate: new Date('2024-05-01'),
-      endDate: new Date('2025-04-30'),
-      otherPartyName: 'Digital Boost Agency',
-      otherPartyEmail: 'contracts@digitalboost.com',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-04-08'),
-      updatedAt: new Date('2024-04-15'),
-    },
-    {
-      title: 'Muhasebe Hizmetleri Sözleşmesi',
-      description: 'Tam set muhasebe ve mali müşavirlik hizmetleri',
-      content: `Finans Consulting ile muhasebe hizmetleri sözleşmesi.
-
-HİZMET KAPSAMI:
-- Genel muhasebe kayıtları
-- KDV ve Stopaj beyannameleri
-- SGK işlemleri
-- Bordro hesaplama ve ödemeler
-- Bilanço ve gelir tablosu hazırlama
-- Vergi dairesi takip ve temsil
-- Mali analiz raporları
-
-ÇALIŞMA SÜRECİ:
-- Aylık kapanış: Her ayın 25'i
-- Beyanname teslimi: Ayın son günü
-- Mali rapor sunumu: Çeyrek dönemlik
-- Online erişim: 7/24 web portal
-
-UZMANLIK ALANLARI:
-- Teknoloji şirketleri vergilendirilmesi
-- Ar-Ge teşvikleri
-- Transfer pricing
-- Kurumlar vergisi optimizasyonu
-
-ÖDEME:
-- Aylık sabit ücret: 15,000 TL
-- İlave hizmet ücret tarifesi ayrı`,
-      status: 'SIGNED',
-      type: 'SERVICE_AGREEMENT',
-      value: 180000, // 12 ay x 15k
-      startDate: new Date('2024-01-01'),
-      endDate: new Date('2024-12-31'),
-      otherPartyName: 'Finans Consulting',
-      otherPartyEmail: 'info@finansconsulting.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2023-12-15'),
-      updatedAt: new Date('2023-12-30'),
-    },
-    {
-      title: 'Yazılım Geliştirme Outsourcing',
-      description: 'E-ticaret platformu backend geliştirme',
-      content: `DevTeam Solutions ile yazılım geliştirme outsourcing sözleşmesi.
-
-PROJE DETAYLARI:
-- Platform: Node.js + React
-- Veritabanı: PostgreSQL + Redis
-- Cloud: AWS infrastructure
-- Mikroservis mimarisi
-- GraphQL API
-- Real-time notifications
-- Payment gateway entegrasyonu
-
-TEAM COMPOSITION:
-- 1 Senior Full-stack Developer
-- 1 Backend Developer
-- 1 Frontend Developer  
-- 1 DevOps Engineer
-- 1 QA Tester
-- Part-time: Solution Architect
-
-ÇALIŞMA MODELİ:
-- Agile/Scrum methodology
-- 2 haftalık sprint'ler
-- Daily standup meetings
-- Sprint review ve retrospective
-
-KALİTE STANDARTLARI:
-- Code review süreci
-- Unit test coverage: %90+
-- Integration testing
-- Performance monitoring`,
-      status: 'DRAFT',
-      type: 'SERVICE_AGREEMENT',
-      value: 450000,
-      startDate: new Date('2024-06-01'),
-      endDate: new Date('2024-12-31'),
-      otherPartyName: 'DevTeam Solutions',
-      otherPartyEmail: 'business@devteam.io',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-04-20'),
-      updatedAt: new Date('2024-04-20'),
-    },
-    {
-      title: 'Siber Güvenlik Monitoring Hizmeti',
-      description: '7/24 SOC hizmeti ve incident response',
-      content: `SecureWatch ile siber güvenlik monitoring sözleşmesi.
-
-HİZMET KAPSAMI:
-- 7/24 Security Operations Center (SOC)
-- SIEM monitoring ve analysis
-- Threat intelligence feed'leri
-- Vulnerability assessment
-- Incident response team
-- Forensic analysis
-- Security awareness training
-
-MONİTORİNG KAPSAMI:
-- Network traffic analysis
-- Endpoint detection & response
-- Email security monitoring  
-- Web application firewall logs
-- Database activity monitoring
-- Cloud security posture
-
-SLA KOŞULLARI:
-- Alert response time: < 15 dakika
-- Critical incident response: < 1 saat
-- Monthly security report
-- Quarterly security assessment
-
-ESKALASYONs:
-- Level 1: Automated response
-- Level 2: Security analyst
-- Level 3: Senior security engineer
-- Level 4: CISO involvement`,
-      status: 'APPROVED',
-      type: 'SERVICE_AGREEMENT',
-      value: 240000, // 12 ay x 20k
-      startDate: new Date('2024-04-01'),
-      endDate: new Date('2025-03-31'),
-      otherPartyName: 'SecureWatch Cyber',
-      otherPartyEmail: 'enterprise@securewatch.com',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-03-10'),
-      updatedAt: new Date('2024-03-25'),
-    },
-    {
-      title: 'Kurumsal Eğitim Hizmetleri',
-      description: 'Çalışan gelişimi ve teknik eğitim programları',
-      content: `EduCorp Training ile kurumsal eğitim hizmetleri sözleşmesi.
-
-EĞİTİM PROGRAMLARI:
-- Leadership & Management Skills
-- Agile & Scrum Methodology
-- Cloud Computing (AWS, Azure)
-- Data Science & Analytics
-- Cybersecurity Awareness
-- Soft skills development
-- Digital transformation
-
-SUNUM FORMATLARI:
-- Yüz yüze eğitimler (conference room)
-- Online canlı eğitimler (webinar)
-- E-learning platform erişimi
-- Blended learning approach
-- Workshop ve hands-on labs
-
-KATILIMCI DETAYLARI:
-- Toplam katılımcı: 150 kişi
-- Eğitim saati: 40 saat/kişi
-- Sertifikasyon dahil
-- Materyal ve kaynak erişimi
-
-PERFORMANS GÖSTERGELERİ:
-- Completion rate: %95+
-- Satisfaction score: 4.5/5+
-- Pre/post training assessment
-- Skills improvement tracking`,
-      status: 'SIGNED',
-      type: 'SERVICE_AGREEMENT',
-      value: 180000,
-      startDate: new Date('2024-02-01'),
-      endDate: new Date('2024-08-31'),
-      otherPartyName: 'EduCorp Training',
-      otherPartyEmail: 'corporate@educorp.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-01-10'),
-      updatedAt: new Date('2024-01-25'),
-    },
-    {
-      title: 'Lojistik Hizmetleri Anlaşması',
-      description: 'Kargo ve sevkiyat hizmetleri framework anlaşması',
-      content: `QuickLogistics ile lojistik hizmetleri framework sözleşmesi.
-
-HİZMET KAPSAMI:
-- Yurtiçi kargo hizmetleri
-- Uluslararası sevkiyat
-- Same-day delivery (İstanbul)
-- Bulk shipping
-- Warehousing hizmetleri
-- Return logistics
-- E-ticaret entegrasyonu
-
-FİYATLANDIRMA:
-- Yurtiçi: 15 TL (5kg'a kadar)
-- Express: 25 TL (next day)
-- Same-day: 45 TL (İstanbul içi)
-- Volume discount: %10-20
-- Fuel surcharge adjustments
-
-SERVİS LEVEL:
-- Standard delivery: 2-3 gün
-- Express delivery: Next day
-- Same-day: 4-6 saat
-- Package tracking: Real-time
-- Insurance coverage included
-
-TEKNOLOJİ ENTEGRASYONU:
-- API integration
-- Automated label generation
-- Shipment notifications
-- Delivery confirmations`,
-      status: 'IN_REVIEW',
-      type: 'SERVICE_AGREEMENT',
-      value: 360000, // Yıllık tahmini volume
-      startDate: new Date('2024-05-01'),
-      endDate: new Date('2025-04-30'),
-      otherPartyName: 'QuickLogistics A.Ş.',
-      otherPartyEmail: 'contracts@quicklogistics.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-04-12'),
-      updatedAt: new Date('2024-04-20'),
-    },
-    {
-      title: 'Temizlik Hizmetleri Sözleşmesi',
-      description: 'Ofis temizlik ve bakım hizmetleri',
-      content: `CleanPro Services ile ofis temizlik hizmetleri sözleşmesi.
-
-HİZMET KAPSAMI:
-- Günlük genel temizlik
-- Haftalık derin temizlik
-- Cam temizliği (aylık)
-- Halı temizliği (3 aylık)
-- Dezenfeksiyon hizmetleri
-- Çöp toplama ve bertaraf
-- Hijyen malzemesi temini
-
-ÇALIŞMA SAATLERİ:
-- Hafta içi: 18:00-22:00
-- Cumartesi: 09:00-17:00
-- Acil temizlik: 24 saat notice
-
-MALZEME VE EKİPMAN:
-- Eco-friendly temizlik ürünleri
-- Professional equipment
-- Hijyen ve güvenlik malzemeleri
-- Temizlik araçları ve makineler
-
-KALİTE KONTROLÜ:
-- Supervisor check: Günlük
-- Customer feedback: Haftalık
-- Quality audit: Aylık
-- Service improvement meetings
-
-PERSONEL:
-- Trained cleaning staff
-- Background check completed
-- Uniform and ID cards
-- Insurance coverage`,
-      status: 'SIGNED',
-      type: 'SERVICE_AGREEMENT',
-      value: 96000, // 12 ay x 8k
-      startDate: new Date('2024-01-01'),
-      endDate: new Date('2024-12-31'),
-      otherPartyName: 'CleanPro Services',
-      otherPartyEmail: 'admin@cleanpro.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2023-12-10'),
-      updatedAt: new Date('2023-12-25'),
-    },
-    {
-      title: 'Veri Merkezi Colocation Hizmeti',
-      description: 'Sunucu hosting ve colocation hizmetleri',
-      content: `DataCenter Istanbul ile colocation hizmetleri sözleşmesi.
-
-DONANIM KAPSAMI:
-- 2U rack space
-- Dedicated server hosting
-- Network connectivity: 1Gbps
-- Power: Redundant A+B feed
-- Cooling: N+1 redundancy
-- Physical security: 24/7
-
-NETWORK İMKANLARI:
-- Multiple ISP connections
-- BGP routing
-- DDoS protection
-- Network monitoring
-- Bandwidth burstability
-- IPv4 ve IPv6 support
-
-GÜVENLİK ÖZELLİKLERİ:
-- Biometric access control
-- CCTV surveillance
-- Security guards 24/7
-- Mantrap entry systems
-- Visitor escort policy
-- Access logging
-
-SLA GARANTİLERİ:
-- Power uptime: %99.982
-- Network uptime: %99.9
-- Cooling uptime: %99.9
-- Physical security: %100
-- Response time: < 15 min`,
-      status: 'ARCHIVED',
-      type: 'SERVICE_AGREEMENT',
-      value: 144000, // 12 ay x 12k
-      startDate: new Date('2023-06-01'),
-      endDate: new Date('2024-05-31'),
-      otherPartyName: 'DataCenter Istanbul',
-      otherPartyEmail: 'sales@dcistanbul.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2023-05-15'),
-      updatedAt: new Date('2024-05-31'),
-    },
-    {
-      title: 'Mobil Operatör Kurumsal Hat Sözleşmesi',
-      description: 'Şirket çalışanları için mobil hat ve data paketleri',
-      content: `TurkTelecom ile kurumsal mobil hizmetleri sözleşmesi.
-
-HAT DETAYLARI:
-- 75 adet mobil hat
-- Unlimited yerli konuşma
-- 50GB aylık internet
-- Unlimited SMS
-- Roaming paketleri dahil
-- Mobile hotspot özelliği
-
-İŞ ÇÖZÜMLERI:
-- Mobile device management (MDM)
-- Corporate email setup
-- VPN access
-- Security policies
-- Remote wipe capability
-- Usage monitoring
-
-CİHAZ TEDAİK:
-- iPhone 15 Pro: 25 adet
-- Samsung Galaxy S24: 25 adet  
-- Business smartphones: 25 adet
-- Device insurance included
-- Replacement service
-
-FİYATLANDIRMA:
-- Hat başı aylık: 450 TL
-- Device installment: 36 ay
-- Setup fee: Muaf
-- Corporate discount: %15`,
-      status: 'SIGNED',
-      type: 'SERVICE_AGREEMENT',
-      value: 405000, // 12 ay x 75 hat x 450 TL
-      startDate: new Date('2024-02-01'),
-      endDate: new Date('2026-01-31'),
-      otherPartyName: 'Türk Telekom A.Ş.',
-      otherPartyEmail: 'kurumsal@turktelekom.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-01-10'),
-      updatedAt: new Date('2024-01-28'),
-    },
-    {
-      title: 'Yazılım Lisans Yenileme - Atlassian',
-      description: 'Jira, Confluence ve Bitbucket lisans yenileme',
-      content: `Atlassian ile yazılım lisansları yenileme sözleşmesi.
-
-ÜRÜN LİSANSLARI:
-- Jira Software Cloud: 100 user
-- Confluence Cloud: 100 user  
-- Bitbucket Cloud: 50 user
-- Jira Service Management: 25 agent
-- Advanced Roadmaps dahil
-- Unlimited storage
-
-ENTERPRISE ÖZELLİKLER:
-- Advanced user management
-- Audit log and compliance
-- Data residency options
-- SLA guarantees
-- Premium support
-- Migration assistance
-
-ENTEGRASYON:
-- Single Sign-On (SSO)
-- LDAP/Active Directory
-- Slack integration
-- Microsoft Teams integration
-- Third-party app marketplace
-
-DESTEK:
-- Priority support queue
-- Technical account manager
-- Training and best practices
-- Health check sessions`,
-      status: 'DRAFT',
-      type: 'SERVICE_AGREEMENT',
-      value: 168000, // Yıllık lisans ücreti
-      startDate: new Date('2024-06-01'),
-      endDate: new Date('2025-05-31'),
-      otherPartyName: 'Atlassian Corporation',
-      otherPartyEmail: 'enterprise@atlassian.com',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-04-25'),
-      updatedAt: new Date('2024-04-25'),
-    },
-    {
-      title: 'İK Danışmanlığı ve Bordro Hizmetleri',
-      description: 'İnsan kaynakları yönetimi ve bordro outsourcing',
-      content: `HR Solutions ile İK danışmanlığı hizmetleri sözleşmesi.
-
-HİZMET KAPSAMI:
-- Bordro hesaplama ve ödeme
-- SGK işlemleri ve takibi
-- İş sözleşmesi hazırlama
-- Performance management
-- Recruitment ve seçme yerleştirme
-- Employee handbook geliştirme
-- Compliance ve yasal takip
-
-BORDRO HİZMETLERİ:
-- Aylık bordro hesaplama
-- Vergi ve SGK kesintileri
-- Yıllık gelir vergisi beyannamesi
-- Personel giriş/çıkış işlemleri
-- İzin ve mesai takibi
-- Avans ve harcırah işlemleri
-
-İK DANIŞMANLIĞI:
-- HR policy development
-- Job description yazımı
-- Salary benchmarking
-- Employee training programs
-- Disciplinary procedures
-- Exit interview process
-
-TEKNOLOJİ PLATFORMU:
-- Cloud-based HR system
-- Self-service employee portal
-- Mobile app access
-- Reporting ve analytics`,
-      status: 'IN_REVIEW',
-      type: 'SERVICE_AGREEMENT',
-      value: 216000, // 12 ay x 18k
-      startDate: new Date('2024-06-01'),
-      endDate: new Date('2025-05-31'),
-      otherPartyName: 'HR Solutions Türkiye',
-      otherPartyEmail: 'contracts@hrsolutions.com.tr',
-      createdById: efeUser.id,
-      updatedById: efeUser.id,
-      createdAt: new Date('2024-04-15'),
-      updatedAt: new Date('2024-04-22'),
-    }
-  ];
-
-  // Gerçekçi sözleşmeleri veritabanına ekle
-  for (const contractData of realContracts) {
-    await prisma.contract.create({
-      data: contractData,
     });
+    createdTeams[dept.code] = team;
   }
 
-  console.log('Test verileri oluşturuldu: Test contract + 20 gerçekçi sözleşme eklendi');
+  // 3. C-Level yöneticilerini oluştur
+  console.log('👔 C-Level yöneticiler oluşturuluyor...');
+  const cLevelUsers = [];
+  const cLevelTitles = [
+    { title: 'CEO', name: 'İcra Kurulu Başkanı' },
+    { title: 'CTO', name: 'Teknoloji Direktörü' },
+    { title: 'CFO', name: 'Mali İşler Direktörü' },
+  ];
+
+  for (const executive of cLevelTitles) {
+    const name = getRandomTurkishName();
+    const email = generateTurkishEmail(name);
+    const hashedPassword = await bcrypt.hash('123456', 10);
+    
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+      role: 'ADMIN',
+        department: 'Yönetim',
+        departmentRole: executive.title,
+        createdAt: faker.date.past({ years: 2 }),
+    },
+  });
+
+    // Yönetim takımına ekle
+    await prisma.usersOnTeams.create({
+      data: {
+        userId: user.id,
+        teamId: createdTeams.MANAGEMENT.id,
+    },
+  });
+
+    cLevelUsers.push(user);
+  }
+
+  // 4. Her departman için müdür ve çalışanları oluştur
+  console.log('👥 Departman çalışanları oluşturuluyor...');
+  const allUsers = [...cLevelUsers];
+
+  for (const dept of departments) {
+    if (dept.code === 'MANAGEMENT') continue; // Yönetim zaten oluşturuldu
+    
+    // Departman müdürü
+    const managerName = getRandomTurkishName();
+    const managerEmail = generateTurkishEmail(managerName);
+    const hashedPassword = await bcrypt.hash('123456', 10);
+    
+    const manager = await prisma.user.create({
+    data: {
+        name: managerName,
+        email: managerEmail,
+        password: hashedPassword,
+        role: 'EDITOR',
+        department: dept.name,
+        departmentRole: `${dept.name} Müdürü`,
+        createdAt: faker.date.past({ years: 2 }),
+    },
+  });
+
+    await prisma.usersOnTeams.create({
+    data: {
+        userId: manager.id,
+        teamId: createdTeams[dept.code].id,
+    },
+  });
+
+    allUsers.push(manager);
+
+    // 9 normal çalışan
+    for (let i = 0; i < 9; i++) {
+      const employeeName = getRandomTurkishName();
+      const employeeEmail = generateTurkishEmail(employeeName);
+      const employeeRole = faker.helpers.arrayElement(['VIEWER', 'EDITOR']);
+      
+      const employee = await prisma.user.create({
+    data: {
+          name: employeeName,
+          email: employeeEmail,
+          password: hashedPassword,
+          role: employeeRole,
+          department: dept.name,
+          departmentRole: faker.helpers.arrayElement([
+            'Uzman', 'Kıdemli Uzman', 'Koordinatör', 'Analisti', 'Specialist'
+          ]),
+          createdAt: faker.date.past({ years: 2 }),
+    },
+  });
+
+      await prisma.usersOnTeams.create({
+        data: {
+          userId: employee.id,
+          teamId: createdTeams[dept.code].id,
+        },
+      });
+
+      allUsers.push(employee);
+    }
+  }
+
+  // 5. Her departman için gerçekçi sözleşmeler oluştur
+  console.log('📋 Departman sözleşmeleri oluşturuluyor...');
+  
+  for (const dept of departments) {
+    const departmentUsers = allUsers.filter(user => user.department === dept.name);
+    if (departmentUsers.length === 0) continue;
+
+    const contractTitles = contractTemplatesByDepartment[dept.code as keyof typeof contractTemplatesByDepartment];
+    
+    // Her departman için 12-15 sözleşme oluştur
+    const contractCount = faker.number.int({ min: 12, max: 15 });
+    
+    for (let i = 0; i < contractCount; i++) {
+      const author = faker.helpers.arrayElement(departmentUsers);
+      const title = faker.helpers.arrayElement(contractTitles);
+      
+      const startDate = faker.date.past({ years: 1 });
+      const endDate = faker.date.future({ years: 1, refDate: startDate });
+      
+      const contractTypes = ['SERVICE_AGREEMENT', 'SALES_CONTRACT', 'CONSULTING_AGREEMENT', 'LICENSE_AGREEMENT', 'EMPLOYMENT_CONTRACT'];
+      const statuses = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'SIGNED', 'ACTIVE', 'EXPIRED'];
+      
+      // Departmana göre sözleşme değeri aralıkları
+      let valueRange = { min: 5000, max: 50000 };
+      if (dept.code === 'TECH' || dept.code === 'MANAGEMENT') {
+        valueRange = { min: 50000, max: 500000 };
+      } else if (dept.code === 'SALES') {
+        valueRange = { min: 100000, max: 1000000 };
+      }
+      
+      const value = faker.number.float({ 
+        min: valueRange.min, 
+        max: valueRange.max, 
+        multipleOf: 1000 
+      });
+
+      // Gerçekçi sözleşme içeriği oluştur
+      const content = generateContractContent(title, dept.name, value);
+      
+      const contract = await prisma.contract.create({
+        data: {
+          title,
+          description: `${dept.name} departmanı için ${title.toLowerCase()} sözleşmesi`,
+          content,
+          status: faker.helpers.arrayElement(statuses),
+          type: faker.helpers.arrayElement(contractTypes),
+          value,
+          startDate,
+          endDate,
+          expirationDate: endDate,
+          noticePeriodDays: faker.helpers.arrayElement([30, 60, 90]),
+          otherPartyName: generateCompanyName(),
+          otherPartyEmail: faker.internet.email(),
+          createdById: author.id,
+          updatedById: author.id,
+          createdAt: faker.date.between({ from: startDate, to: new Date() }),
+        },
+      });
+
+      // Bazı sözleşmeler için onaylar oluştur
+      if (faker.datatype.boolean({ probability: 0.7 })) {
+        const approvers = faker.helpers.arrayElements(
+          allUsers.filter(u => u.role === 'ADMIN' || u.role === 'EDITOR'), 
+          { min: 1, max: 3 }
+        );
+        
+        for (const approver of approvers) {
+          await prisma.contractApproval.create({
+            data: {
+              contractId: contract.id,
+              approverId: approver.id,
+              status: faker.helpers.arrayElement(['PENDING', 'APPROVED', 'REJECTED']),
+              comment: faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.5 }) || undefined,
+              approvedAt: faker.helpers.maybe(() => faker.date.recent(), { probability: 0.6 }) || undefined,
+            },
+          });
+        }
+      }
+    }
+  }
+
+     // 6. Bazı temel clause'lar oluştur
+   console.log('📜 Temel clause\'lar oluşturuluyor...');
+  const sampleClauses = [
+    {
+      title: 'Gizlilik ve Veri Koruma Maddesi',
+      description: 'KVKK uyumlu gizlilik koşulları',
+      content: 'Taraflar, bu sözleşme kapsamında elde ettikleri kişisel verileri 6698 sayılı Kişisel Verilerin Korunması Kanunu hükümlerine uygun olarak işleyecek ve gizli tutacaklardır.',
+      category: 'PRIVACY',
+    },
+    {
+      title: 'Ödeme ve Faturalandırma Koşulları',
+      description: 'Standart ödeme maddeleri',
+      content: 'Ödeme, hizmet tesliminden sonra 30 gün içinde yapılacaktır. Geç ödeme durumunda TCMB iskonto oranı + %5 gecikme faizi uygulanır.',
+      category: 'PAYMENT',
+    },
+    {
+      title: 'Sözleşme Feshi ve İhtar Koşulları',
+      description: 'Sözleşme feshi prosedürleri',
+      content: 'Taraflardan herhangi biri, diğer tarafı 30 gün önceden yazılı olarak uyararak sözleşmeyi feshedebilir. Haklı nedenle derhal fesih hakkı saklıdır.',
+      category: 'TERMINATION',
+    },
+    {
+      title: 'Mücbir Sebep Maddesi',
+      description: 'Force majeure koşulları',
+      content: 'Doğal afetler, savaş, terör, pandemi gibi mücbir sebeplerden kaynaklanan gecikme ve ifa edilememe durumlarında taraflar sorumlu tutulamaz.',
+      category: 'FORCE_MAJEURE',
+    },
+  ];
+
+  const createdClauses = [];
+  for (const clauseData of sampleClauses) {
+    const randomUser = faker.helpers.arrayElement(allUsers);
+    const clause = await prisma.clause.create({
+      data: {
+        ...clauseData,
+        visibility: 'PUBLIC',
+        approvalStatus: 'APPROVED',
+        isActive: true,
+        createdById: randomUser.id,
+      },
+    });
+    createdClauses.push(clause);
+  }
+
+  console.log('✅ Seed işlemi tamamlandı!');
+  console.log(`👥 Toplam ${allUsers.length} kullanıcı oluşturuldu`);
+  console.log(`🏢 ${departments.length} departman oluşturuldu`);
+  console.log(`📋 Toplam sözleşme sayısı hesaplanıyor...`);
+  
+  const contractCount = await prisma.contract.count();
+  console.log(`📋 ${contractCount} sözleşme oluşturuldu`);
+  console.log(`📜 ${createdClauses.length} clause oluşturuldu`);
+}
+
+function generateContractContent(title: string, department: string, value: number): string {
+  const formattedValue = new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY'
+  }).format(value);
+
+  return `
+# ${title}
+
+Bu sözleşme, Contravo Teknoloji A.Ş. (${department} Departmanı) ile hizmet sağlayıcı arasında düzenlenmiştir.
+
+## 1. SÖZLEŞME KAPSAMI
+${generateScopeContent(title, department)}
+
+## 2. HİZMET BEDELİ VE ÖDEME KOŞULLARI
+- Toplam hizmet bedeli: ${formattedValue}
+- Ödeme planı: ${faker.helpers.arrayElement(['Aylık', 'Üç aylık', 'Altı aylık', 'Yıllık'])}
+- Fatura tarihi: Her ayın ${faker.number.int({ min: 1, max: 28 })}. günü
+- Ödeme vadesi: Fatura tarihinden itibaren ${faker.helpers.arrayElement([15, 30, 45])} gün
+
+## 3. TARAFLARIN YÜKÜMLÜLÜKLERİ
+
+### 3.1 Contravo Teknoloji A.Ş. Yükümlülükleri:
+- Sözleşme konusu hizmetin kaliteli ve zamanında alınmasını sağlamak
+- Ödeme yükümlülüklerini zamanında yerine getirmek
+- Gerekli bilgi ve belgeleri temin etmek
+
+### 3.2 Hizmet Sağlayıcı Yükümlülükleri:
+- Hizmeti sözleşme şartlarına uygun olarak vermek
+- Kalite standartlarını korumak
+- Gizlilik yükümlülüklerine uymak
+
+## 4. SÜRESİ VE FESİH
+- Sözleşme süresi: ${faker.number.int({ min: 6, max: 36 })} ay
+- Fesih ihbar süresi: ${faker.number.int({ min: 30, max: 90 })} gün
+- Haklı nedenle derhal fesih hakkı saklıdır
+
+## 5. GİZLİLİK VE VERİ KORUMA
+Bu sözleşme kapsamında paylaşılan tüm bilgiler gizli olup, 6698 sayılı KVKK hükümlerine tabidir.
+
+## 6. İHTİLAF ÇÖZÜMÜ
+Bu sözleşmeden doğan ihtilaflar öncelikle dostane yollarla çözülmeye çalışılacaktır. 
+Çözüm sağlanamadığı takdirde İstanbul Mahkemeleri ve İcra Müdürlükleri yetkili olacaktır.
+
+**Düzenleme Tarihi:** ${faker.date.recent().toLocaleDateString('tr-TR')}
+**Sözleşme No:** CNT-${faker.number.int({ min: 1000, max: 9999 })}
+`;
+}
+
+function generateScopeContent(title: string, department: string): string {
+  if (title.includes('Yazılım') || title.includes('IT') || title.includes('Teknoloji')) {
+    return 'Yazılım geliştirme, sistem entegrasyonu, teknik destek ve bakım hizmetlerini kapsar. Proje yönetimi, dokümantasyon ve eğitim hizmetleri dahildir.';
+  }
+  
+  if (title.includes('Pazarlama') || title.includes('Reklam')) {
+    return 'Dijital pazarlama stratejileri, sosyal medya yönetimi, içerik üretimi ve reklam kampanyalarının yürütülmesi. Marka bilinirliği artırma çalışmaları dahildir.';
+  }
+  
+  if (title.includes('Hukuki') || title.includes('Hukuk')) {
+    return 'Hukuki danışmanlık, sözleşme hazırlama ve inceleme, dava takibi ve hukuki uyumluluk çalışmaları. Mevzuat takibi ve risk analizi dahildir.';
+  }
+  
+  if (title.includes('Finans') || title.includes('Mali')) {
+    return 'Mali danışmanlık, finansal planlama, risk yönetimi ve yatırım stratejileri. Muhasebe ve vergi danışmanlığı hizmetleri dahildir.';
+  }
+  
+  if (title.includes('İnsan Kaynakları') || title.includes('İK')) {
+    return 'İnsan kaynakları danışmanlığı, personel seçimi, eğitim programları ve performans yönetimi. Özlük işleri ve bordro hizmetleri dahildir.';
+  }
+  
+  return 'Sözleşme kapsamında belirlenen hizmetlerin profesyonel standartlarda sunulması, kalite kontrolü ve müşteri memnuniyetinin sağlanması.';
+}
+
+function generateCompanyName(): string {
+  const prefixes = ['Küresel', 'Türk', 'Anadolu', 'İstanbul', 'Ankara', 'Modern', 'Dijital', 'Teknoloji'];
+  const types = ['Danışmanlık', 'Teknoloji', 'Yazılım', 'Pazarlama', 'Finans', 'Hukuk', 'Sistem', 'Çözüm'];
+  const suffixes = ['A.Ş.', 'Ltd. Şti.', 'Hizmetleri', 'Grup', 'Holding'];
+  
+  return `${faker.helpers.arrayElement(prefixes)} ${faker.helpers.arrayElement(types)} ${faker.helpers.arrayElement(suffixes)}`;
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Seed hatası:', e);
     process.exit(1);
   })
   .finally(async () => {

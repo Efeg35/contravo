@@ -4,6 +4,7 @@ import { getNextAction } from '@/src/lib/contract-helper';
 import { db } from '@/src/lib/db';
 import ContractFocusClient from './ContractFocusClient';
 import SmartActionButton from '@/components/SmartActionButton';
+import RevisionRequestButton from './RevisionRequestButton';
 import {
   ArrowLeftIcon,
   XMarkIcon,
@@ -30,16 +31,19 @@ async function getContract(contractId: string) {
         company: {
           select: { id: true, name: true }
         },
+        workflowTemplate: {
+          select: { id: true, name: true }
+        },
         approvals: {
           include: {
-  approver: {
+            approver: {
               select: { id: true, name: true, email: true }
             }
           }
         },
         attachments: {
           include: {
-  uploadedBy: {
+            uploadedBy: {
               select: { id: true, name: true }
             }
           }
@@ -49,21 +53,22 @@ async function getContract(contractId: string) {
             user: {
               select: { id: true, name: true, email: true }
             }
-    }
+          }
         }
       }
     });
 
     return contract;
-    } catch (error) {
+  } catch (error) {
     console.error('Sözleşme getirme hatası:', error);
     return null;
-    }
+  }
 }
 
 function getStatusColor(status: string) {
     switch (status) {
       case 'SIGNED': return 'bg-green-100 text-green-800';
+      case 'SENT_FOR_SIGNATURE': return 'bg-purple-100 text-purple-800';
       case 'IN_REVIEW': return 'bg-yellow-100 text-yellow-800';
       case 'APPROVED': return 'bg-blue-100 text-blue-800';
       case 'REJECTED': return 'bg-red-100 text-red-800';
@@ -77,6 +82,7 @@ function getStageDisplay(stage: string) {
       'DRAFT': 'Taslak',
       'IN_REVIEW': 'İncelemede',
       'APPROVED': 'Onaylandı',
+      'SENT_FOR_SIGNATURE': 'İmzada',
       'SIGNED': 'İmzalandı',
       'ARCHIVED': 'Arşivlendi',
       'REJECTED': 'Reddedildi'
@@ -139,7 +145,13 @@ export default async function ContractFocusPage({ params }: PageProps) {
           <SmartActionButton 
             contractId={contract.id}
             nextAction={nextAction}
+            workflowTemplateId={(contract as any).workflowTemplateId}
           />
+          
+          {/* Revizyon Talep Et Butonu - Sadece onaycı sırasında göster */}
+          {nextAction.action === 'APPROVE_CONTRACT' && (
+            <RevisionRequestButton contractId={contract.id} />
+          )}
           
           {/* Diğer kontrol butonları */}
           <div className="flex items-center space-x-2 border-l border-gray-200 pl-3">
@@ -183,7 +195,7 @@ export default async function ContractFocusPage({ params }: PageProps) {
         approvals={contract.approvals.map(approval => ({
           id: approval.id,
           stepName: `Onay - ${approval.approver.name}`,
-          status: approval.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+          status: approval.status as 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVISION_REQUESTED',
           approver: {
             name: approval.approver.name || '',
             email: approval.approver.email

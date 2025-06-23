@@ -31,7 +31,7 @@ export async function PATCH(
         id: approvalId,
         contractId: id,
         approverId: session.user.id,
-        status: 'PENDING'
+        status: { in: ['PENDING', 'REVISION_REQUESTED'] }
       },
       include: {
         contract: true
@@ -83,12 +83,27 @@ export async function PATCH(
       newContractStatus = 'APPROVED';
     }
 
-    // Update contract status if needed
+    // Update contract status and assignment if needed
     if (newContractStatus !== approval.contract.status) {
+      let assignedToId = null;
+
+      // If contract is approved, check if there are more pending approvals
+      if (newContractStatus === 'APPROVED' && pendingApprovals.length === 0) {
+        // All approvals complete, remove assignment
+        assignedToId = null;
+      } else if (pendingApprovals.length > 0) {
+        // Assign to next pending approver
+        assignedToId = pendingApprovals[0].approverId;
+      } else if (newContractStatus === 'REJECTED') {
+        // Assign back to contract creator for revision
+        assignedToId = approval.contract.createdById;
+      }
+
       await prisma.contract.update({
         where: { id },
         data: { 
           status: newContractStatus,
+          assignedToId: assignedToId,
           updatedAt: new Date()
         }
       });

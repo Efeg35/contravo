@@ -1,4 +1,6 @@
 import { hasRequiredRole } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../../lib/auth';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,13 +11,41 @@ import Link from 'next/link';
 import { Users } from 'lucide-react';
 
 export default async function TeamsPage() {
-  // Admin yetkisi kontrolü
-  if (!await hasRequiredRole('ADMIN')) {
+  const session = await getServerSession(authOptions);
+  
+  // En azından EDITOR rolü gerekiyor
+  if (!await hasRequiredRole('EDITOR')) {
     redirect('/dashboard');
   }
 
-  // Takımları ve üye sayılarını çek
-  const teams = await db.team.findMany({
+  const isAdmin = session?.user?.role === 'ADMIN';
+  const currentUserId = session?.user?.id;
+
+  // Takımları çek - ADMIN'ler tümünü, EDITOR'lar sadece üye olduklarını görür
+  let teams;
+  
+  if (isAdmin) {
+    // Admin tüm takımları görebilir
+    teams = await db.team.findMany({
+      include: {
+        _count: {
+          select: { members: true }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+  } else {
+    // EDITOR'lar sadece üye oldukları takımları görebilir
+    teams = await db.team.findMany({
+      where: {
+        members: {
+          some: {
+            userId: currentUserId
+          }
+        }
+      },
     include: {
       _count: {
         select: { members: true }
@@ -25,6 +55,7 @@ export default async function TeamsPage() {
       name: 'asc'
     }
   });
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -36,12 +67,13 @@ export default async function TeamsPage() {
             Takım Yönetimi
           </h1>
           <p className="text-gray-600 mt-2">
-            Takımları oluşturun ve yönetin
+            {isAdmin ? 'Takımları oluşturun ve yönetin' : 'Üye olduğunuz takımları görüntüleyin ve yönetin'}
           </p>
         </div>
       </div>
 
-      {/* Yeni Takım Oluşturma Formu */}
+      {/* Yeni Takım Oluşturma Formu - Sadece Admin'ler için */}
+      {isAdmin && (
       <Card>
         <CardHeader>
           <CardTitle>Yeni Takım Oluştur</CardTitle>
@@ -66,19 +98,24 @@ export default async function TeamsPage() {
           </form>
         </CardContent>
       </Card>
+      )}
 
       {/* Takım Listesi */}
       <Card>
         <CardHeader>
-          <CardTitle>Takımlar</CardTitle>
+          <CardTitle>
+            {isAdmin ? 'Tüm Takımlar' : 'Takımlarım'}
+          </CardTitle>
           <CardDescription>
-            Mevcut takımların listesi
+            {isAdmin ? 'Sistemdeki tüm takımların listesi' : 'Üye olduğunuz takımların listesi'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {teams.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              Henüz hiç takım oluşturulmamış.
+              {isAdmin 
+                ? 'Henüz hiç takım oluşturulmamış.' 
+                : 'Henüz hiçbir takımın üyesi değilsiniz.'}
             </div>
           ) : (
             <div className="space-y-4">
@@ -95,7 +132,7 @@ export default async function TeamsPage() {
                   </div>
                   <Button asChild variant="outline">
                     <Link href={`/dashboard/admin/teams/${team.id}`}>
-                      Takımı Yönet
+                      {isAdmin ? 'Takımı Yönet' : 'Takımı Görüntüle'}
                     </Link>
                   </Button>
                 </div>
@@ -104,6 +141,18 @@ export default async function TeamsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Bilgilendirme mesajı - EDITOR'lar için */}
+      {!isAdmin && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <p className="text-blue-800 text-sm">
+              <strong>Bilgi:</strong> Takım müdürü olarak sadece üye olduğunuz takımları görebilir ve yönetebilirsiniz. 
+              Yeni takım oluşturma yetkisi sadece sistem yöneticilerine aittir.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 } 

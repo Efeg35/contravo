@@ -829,9 +829,20 @@ export async function getContractsVisibilityFilter(userId: string, userRole: str
     return {};
   }
 
+  // Kullanıcının departman bilgisini al
+  const { db } = await import('@/lib/db');
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { department: true, role: true }
+  });
+
+  if (!user) {
+    // Kullanıcı bulunamazsa sadece kendi sözleşmelerini görsün
+    return { createdById: userId };
+  }
+
   // Admin olmayan kullanıcılar için yetki filtresi
-  return {
-    OR: [
+  const filters = [
       // Kullanıcının oluşturduğu sözleşmeler
       { createdById: userId },
       
@@ -847,8 +858,18 @@ export async function getContractsVisibilityFilter(userId: string, userRole: str
           ]
         }
       }
-    ]
-  };
+  ];
+
+  // Aynı departmandaki sözleşmeleri de göster
+  if (user.department) {
+    filters.push({
+      createdBy: {
+        department: user.department
+      }
+    } as any);
+  }
+
+  return { OR: filters };
 }
 
 /**

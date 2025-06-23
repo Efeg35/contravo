@@ -1,5 +1,5 @@
 // Contract Status Enum
-export type ContractStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SIGNED' | 'ARCHIVED';
+export type ContractStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SENT_FOR_SIGNATURE' | 'SIGNED' | 'ARCHIVED';
 
 // Contract Types
 export type ContractType = 

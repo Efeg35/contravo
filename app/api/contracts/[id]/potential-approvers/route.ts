@@ -63,7 +63,7 @@ export async function GET(
       return NextResponse.json({ error: 'Bu sözleşmeye erişim yetkiniz yok' }, { status: 403 });
     }
 
-    // Potansiyel onaylayıcıları belirle - departman izolasyonu ile
+    // Potansiyel onaylayıcıları belirle - SADECE departman müdürleri ve başları
     let potentialApprovers: any[] = [];
     
     // Sözleşme sahibinin departmanını al
@@ -83,58 +83,96 @@ export async function GET(
           systemRole: cu.user.role
         }));
 
-      // Departman izolasyonu kuralları:
-      // 1. Aynı departmandaki tüm üyeler (kendi departmanı)
-      // 2. Genel Müdürlük - tüm departmanlara erişim
-      // 3. Hukuk departmanı - tüm departmanlara erişim (compliance)
-      // 4. Diğer departmanlar - sadece kendi departmanı + Genel Müdürlük + Hukuk
+      // Onaylama yetkilileri kriterleri - SADECE DEPARTMAN MÜDÜRLERİ
+      const managerTitles = [
+        'Müdür', 'Departman Müdürü', 'Bölüm Müdürü', 'Şube Müdürü',
+        'Başkan', 'Departman Başkanı', 'Bölüm Başkanı', 'Şube Başkanı',
+        'Başı', 'Departman Başı', 'Bölüm Başı'
+      ];
 
       potentialApprovers = allCompanyUsers.filter(user => {
-        // Her zaman Genel Müdürlük ve Hukuk departmanlarına onay gönderebilir
-        if (user.department === 'Genel Müdürlük' || user.department === 'Hukuk') {
-          return true;
+        // SADECE Departman müdürleri ve başları onaylama yetkisi var
+        // C-Level yöneticiler (CEO, CFO, CTO vb.) onaylama yetkisi YOK
+        
+        // Önce C-Level kontrolü - bunlar onaylayıcı OLAMAZ
+        const cLevelTitles = ['CEO', 'CFO', 'CTO', 'COO', 'CMO', 'CHO', 'CLO', 'CRO'];
+        if (user.departmentRole && cLevelTitles.some(title => 
+          user.departmentRole!.toUpperCase().includes(title)
+        )) {
+          return false; // C-Level yöneticiler onaylayıcı olamaz
         }
 
-        // Eğer sözleşme sahibi Genel Müdürlük veya Hukuk'taysa, herkese gönderebilir
-        if (contractCreatorDepartment === 'Genel Müdürlük' || contractCreatorDepartment === 'Hukuk') {
-          return true;
+        // Genel Müdür de onaylayıcı olamaz
+        if (user.departmentRole && user.departmentRole.toLowerCase().includes('genel müdür')) {
+          return false;
         }
 
-        // Diğer durumlarda sadece aynı departman
-        return user.department === contractCreatorDepartment;
+        // SADECE müdür unvanı olanlar onaylayıcı olabilir
+        if (user.departmentRole && managerTitles.some(title => 
+          user.departmentRole!.toLowerCase().includes(title.toLowerCase())
+        )) {
+          // Departman izolasyonu kuralları:
+          // 1. Hukuk müdürleri - tüm departmanlara erişim
+          // 2. Diğer departman müdürleri - sadece kendi departmanı
+          
+          // Hukuk departmanı müdürleri tüm sözleşmeleri onaylayabilir
+          if (user.department === 'Hukuk') {
+            return true;
+          }
+
+          // Diğer departman müdürleri sadece kendi departmanından gelen sözleşmeleri onaylayabilir
+          return user.department === contractCreatorDepartment;
+        }
+
+        return false;
+      }).map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        department: user.department,
+        departmentRole: user.departmentRole,
+        role: user.role,
+        systemRole: user.systemRole
+      }));
+
+      // Onaylayıcı öncelik sırası: Departman müdürleri -> Departman başları
+      potentialApprovers.sort((a, b) => {
+        // Müdür öncelik
+        const aIsManager = a.departmentRole?.toLowerCase().includes('müdür');
+        const bIsManager = b.departmentRole?.toLowerCase().includes('müdür');
+
+        if (aIsManager && !bIsManager) return -1;
+        if (!aIsManager && bIsManager) return 1;
+
+        // Departman adına göre sırala
+        return (a.department || '').localeCompare(b.department || '', 'tr');
       });
 
-      // ADMIN ve EDITOR rolündeki kullanıcıları öncelikle göster
-      potentialApprovers.sort((a, b) => {
-        const roleOrder = { 'ADMIN': 0, 'EDITOR': 1, 'VIEWER': 2 };
-        return (roleOrder[a.role as keyof typeof roleOrder] || 3) - (roleOrder[b.role as keyof typeof roleOrder] || 3);
+      // Kullanıcıları kategori bilgisi ile zenginleştir
+      potentialApprovers = potentialApprovers.map(user => {
+        let category = 'Departman Yöneticisi';
+        let displayName = user.name;
+        
+        if (user.departmentRole && user.departmentRole.toLowerCase().includes('müdür')) {
+          category = 'Departman Müdürü';
+          displayName = `${user.name} (${user.departmentRole})`;
+        } else if (user.departmentRole && (
+          user.departmentRole.toLowerCase().includes('başkan') || 
+          user.departmentRole.toLowerCase().includes('başı')
+        )) {
+          category = 'Departman Başı';
+          displayName = `${user.name} (${user.departmentRole})`;
+        }
+
+        return {
+          ...user,
+          category,
+          displayName
+        };
       });
     } else {
-      // Şirket yoksa, sistem yöneticilerini al
-      const admins = await prisma.user.findMany({
-        where: {
-          role: 'ADMIN',
-          id: { not: session.user.id }
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          department: true,
-          departmentRole: true,
-          role: true,
-        }
-      });
-
-      potentialApprovers = admins.map(admin => ({
-        id: admin.id,
-        name: admin.name,
-        email: admin.email,
-        department: admin.department,
-        departmentRole: admin.departmentRole,
-        role: 'ADMIN',
-        systemRole: admin.role
-      }));
+      // Şirket yoksa, onaylama yetkisi yok - sadece departman müdürleri ve başları onaylayabilir
+      potentialApprovers = [];
     }
 
     return NextResponse.json({

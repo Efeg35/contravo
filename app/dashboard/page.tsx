@@ -98,6 +98,8 @@ const RISK_COLORS = {
 const CONTRACT_STAGES = [
   { key: 'DRAFT', label: 'Taslak', color: 'bg-gray-400' },
   { key: 'IN_REVIEW', label: 'İncelemede', color: 'bg-yellow-400' },
+  { key: 'APPROVED', label: 'Onaylandı', color: 'bg-blue-400' },
+  { key: 'SENT_FOR_SIGNATURE', label: 'İmzada', color: 'bg-purple-400' },
   { key: 'SIGNED', label: 'İmzalandı', color: 'bg-green-400' },
   { key: 'ARCHIVED', label: 'Arşivlendi', color: 'bg-gray-400' }
 ];
@@ -344,6 +346,7 @@ export default function TaskFocusedDashboard() {
       'DRAFT': 'bg-gray-100 text-gray-700',
       'IN_REVIEW': 'bg-yellow-100 text-yellow-800',
       'APPROVED': 'bg-blue-100 text-blue-800',
+      'SENT_FOR_SIGNATURE': 'bg-purple-100 text-purple-800',
       'SIGNED': 'bg-green-100 text-green-800',
       'ARCHIVED': 'bg-gray-100 text-gray-600',
       'REJECTED': 'bg-red-100 text-red-800'

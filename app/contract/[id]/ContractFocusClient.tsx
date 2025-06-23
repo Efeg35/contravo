@@ -42,7 +42,7 @@ interface Contract {
 interface ApprovalStep {
   id: string;
   stepName: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVISION_REQUESTED';
   approver: {
     name: string;
     email: string;
@@ -244,10 +244,13 @@ export default function ContractFocusClient({
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                           approval.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
                           approval.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                          approval.status === 'REVISION_REQUESTED' ? 'bg-orange-100 text-orange-800' :
                           'bg-yellow-100 text-yellow-800'
                         }`}>
                           {approval.status === 'APPROVED' ? 'Onaylandı' :
-                           approval.status === 'REJECTED' ? 'Reddedildi' : 'Bekliyor'}
+                           approval.status === 'REJECTED' ? 'Reddedildi' :
+                           approval.status === 'REVISION_REQUESTED' ? 'Revizyon Talep Edildi' :
+                           'Bekliyor'}
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">{approval.approver.email}</p>

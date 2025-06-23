@@ -86,8 +86,91 @@ export async function POST(
   const { id: contractId } = await params;
 
   try {
-    const { signatureData } = await request.json();
+    const body = await request.json();
+    const { action, signatureData, signerIds } = body;
 
+    // İmza paketi oluşturma
+    if (action === 'CREATE_SIGNATURE_PACKAGE') {
+      if (!signerIds || !Array.isArray(signerIds) || signerIds.length === 0) {
+        return NextResponse.json({ error: 'İmzalayıcı ID\'leri gerekli' }, { status: 400 });
+      }
+
+      // Verify contract exists and user has access
+      const contract = await prisma.contract.findFirst({
+        where: {
+          id: contractId,
+          OR: [
+            { createdById: session.user.id },
+            { 
+              company: {
+                users: {
+                  some: {
+                    userId: session.user.id
+                  }
+                }
+              }
+            }
+          ]
+        }
+      });
+
+      if (!contract) {
+        return NextResponse.json({ error: 'Contract not found or access denied' }, { status: 404 });
+      }
+
+      // İmza paketi oluştur
+      const signaturePackage = await prisma.signaturePackage.create({
+        data: {
+          contractId,
+          title: `İmza Paketi - ${new Date().toLocaleDateString('tr-TR')}`,
+          createdById: session.user.id,
+          status: 'PENDING',
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 gün
+        }
+      });
+
+      // Her imzalayıcı için dijital imza kaydı oluştur
+      const signatures = await Promise.all(
+        signerIds.map((userId: string, index: number) =>
+          prisma.digitalSignature.create({
+            data: {
+              contractId,
+              userId,
+              status: 'PENDING',
+              order: index + 1,
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün
+              ipAddress: 'pending',
+              userAgent: 'pending'
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
+              }
+            }
+          })
+        )
+      );
+
+      // İlk imzacıya sözleşmeyi assign et
+      if (signerIds.length > 0) {
+        await prisma.contract.update({
+          where: { id: contractId },
+          data: { assignedToId: signerIds[0] }
+        });
+      }
+
+      return NextResponse.json({ 
+        message: 'İmza paketi başarıyla oluşturuldu',
+        signaturePackage,
+        signatures 
+      });
+    }
+
+    // Gerçek imzalama işlemi
     if (!signatureData) {
       return NextResponse.json({ error: 'Signature data is required' }, { status: 400 });
     }
@@ -134,6 +217,7 @@ export async function POST(
         userId: session.user.id,
         signatureData,
         signedAt: new Date(),
+        status: 'SIGNED',
         expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
         ipAddress: 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown'

@@ -29,6 +29,7 @@ const updateContractSchema = z.object({
   ),
   otherPartyName: z.string().optional(),
   otherPartyEmail: z.string().optional(),
+  assignedToId: z.string().optional(),
   approverIds: z.array(z.string()).optional(),
 })
 
@@ -213,6 +214,24 @@ export async function PUT(
       }
     }
 
+    // 🔄 REVISION WORKFLOW FIX: Sözleşme DRAFT'tan IN_REVIEW'a geçiyorsa,
+    // REVISION_REQUESTED durumundaki approval'ları PENDING'e çevir
+    if (existingContract.status === 'DRAFT' && validatedData.status === 'IN_REVIEW') {
+      await prisma.contractApproval.updateMany({
+        where: {
+          contractId: id,
+          status: 'REVISION_REQUESTED'
+        },
+        data: {
+          status: 'PENDING',
+          comment: null,
+          approvedAt: null,
+          updatedAt: new Date()
+        }
+      });
+      console.log('Reset REVISION_REQUESTED approvals to PENDING for contract:', id);
+    }
+
     // Transaction ile onaycıları ve sözleşmeyi güncelle
     if (Array.isArray(body.approverIds)) {
       try {
@@ -246,6 +265,7 @@ export async function PUT(
               ...(validatedData.noticePeriodDays !== undefined && { noticePeriodDays: validatedData.noticePeriodDays }),
               ...(validatedData.otherPartyName !== undefined && { otherPartyName: validatedData.otherPartyName }),
               ...(validatedData.otherPartyEmail !== undefined && { otherPartyEmail: validatedData.otherPartyEmail }),
+              ...(validatedData.assignedToId !== undefined && { assignedToId: validatedData.assignedToId }),
               updatedById: user.id,
               updatedAt: new Date()
             },
@@ -286,6 +306,7 @@ export async function PUT(
             ...(validatedData.noticePeriodDays !== undefined && { noticePeriodDays: validatedData.noticePeriodDays }),
             ...(validatedData.otherPartyName !== undefined && { otherPartyName: validatedData.otherPartyName }),
             ...(validatedData.otherPartyEmail !== undefined && { otherPartyEmail: validatedData.otherPartyEmail }),
+            ...(validatedData.assignedToId !== undefined && { assignedToId: validatedData.assignedToId }),
             updatedById: user.id,
             updatedAt: new Date()
           },

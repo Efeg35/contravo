@@ -2,11 +2,46 @@
 
 import { db } from '@/lib/db';
 import { hasRequiredRole } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../lib/auth';
 import { revalidatePath } from 'next/cache';
 import { Prisma, Team, UsersOnTeams } from '@prisma/client';
 
 interface TeamWithMembers extends Team {
   members: UsersOnTeams[];
+}
+
+// Takım yönetimi için yetki kontrolü yapan yardımcı fonksiyon
+async function canManageTeam(teamId: string): Promise<boolean> {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id || !session?.user?.role) {
+    return false;
+  }
+
+  // ADMIN'ler her takımı yönetebilir
+  if (session.user.role === 'ADMIN') {
+    return true;
+  }
+
+  // EDITOR rolündeki kullanıcılar sadece kendi takımlarını yönetebilir
+  if (session.user.role === 'EDITOR') {
+    const userTeamMembership = await db.usersOnTeams.findFirst({
+      where: {
+        userId: session.user.id,
+        teamId: teamId,
+      },
+      include: {
+        user: true
+      }
+    });
+
+    // Kullanıcı bu takımın üyesi mi ve EDITOR rolünde mi?
+    return userTeamMembership !== null && userTeamMembership.user.role === 'EDITOR';
+  }
+
+  // Diğer roller (VIEWER) takım yönetimi yapamaz
+  return false;
 }
 
 export async function createTeam(formData: FormData) {
@@ -36,8 +71,9 @@ export async function createTeam(formData: FormData) {
 
 export async function addUserToTeam(teamId: string, userId: string) {
   try {
-    if (!await hasRequiredRole('ADMIN')) {
-      throw new Error('Bu işlem için yetkiniz bulunmuyor.');
+    // Yeni yetki kontrolü: ADMIN veya o takımın müdürü olması gerekiyor
+    if (!await canManageTeam(teamId)) {
+      throw new Error('Bu işlem için yetkiniz bulunmuyor. Sadece yöneticiler ve takım müdürleri takım üyelerini düzenleyebilir.');
     }
 
     const team = await db.team.findUnique({
@@ -67,14 +103,15 @@ export async function addUserToTeam(teamId: string, userId: string) {
     return { success: true };
   } catch (error) {
     console.error('Kullanıcı ekleme hatası:', error);
-    return { success: false, error: 'Kullanıcı eklenirken bir hata oluştu.' };
+    return { success: false, error: error instanceof Error ? error.message : 'Kullanıcı eklenirken bir hata oluştu.' };
   }
 }
 
 export async function removeUserFromTeam(teamId: string, userId: string) {
   try {
-    if (!await hasRequiredRole('ADMIN')) {
-      throw new Error('Bu işlem için yetkiniz bulunmuyor.');
+    // Yeni yetki kontrolü: ADMIN veya o takımın müdürü olması gerekiyor
+    if (!await canManageTeam(teamId)) {
+      throw new Error('Bu işlem için yetkiniz bulunmuyor. Sadece yöneticiler ve takım müdürleri takım üyelerini düzenleyebilir.');
     }
 
     await db.usersOnTeams.delete({
@@ -91,6 +128,6 @@ export async function removeUserFromTeam(teamId: string, userId: string) {
     return { success: true };
   } catch (error) {
     console.error('Kullanıcı çıkarma hatası:', error);
-    return { success: false, error: 'Kullanıcı çıkarılırken bir hata oluştu.' };
+    return { success: false, error: error instanceof Error ? error.message : 'Kullanıcı çıkarılırken bir hata oluştu.' };
   }
 } 

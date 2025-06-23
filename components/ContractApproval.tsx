@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 interface ApprovalStatus {
   id: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVISION_REQUESTED';
   comment?: string;
   approvedAt?: string;
   createdAt: string;
@@ -146,6 +146,8 @@ export default function ContractApproval({
         return '✅';
       case 'REJECTED':
         return '❌';
+      case 'REVISION_REQUESTED':
+        return '🔄';
       case 'PENDING':
         return '⏳';
       default:
@@ -157,6 +159,7 @@ export default function ContractApproval({
     switch (status) {
       case 'APPROVED': return 'Onaylandı';
       case 'REJECTED': return 'Reddedildi';
+      case 'REVISION_REQUESTED': return 'Revizyon İstendi';
       case 'PENDING': return 'Beklemede';
       default: return status;
     }
@@ -168,15 +171,17 @@ export default function ContractApproval({
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'REJECTED':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case 'PENDING':
+      case 'REVISION_REQUESTED':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'PENDING':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
     }
   };
 
   const myPendingApprovals = approvals.filter(
-    approval => approval.approver.id === session?.user?.id && approval.status === 'PENDING'
+    approval => approval.approver.id === session?.user?.id && ['PENDING', 'REVISION_REQUESTED'].includes(approval.status)
   );
 
   if (loading) {

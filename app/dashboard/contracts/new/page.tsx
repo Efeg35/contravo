@@ -38,8 +38,10 @@ export default function NewContractPage() {
     otherPartyEmail: '',
     content: ''
   });
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [selectedApprovers, setSelectedApprovers] = useState<string[]>([]);
+  const [workflowTemplates, setWorkflowTemplates] = useState<any[]>([]);
+  const [selectedWorkflowTemplate, setSelectedWorkflowTemplate] = useState<string>('');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -89,7 +91,37 @@ export default function NewContractPage() {
     // Kullanıcı listesini çek
     fetch('/api/users')
       .then(res => res.json())
-      .then(data => setUsers(data));
+      .then(data => {
+        // API'den gelen veriyi kontrol et - API users array'ini döndürüyor
+        if (data && Array.isArray(data.users)) {
+          setUsers(data.users);
+        } else {
+          console.error('API\'den gelen kullanıcı verisi beklenen formatta değil:', data);
+          setUsers([]); // Boş array olarak ayarla
+        }
+      })
+      .catch(error => {
+        console.error('Kullanıcı listesi yüklenirken hata:', error);
+        setUsers([]); // Hata durumunda boş array olarak ayarla
+      });
+  }, []);
+
+  useEffect(() => {
+    // Onay akışı şablonlarını çek
+    fetch('/api/workflow-templates')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setWorkflowTemplates(data);
+        } else {
+          console.error('API\'den gelen şablon verisi beklenen formatta değil:', data);
+          setWorkflowTemplates([]);
+        }
+      })
+      .catch(error => {
+        console.error('Onay akışı şablonları yüklenirken hata:', error);
+        setWorkflowTemplates([]);
+      });
   }, []);
 
   const getTypeFromCategory = (category: string) => {
@@ -136,7 +168,11 @@ export default function NewContractPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...formData, approverIds: selectedApprovers }),
+        body: JSON.stringify({ 
+          ...formData, 
+          approverIds: selectedApprovers,
+          workflowTemplateId: selectedWorkflowTemplate || null
+        }),
       });
       if (response.ok) {
         const contract = await response.json();
@@ -454,13 +490,45 @@ export default function NewContractPage() {
                   </div>
                 )}
 
-                {/* Onaylayıcı(lar) (İsteğe bağlı) */}
+                {/* Onay Akışı Şablonu (İsteğe bağlı) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Onaylayıcı(lar) (İsteğe bağlı)
+                    🔄 Onay Akışı Şablonu (İsteğe bağlı)
+                    <span className="text-gray-500 text-xs block">Önceden tanımlanmış onay akışı şablonlarından birini seçebilirsiniz</span>
                   </label>
+                  <select
+                    value={selectedWorkflowTemplate}
+                    onChange={(e) => setSelectedWorkflowTemplate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Manuel onaylayıcı seçimi</option>
+                    {workflowTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                        {template.description && ` - ${template.description}`}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedWorkflowTemplate && (
+                    <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                      <div className="flex items-center text-sm text-blue-800 dark:text-blue-200">
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        Seçilen şablon kullanılacak. Manuel onaylayıcı seçimi devre dışı.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Onaylayıcı(lar) (İsteğe bağlı) - Sadece şablon seçilmemişse göster */}
+                {!selectedWorkflowTemplate && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Onaylayıcı(lar) (İsteğe bağlı)
+                    </label>
                   <div className="space-y-2 max-h-40 overflow-y-auto border rounded p-2 bg-gray-50 dark:bg-gray-700">
-                    {users.map((user: any) => (
+                    {Array.isArray(users) && users.length > 0 ? users.map((user: any) => (
                       <label key={user.id} className="flex items-center">
                         <input
                           type="checkbox"
@@ -472,10 +540,15 @@ export default function NewContractPage() {
                           {user.name || user.email}
                         </span>
                       </label>
-                    ))}
+                    )) : (
+                      <p className="text-sm text-gray-500 text-center py-2">
+                        Kullanıcı listesi yükleniyor...
+                      </p>
+                    )}
+                                      </div>
+                    <p className="text-xs text-gray-500 mt-1">Birden fazla onaylayıcı seçebilirsiniz. Boş bırakabilirsiniz.</p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Birden fazla onaylayıcı seçebilirsiniz. Boş bırakabilirsiniz.</p>
-                </div>
+                )}
 
                 {/* Yardım paneli */}
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">

@@ -27,6 +27,7 @@ model User {
   createdCompanies         Company[]             @relation("CreatedCompanies")
   companyInvites           CompanyInvite[]       @relation("InvitedUser")
   companyUsers             CompanyUser[]
+  assignedContracts        Contract[]            @relation("AssignedContracts")
   updatedContracts         Contract[]            @relation("UpdatedContracts")
   createdContracts         Contract[]            @relation("CreatedContracts")
   approvals                ContractApproval[]    @relation("ApprovalsByUser")
@@ -235,8 +236,10 @@ model Contract {
   lastReminderSent  DateTime?
   otherPartyName    String?
   otherPartyEmail   String?
+  assignedToId      String?
   companyId         String?
   templateId        String?
+  workflowTemplateId String?
   parentContractId  String?
   createdById       String
   updatedById       String?
@@ -244,11 +247,13 @@ model Contract {
   updatedAt         DateTime             @updatedAt
   clauses           ClausesOnContracts[]
   clauseUsages      ClauseUsage[]
+  assignedTo        User?                @relation("AssignedContracts", fields: [assignedToId], references: [id])
   updatedBy         User?                @relation("UpdatedContracts", fields: [updatedById], references: [id])
   createdBy         User                 @relation("CreatedContracts", fields: [createdById], references: [id])
   parentContract    Contract?            @relation("Amendments", fields: [parentContractId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   amendments        Contract[]           @relation("Amendments")
   template          ContractTemplate?    @relation("TemplateContracts", fields: [templateId], references: [id])
+  workflowTemplate  WorkflowTemplate?    @relation("ContractWorkflowTemplates", fields: [workflowTemplateId], references: [id])
   company           Company?             @relation(fields: [companyId], references: [id])
   approvals         ContractApproval[]
   attachments       ContractAttachment[]
@@ -259,6 +264,7 @@ model Contract {
 
   @@index([status])
   @@index([type])
+  @@index([assignedToId])
   @@index([companyId])
   @@index([createdById])
   @@index([createdAt])
@@ -272,6 +278,7 @@ model Contract {
   @@index([status, companyId])
   @@index([type, status])
   @@index([createdById, status])
+  @@index([assignedToId, status])
   @@index([endDate, renewalStatus])
   @@index([expirationDate, status])
   @@index([renewalDate, renewalStatus])
@@ -559,11 +566,12 @@ model ClauseApproval {
 }
 
 model Team {
-  id        String         @id @default(cuid())
-  name      String
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  members   UsersOnTeams[]
+  id                    String                 @id @default(cuid())
+  name                  String
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  members               UsersOnTeams[]
+  workflowTemplateSteps WorkflowTemplateStep[]
 }
 
 model UsersOnTeams {
@@ -643,4 +651,38 @@ model ClausesOnContracts {
   @@index([clauseId])
   @@index([addedAt])
   @@index([isModified])
+}
+
+model WorkflowTemplate {
+  id          String                 @id @default(cuid())
+  name        String                 @unique // Örn: "Pazarlama Ajansı Sözleşmesi Akışı"
+  description String?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  steps       WorkflowTemplateStep[]
+  contracts   Contract[]             @relation("ContractWorkflowTemplates")
+
+  @@index([name])
+  @@index([createdAt])
+}
+
+model WorkflowTemplateStep {
+  id        String   @id @default(cuid())
+  order     Int      // Adımın sırası (1, 2, 3...)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template   WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId String
+
+  // Onaycı bir Takım mı yoksa genel bir Rol mü? Sadece biri dolu olacak.
+  teamId       String?
+  team         Team?   @relation(fields: [teamId], references: [id])
+  approverRole String? // ADMIN, EDITOR, VIEWER gibi roller
+
+  @@unique([templateId, order])
+  @@index([templateId])
+  @@index([order])
+  @@index([teamId])
+  @@index([approverRole])
 }

@@ -23,7 +23,9 @@ export async function getNextAction(contractId: string, userId: string): Promise
           select: { id: true, name: true, role: true }
         },
         approvals: {
-          where: { status: 'PENDING' },
+          where: { 
+            status: { in: ['PENDING', 'REVISION_REQUESTED'] }
+          },
           include: {
             approver: {
               select: { id: true, name: true, email: true }
@@ -86,7 +88,7 @@ export async function getNextAction(contractId: string, userId: string): Promise
       case 'IN_REVIEW':
         // İnceleme durumu: Bekleyen onayları kontrol et
         const pendingApproval = (contract as any).approvals?.find((approval: any) => 
-          approval.approverId === userId && approval.status === 'PENDING'
+          approval.approverId === userId && ['PENDING', 'REVISION_REQUESTED'].includes(approval.status)
         );
         
         if (pendingApproval) {
