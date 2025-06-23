@@ -38,7 +38,7 @@ export default function NewContractPage() {
     otherPartyEmail: '',
     content: ''
   });
-  const [users, setUsers] = useState<any[]>([]);
+  const [potentialApprovers, setPotentialApprovers] = useState<any[]>([]);
   const [selectedApprovers, setSelectedApprovers] = useState<string[]>([]);
   const [workflowTemplates, setWorkflowTemplates] = useState<any[]>([]);
   const [selectedWorkflowTemplate, setSelectedWorkflowTemplate] = useState<string>('');
@@ -88,21 +88,21 @@ export default function NewContractPage() {
   }, [templateId]);
 
   useEffect(() => {
-    // Kullanıcı listesini çek
-    fetch('/api/users')
+    // Kullanıcı listesini çek (sadece kendi departmanındakileri getirir)
+    fetch('/api/users/search?q=') // q parametresi boş
       .then(res => res.json())
       .then(data => {
-        // API'den gelen veriyi kontrol et - API users array'ini döndürüyor
+        // API'den gelen veriyi kontrol et
         if (data && Array.isArray(data.users)) {
-          setUsers(data.users);
+          setPotentialApprovers(data.users);
         } else {
           console.error('API\'den gelen kullanıcı verisi beklenen formatta değil:', data);
-          setUsers([]); // Boş array olarak ayarla
+          setPotentialApprovers([]); // Boş array olarak ayarla
         }
       })
       .catch(error => {
         console.error('Kullanıcı listesi yüklenirken hata:', error);
-        setUsers([]); // Hata durumunda boş array olarak ayarla
+        setPotentialApprovers([]); // Hata durumunda boş array olarak ayarla
       });
   }, []);
 
@@ -521,16 +521,19 @@ export default function NewContractPage() {
                   )}
                 </div>
 
-                {/* Onaylayıcı(lar) (İsteğe bağlı) - Sadece şablon seçilmemişse göster */}
-                {!selectedWorkflowTemplate && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Onaylayıcı(lar) (İsteğe bağlı)
-                    </label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto border rounded p-2 bg-gray-50 dark:bg-gray-700">
-                    {Array.isArray(users) && users.length > 0 ? users.map((user: any) => (
-                      <label key={user.id} className="flex items-center">
+                {/* Onaylayıcılar */}
+                <div>
+                  <h3 className="text-md font-medium text-gray-900 dark:text-white mb-2">
+                    Onaylayıcıları Seç (Ad-hoc)
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Bu sözleşmeyi ayrıca onaylaması gereken kişileri seçin. Bu seçim, seçili onay akışı şablonuna ek olarak çalışır.
+                  </p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto border dark:border-gray-700 rounded-md p-2">
+                    {potentialApprovers.map(user => (
+                      <div key={user.id} className="flex items-center">
                         <input
+                          id={`approver-${user.id}`}
                           type="checkbox"
                           checked={selectedApprovers.includes(user.id)}
                           onChange={() => handleApproverChange(user.id)}
@@ -539,16 +542,11 @@ export default function NewContractPage() {
                         <span className="ml-2 text-sm text-gray-900 dark:text-white">
                           {user.name || user.email}
                         </span>
-                      </label>
-                    )) : (
-                      <p className="text-sm text-gray-500 text-center py-2">
-                        Kullanıcı listesi yükleniyor...
-                      </p>
-                    )}
-                                      </div>
-                    <p className="text-xs text-gray-500 mt-1">Birden fazla onaylayıcı seçebilirsiniz. Boş bırakabilirsiniz.</p>
+                      </div>
+                    ))}
                   </div>
-                )}
+                  <p className="text-xs text-gray-500 mt-1">Birden fazla onaylayıcı seçebilirsiniz. Boş bırakabilirsiniz.</p>
+                </div>
 
                 {/* Yardım paneli */}
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">

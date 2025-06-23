@@ -43,6 +43,9 @@ model User {
   notifications            Notification[]
   createdSignaturePackages SignaturePackage[]
   savedReports             SavedReport[]
+  managerId                String?
+  manager                  User?    @relation("ManagerSubordinates", fields: [managerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subordinates             User[]   @relation("ManagerSubordinates")
 
   @@index([email])
   @@index([role])
@@ -671,6 +674,7 @@ model WorkflowTemplateStep {
   order     Int      // Adımın sırası (1, 2, 3...)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  isDynamicApprover Boolean @default(false) // Bu adımın dinamik olup olmadığını belirtir
 
   template   WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   templateId String

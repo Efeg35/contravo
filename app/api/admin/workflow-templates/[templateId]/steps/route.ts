@@ -70,7 +70,7 @@ export async function POST(
     }
 
     const { templateId } = params
-    const { order, teamId, approverRole } = await request.json()
+    const { order, teamId, approverRole, isDynamicApprover } = await request.json()
 
     if (!templateId) {
       return NextResponse.json(
@@ -86,19 +86,22 @@ export async function POST(
       )
     }
 
-    // Team ID veya approverRole'den biri mutlaka dolu olmalı
-    if (!teamId && !approverRole) {
-      return NextResponse.json(
-        { error: 'Takım veya onaylayıcı rolü seçilmelidir' },
-        { status: 400 }
-      )
-    }
+    // Dinamik onaycı ise diğer alanlar zorunlu değil
+    if (!isDynamicApprover) {
+      // Team ID veya approverRole'den biri mutlaka dolu olmalı
+      if (!teamId && !approverRole) {
+        return NextResponse.json(
+          { error: 'Takım veya onaylayıcı rolü seçilmelidir' },
+          { status: 400 }
+        )
+      }
 
-    if (teamId && approverRole) {
-      return NextResponse.json(
-        { error: 'Takım ve rol aynı anda seçilemez' },
-        { status: 400 }
-      )
+      if (teamId && approverRole) {
+        return NextResponse.json(
+          { error: 'Takım ve rol aynı anda seçilemez' },
+          { status: 400 }
+        )
+      }
     }
 
     // Şablonun varlığını kontrol et
@@ -148,8 +151,9 @@ export async function POST(
       data: {
         templateId,
         order,
-        teamId: teamId || null,
-        approverRole: approverRole || null
+        teamId: isDynamicApprover ? null : (teamId || null),
+        approverRole: isDynamicApprover ? null : (approverRole || null),
+        isDynamicApprover: !!isDynamicApprover,
       },
       include: {
         team: {

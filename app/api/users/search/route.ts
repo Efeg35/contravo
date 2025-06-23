@@ -20,23 +20,20 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
 
-    if (!query) {
-      return NextResponse.json({ users: [] });
-    }
-
-    // Build department-based where clause
     const whereClause: any = {
-      OR: [
-        { name: { contains: query } },
-        { email: { contains: query } },
-      ],
+      department: (currentUser as any).department,
     };
 
-    // Apply department filtering (same logic as admin/roles)
-    if ((currentUser as any).department !== 'Genel Müdürlük' && currentUser.role !== 'ADMIN') {
-      whereClause.department = {
-        in: [(currentUser as any).department, 'Genel Müdürlük', 'Hukuk']
-      };
+    if (query) {
+      whereClause.OR = [
+        { name: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+      ];
+    }
+    
+    // Eğer admin ise tüm departmanlarda arama yapabilsin
+    if(currentUser.role === 'ADMIN'){
+      delete whereClause.department;
     }
 
     const users = await db.user.findMany({

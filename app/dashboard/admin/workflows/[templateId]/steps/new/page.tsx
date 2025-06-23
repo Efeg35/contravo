@@ -40,7 +40,7 @@ export default function NewStepPage() {
 
   const [formData, setFormData] = useState({
     order: 1,
-    assignmentType: '', // 'team' veya 'role'
+    assignmentType: '', // 'team', 'role' veya 'dynamic'
     teamId: '',
     approverRole: ''
   })
@@ -121,7 +121,8 @@ export default function NewStepPage() {
       const requestData = {
         order: formData.order,
         teamId: formData.assignmentType === 'team' ? formData.teamId : null,
-        approverRole: formData.assignmentType === 'role' ? formData.approverRole : null
+        approverRole: formData.assignmentType === 'role' ? formData.approverRole : null,
+        isDynamicApprover: formData.assignmentType === 'dynamic',
       }
 
       const response = await fetch(`/api/admin/workflow-templates/${templateId}/steps`, {
@@ -245,6 +246,26 @@ export default function NewStepPage() {
                     <span>Belirli bir role ata</span>
                   </Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="dynamic"
+                    name="assignmentType"
+                    value="dynamic"
+                    checked={formData.assignmentType === 'dynamic'}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      assignmentType: e.target.value,
+                      teamId: '',
+                      approverRole: ''
+                    }))}
+                    className="h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                  />
+                  <Label htmlFor="dynamic" className="flex items-center space-x-2 cursor-pointer">
+                    <UserCheck className="h-4 w-4 text-purple-600" />
+                    <span>Onaycı, sözleşmeyi başlatanın yöneticisi olsun</span>
+                  </Label>
+                </div>
               </div>
             </div>
 
@@ -287,6 +308,13 @@ export default function NewStepPage() {
                 <p className="text-sm text-gray-600 mt-1">
                   Bu role sahip herhangi bir kullanıcı bu adımı onaylayabilir
                 </p>
+              </div>
+            )}
+
+            {/* Dinamik onaycı seçildiyse bilgi mesajı */}
+            {formData.assignmentType === 'dynamic' && (
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-md text-purple-800 text-sm mt-2">
+                Bu adımda onaycı, sözleşmeyi başlatan kullanıcının yöneticisi (manager) olacaktır.
               </div>
             )}
 

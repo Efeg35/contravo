@@ -27,6 +27,11 @@ const departments = [
   { name: 'Finans', code: 'FINANCE' },
   { name: 'İnsan Kaynakları', code: 'HR' },
   { name: 'Teknoloji', code: 'TECH' },
+  { name: 'Operasyon', code: 'OPERATIONS' },
+  { name: 'Ar-Ge', code: 'RD' },
+  { name: 'Müşteri Hizmetleri', code: 'CUSTOMER_SERVICE' },
+  { name: 'İdari İşler', code: 'ADMIN_AFFAIRS' },
+  { name: 'Kalite Kontrol', code: 'QA' },
   { name: 'Yönetim', code: 'MANAGEMENT' }
 ];
 
@@ -129,6 +134,44 @@ const contractTemplatesByDepartment = {
     'Digital Transformation Danışmanlık Sözleşmesi',
     'Operational Excellence Sözleşmesi',
     'Business Intelligence Danışmanlık Anlaşması'
+  ],
+  OPERATIONS: [
+    'Lojistik Hizmet Sözleşmesi',
+    'Tedarik Zinciri Yönetim Anlaşması',
+    'Depo Kiralama Sözleşmesi',
+    'Üretim Fason Sözleşmesi',
+    'Nakliye Sigorta Poliçesi',
+    'Gümrük Müşavirliği Hizmet Anlaşması'
+  ],
+  RD: [
+    'Ar-Ge Projesi İşbirliği Sözleşmesi',
+    'Prototip Geliştirme Anlaşması',
+    'Teknoloji Transfer Sözleşmesi',
+    'Araştırma Bursu Sözleşmesi',
+    'Laboratuvar Kullanım Anlaşması',
+    'Bilimsel Danışmanlık Sözleşmesi'
+  ],
+  CUSTOMER_SERVICE: [
+    'Çağrı Merkezi Hizmet Anlaşması',
+    'Müşteri Destek Platformu Lisans Sözleşmesi',
+    'Hizmet Seviyesi Anlaşması (SLA)',
+    'Müşteri Memnuniyeti Anketi Hizmet Alımı',
+    'Dış Kaynak Müşteri Temsilcisi Sözleşmesi'
+  ],
+  ADMIN_AFFAIRS: [
+    'Ofis Kiralama Sözleşmesi',
+    'Güvenlik Hizmeti Alım Sözleşmesi',
+    'Araç Filo Kiralama Sözleşmesi',
+    'Temizlik Hizmeti Sözleşmesi',
+    'Yemek Tedarik (Catering) Anlaşması',
+    'Ofis Malzemeleri Tedarik Sözleşmesi'
+  ],
+  QA: [
+    'Kalite Güvence Danışmanlık Sözleşmesi',
+    'Test ve Doğrulama Hizmet Anlaşması',
+    'ISO Belgelendirme Sözleşmesi',
+    'Ürün Kalite Kontrol Raporlama Anlaşması',
+    'Süreç Denetim Hizmet Sözleşmesi'
   ]
 };
 
@@ -162,6 +205,8 @@ function generateTurkishEmail(name: string): string {
 
 async function main() {
   console.log('🚀 Seed işlemi başlıyor...');
+  
+  const hashedPassword = await bcrypt.hash('123456', 10);
   
   // 1. Mevcut verileri temizle (doğru sırada)
   console.log('🧹 Mevcut veriler temizleniyor...');
@@ -225,27 +270,26 @@ async function main() {
   for (const executive of cLevelTitles) {
     const name = getRandomTurkishName();
     const email = generateTurkishEmail(name);
-    const hashedPassword = await bcrypt.hash('123456', 10);
     
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-      role: 'ADMIN',
+        role: 'ADMIN',
         department: 'Yönetim',
         departmentRole: executive.title,
         createdAt: faker.date.past({ years: 2 }),
-    },
-  });
+      },
+    });
 
     // Yönetim takımına ekle
     await prisma.usersOnTeams.create({
       data: {
         userId: user.id,
         teamId: createdTeams.MANAGEMENT.id,
-    },
-  });
+      },
+    });
 
     cLevelUsers.push(user);
   }
@@ -260,10 +304,9 @@ async function main() {
     // Departman müdürü
     const managerName = getRandomTurkishName();
     const managerEmail = generateTurkishEmail(managerName);
-    const hashedPassword = await bcrypt.hash('123456', 10);
     
     const manager = await prisma.user.create({
-    data: {
+      data: {
         name: managerName,
         email: managerEmail,
         password: hashedPassword,
@@ -271,26 +314,26 @@ async function main() {
         department: dept.name,
         departmentRole: `${dept.name} Müdürü`,
         createdAt: faker.date.past({ years: 2 }),
-    },
-  });
+      },
+    });
 
     await prisma.usersOnTeams.create({
-    data: {
+      data: {
         userId: manager.id,
         teamId: createdTeams[dept.code].id,
-    },
-  });
+      },
+    });
 
     allUsers.push(manager);
 
-    // 9 normal çalışan
-    for (let i = 0; i < 9; i++) {
+    // 10 normal çalışan
+    for (let i = 0; i < 10; i++) {
       const employeeName = getRandomTurkishName();
       const employeeEmail = generateTurkishEmail(employeeName);
       const employeeRole = faker.helpers.arrayElement(['VIEWER', 'EDITOR']);
       
       const employee = await prisma.user.create({
-    data: {
+        data: {
           name: employeeName,
           email: employeeEmail,
           password: hashedPassword,
@@ -300,8 +343,9 @@ async function main() {
             'Uzman', 'Kıdemli Uzman', 'Koordinatör', 'Analisti', 'Specialist'
           ]),
           createdAt: faker.date.past({ years: 2 }),
-    },
-  });
+          managerId: manager.id,
+        },
+      });
 
       await prisma.usersOnTeams.create({
         data: {
@@ -323,8 +367,8 @@ async function main() {
 
     const contractTitles = contractTemplatesByDepartment[dept.code as keyof typeof contractTemplatesByDepartment];
     
-    // Her departman için 12-15 sözleşme oluştur
-    const contractCount = faker.number.int({ min: 12, max: 15 });
+    // Her departman için 25 sözleşme oluştur
+    const contractCount = 25;
     
     for (let i = 0; i < contractCount; i++) {
       const author = faker.helpers.arrayElement(departmentUsers);

@@ -127,16 +127,39 @@ export async function POST(
 
       // Sözleşme durumunu 'IN_REVIEW' yap ve ilk onaylayıcıya assign et
       const firstStepApprovers: string[] = [];
+      let firstApproverName = '';
       if (workflowTemplate.steps.length > 0) {
         const firstStep = workflowTemplate.steps[0];
-        if (firstStep.teamId && firstStep.team) {
+        if ((firstStep as any).isDynamicApprover) {
+          // Dinamik onaycı: Sözleşmeyi başlatan kullanıcının yöneticisi
+          const createdBy = contract.createdBy as any;
+          if (createdBy && createdBy.managerId) {
+            firstStepApprovers.push(createdBy.managerId);
+            // Yöneticinin adını bul
+            const manager = await prisma.user.findUnique({ where: { id: createdBy.managerId } });
+            if (manager) {
+              firstApproverName = manager.name || manager.email || 'Yönetici';
+            } else {
+              firstApproverName = 'Yönetici';
+            }
+          } else {
+            // Yönetici yoksa fallback
+            firstApproverName = 'Yönetici atanamadı';
+          }
+        } else if (firstStep.teamId && firstStep.team) {
           firstStepApprovers.push(...firstStep.team.members.map(member => member.user.id));
+          if (!firstApproverName && firstStep.team.name) {
+            firstApproverName = firstStep.team.name;
+          }
         } else if (firstStep.approverRole) {
           const roleUsers = await prisma.user.findMany({
             where: { role: firstStep.approverRole },
-            select: { id: true }
+            select: { id: true, name: true, email: true }
           });
           firstStepApprovers.push(...roleUsers.map(user => user.id));
+          if (!firstApproverName && roleUsers.length > 0) {
+            firstApproverName = `${firstStep.approverRole} Rolü`;
+          }
         }
       }
 
@@ -150,27 +173,23 @@ export async function POST(
 
       // Şablon adımları üzerinde döngü başlat
       const createdApprovals = [];
-      let firstApproverName = '';
 
       for (const step of workflowTemplate.steps) {
         let stepApprovers: string[] = [];
 
-        if (step.teamId && step.team) {
-          // Takım üyelerini onaylayıcı olarak ekle
-          stepApprovers = step.team.members.map(member => member.user.id);
-          if (!firstApproverName && step.team.name) {
-            firstApproverName = step.team.name;
+        if ((step as any).isDynamicApprover) {
+          const createdBy = contract.createdBy as any;
+          if (createdBy && createdBy.managerId) {
+            stepApprovers = [createdBy.managerId];
           }
+        } else if (step.teamId && step.team) {
+          stepApprovers = step.team.members.map(member => member.user.id);
         } else if (step.approverRole) {
-          // Role göre kullanıcıları bul
           const roleUsers = await prisma.user.findMany({
             where: { role: step.approverRole },
             select: { id: true, name: true, email: true }
           });
           stepApprovers = roleUsers.map(user => user.id);
-          if (!firstApproverName && roleUsers.length > 0) {
-            firstApproverName = `${step.approverRole} Rolü`;
-          }
         }
 
         // Bu adım için onayları oluştur
@@ -204,7 +223,7 @@ export async function POST(
 
       return NextResponse.json({
         success: true,
-        message: 'Onay akışı başarıyla başlatıldı',
+        message: `Sözleşmeniz, yöneticiniz ${firstApproverName}'na onay için gönderildi.`,
         approvals: createdApprovals,
         firstApproverName,
         workflowTemplate: workflowTemplate.name
