@@ -1,188 +1,50 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Plus, MoreHorizontal, Mail, CalendarDays, TextCursorInput, Timer, Repeat, ShieldQuestion, CheckCircle2, Copy, FileText, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useFormState, useFormStatus } from 'react-dom';
+import { ChevronLeft, CheckCircle2, FileText, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Card } from "@/components/ui/card";
-import { useDropzone } from 'react-dropzone';
+import { saveTemplateFile } from "@/src/lib/actions/workflow-template-actions";
+import DocxPreviewer from "./DocxPreviewer";
+import { db } from "@/lib/db";
+import type { WorkflowTemplate } from "@prisma/client";
 
-interface WorkflowTemplate {
-    id: string;
-    name: string;
-    documentName: string | null;
-    documentUrl: string | null;
-    paperSource?: string | null; // Assuming this might be part of the model
-}
-
-// Simple stepper component based on the screenshot
-const StageStepper = ({
-  steps,
-  currentStep,
-}: {
-  steps: string[];
-  currentStep: string;
-}) => (
-  <nav className="flex items-center justify-center border-b bg-gray-50">
-    {steps.map((step, index) => (
-      <div
-        key={step}
-        className={`flex items-center py-4 px-6 text-sm font-medium border-b-2 cursor-pointer ${
-          step === currentStep
-            ? "border-blue-600 text-blue-600 bg-white"
-            : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-        }`}
-      >
-        {step}
-        {index < steps.length - 1 && (
-          <ChevronRight className="h-5 w-5 text-gray-300 ml-6" />
-        )}
-      </div>
-    ))}
-  </nav>
-);
-
-const attributeIcons: { [key: string]: React.ReactNode } = {
-    "fx": <Mail className="w-4 h-4 text-gray-600" />,
-    "Date": <CalendarDays className="w-4 h-4 text-gray-600" />,
-    "Text": <TextCursorInput className="w-4 h-4 text-gray-600" />,
-    "Term": <Timer className="w-4 h-4 text-gray-600" />,
-    "Renewal": <Repeat className="w-4 h-4 text-gray-600" />,
-    "Condition": <ShieldQuestion className="w-4 h-4 text-gray-600" />,
-};
-
-const mockProperties = {
-    "PROPERTIES (1)": [{ name: "Counterparty Name", type: "Text" }],
-    "COUNTERPARTY SIGNER (2)": [{ name: "Counterparty Signer Email", type: "Text" }, { name: "Counterparty Signer Name", type: "Text" }],
-    "PROPERTIES (11)": [
-        { name: "Contract Owner", type: "fx" },
-        { name: "Effective Date", type: "Date" },
-        { name: "Expiration Date", type: "Date" },
-        { name: "Initial Term Length", type: "Term" },
-        { name: "Other Renewal Type", type: "Text" },
-        { name: "Renewal Opt Out Date", type: "Date" },
-    ],
-    "CONDITIONS (6)": [
-        { name: "Renewal Type is Auto-Renew", type: "Condition"},
-        { name: "Renewal Type is Auto-Renew OR Opti...", type: "Condition" },
-        { name: "Renewal Type is None", type: "Condition" },
-    ]
-};
-
-const WorkflowEditorClient = ({ id }: { id: string }) => {
-    const [template, setTemplate] = useState<WorkflowTemplate | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [currentStep, setCurrentStep] = useState("Document");
-    const [selectedPaperSource, setSelectedPaperSource] = useState<string | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
+const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: WorkflowTemplate }) => {
+    const [selectedPaperSource, setSelectedPaperSource] = useState<'company' | 'counterparty' | null>(null);
     const workflowSteps = ["Document", "Create", "Review", "Sign", "Archive"];
 
-    // Fetch initial template data
     useEffect(() => {
-        const fetchTemplate = async () => {
-            try {
-                setLoading(true);
-                const res = await fetch(`/api/workflow-templates/${id}`);
-                if (!res.ok) {
-                    throw new Error("Failed to fetch template data");
-                }
-                const data = await res.json();
-                setTemplate(data);
-                // Assuming paperSource is a field on the template model
-                if (data.documentUrl) {
-                    setSelectedPaperSource('company');
-                } else if (data.paperSource === 'counterparty') {
-                    setSelectedPaperSource('counterparty');
-                }
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchTemplate();
-    }, [id]);
-
-
-    const onDrop = useCallback(async (acceptedFiles: File[]) => {
-        const file = acceptedFiles[0];
-        if (!file) return;
-
-        setIsUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const response = await fetch(`/api/workflow-templates/${id}/document`, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                // Log the server response for more details
-                const errorText = await response.text();
-                console.error("File upload failed with status:", response.status, "and message:", errorText);
-                throw new Error(`File upload failed: ${errorText}`);
-            }
-
-            const updatedTemplate = await response.json();
-            setTemplate(updatedTemplate); // Update state with new document info
-
-        } catch (error) {
-            console.error(error);
-            // Add user-facing error handling (e.g., toast)
-        } finally {
-            setIsUploading(false);
+        if(initialTemplate.templateFileUrl) {
+            setSelectedPaperSource('company');
         }
-    }, [id]);
+    }, [initialTemplate.templateFileUrl]);
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] },
-        maxFiles: 1,
-    });
-    
-    const removeDocument = async () => {
-        if (!template) return;
-        
-        try {
-            const response = await fetch(`/api/workflow-templates/${id}/document`, {
-                method: 'DELETE',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to remove document');
-            }
-            
-            const updatedTemplate = await response.json();
-            setTemplate(updatedTemplate);
-
-        } catch (error) {
-            console.error("Error removing document:", error);
-        }
-    };
-
-    if (loading) {
-        return <div>Loading...</div>; // Or a better skeleton loader
+    // Define the shape of the form state returned from the server action
+    interface FormState {
+        message: string | null;
+        errors?: Record<string, string[]>;
+        success: boolean;
+        url?: string;
     }
+
+    const initialState: FormState = { message: null, errors: {}, success: false };
+    // `saveTemplateFile` is a server action that matches the FormState shape. We cast to any to satisfy TypeScript since
+    // the action currently has loose typings.
+    const [state, dispatch] = useFormState(saveTemplateFile as any, initialState);
+    
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const { pending } = useFormStatus();
+
+    // Redirect on successful upload
+    useEffect(() => {
+        if (state.success) {
+            // A simple way to refresh the page data is to just reload.
+            // A more advanced solution would use Next.js router to refresh server component data.
+            window.location.reload();
+        }
+    }, [state.success]);
 
     return (
         <div className="flex flex-col h-screen bg-gray-50">
@@ -192,152 +54,99 @@ const WorkflowEditorClient = ({ id }: { id: string }) => {
                     <Button variant="ghost" size="icon" className="rounded-full">
                         <ChevronLeft className="w-5 h-5" />
                     </Button>
-                    <h1 className="text-xl font-semibold">Untitled workflow configuration</h1>
+                    <h1 className="text-xl font-semibold">{initialTemplate.name || 'Untitled workflow configuration'}</h1>
                     <Badge variant="outline" className="font-normal">Unpublished</Badge>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline">Preview</Button>
-                    <Button variant="outline">Save</Button>
-                    <Button>Publish</Button>
+                    <Button variant="outline" disabled={pending}>Save</Button>
+                    <Button disabled={pending}>Publish</Button>
                 </div>
             </header>
 
             {/* Stepper */}
-             <StageStepper steps={workflowSteps} currentStep={currentStep} />
+            <nav className="flex items-center justify-center border-b bg-gray-50">
+                {workflowSteps.map((step, index) => (
+                <div key={step} className={`flex items-center py-4 px-6 text-sm font-medium border-b-2 cursor-pointer ${step === "Document" ? "border-blue-600 text-blue-600 bg-white" : "border-transparent text-gray-500"}`}>
+                    {step}
+                    {index < workflowSteps.length - 1 && <ChevronLeft className="h-5 w-5 text-gray-300 ml-6 transform rotate-180" />}
+                </div>
+                ))}
+            </nav>
 
-            {/* Two-column layout */}
-            <main className="flex flex-1 overflow-hidden">
-                {/* Left "Attributes" Panel */}
-                <aside className="w-[380px] flex-shrink-0 bg-white border-r overflow-y-auto p-4 space-y-4">
-                    <Tabs defaultValue="properties" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="properties">Properties and Conditions</TabsTrigger>
-                            <TabsTrigger value="clauses">Clauses</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="properties" className="mt-4">
-                            <div className="flex items-center justify-between mb-4 px-2">
-                                <h2 className="text-lg font-bold">Attributes</h2>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon"><Plus className="w-5 h-5" /></Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuItem>Property</DropdownMenuItem>
-                                        <DropdownMenuItem>Table</DropdownMenuItem>
-                                        <DropdownMenuItem>Condition</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                            <Accordion type="multiple" defaultValue={["PROPERTIES (11)"]}>
-                                 <AccordionItem value="lifecycle-preset" className="border-none">
-                                     <div className="p-4 bg-gray-50 rounded-md text-sm text-gray-600 space-y-2 mb-2">
-                                        <h3 className="font-semibold text-gray-800">LIFECYCLE PRESET (17)</h3>
-                                        <p className="text-xs">Monitor and edit any contract's renewals and expirations with an applied set of properties, conditions, and form questions.</p>
-                                        <p className="font-bold text-xs">10 questions added. <Button variant="link" className="p-0 h-auto text-xs">Edit launch form</Button></p>
-                                        <div className="flex gap-2 pt-2">
-                                            <Button variant="outline" size="sm" className="bg-white">Help center</Button>
-                                            <Button variant="outline" size="sm" className="bg-white">Remove Lifecycle Preset</Button>
-                                        </div>
-                                    </div>
-                                 </AccordionItem>
-                                {Object.entries(mockProperties).map(([category, items]) => (
-                                    <AccordionItem value={category} key={category}>
-                                        <AccordionTrigger className="text-sm font-bold">{category}</AccordionTrigger>
-                                        <AccordionContent>
-                                            {items.map(item => (
-                                                <div key={item.name} className="flex items-center justify-between p-2 hover:bg-gray-100 rounded-md group">
-                                                    <div className="flex items-center gap-3">
-                                                        {attributeIcons[item.type] || <Mail className="w-4 h-4 text-gray-500" />}
-                                                        <span className="text-sm">{item.name}</span>
-                                                    </div>
-                                                    <Button variant="ghost" size="icon" className="w-6 h-6 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button>
-                                                </div>
-                                            ))}
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
-                        </TabsContent>
-
-                        <TabsContent value="clauses">
-                            <div className="p-4 bg-gray-50 rounded-md text-sm text-gray-600 space-y-3 mt-4 text-center">
-                                <h3 className="font-semibold text-gray-800">Insert pre-approved clauses from your global Clause Library</h3>
-                                <p className="text-xs">Tagging clauses from your Clause Library automatically keeps your templates up to date when language changes. To get started, highlight one or more paragraphs in this template and select Add clause from the menu.</p>
-                                <Button variant="outline" size="sm" className="bg-white">Learn more</Button>
-                            </div>
-                        </TabsContent>
-                    </Tabs>
+            {/* Main Content */}
+            <main className="flex-1 flex overflow-hidden">
+                {/* Left Attributes Panel (Simplified) */}
+                <aside className="w-[380px] flex-shrink-0 bg-white border-r p-4 overflow-y-auto">
+                    <h2 className="text-lg font-bold">Attributes</h2>
+                    {/* Simplified content for now */}
+                    <p className="text-sm text-gray-500 mt-4">Attributes panel content will be built in a future step.</p>
                 </aside>
-                {/* Right Workspace Panel */}
-                <section className="flex-1 overflow-y-auto p-8">
-                    {currentStep === "Document" && (
-                        <div className="max-w-2xl mx-auto">
-                            <h2 className="text-2xl font-bold mb-2">Select paper source</h2>
-                            <p className="text-gray-500 mb-6">At least one must be selected</p>
-                            <div className="space-y-4">
-                                <Card
-                                    className={`p-6 cursor-pointer relative ${selectedPaperSource === 'company' ? 'border-green-600 border-2' : 'border'}`}
-                                    onClick={() => setSelectedPaperSource('company')}
-                                >
-                                    {selectedPaperSource === 'company' && <div className="absolute top-2 right-2 p-1 bg-green-600 rounded-full"><CheckCircle2 className="w-4 h-4 text-white" /></div>}
-                                    <h3 className="font-semibold text-lg mb-2">My company's paper</h3>
-                                    {selectedPaperSource === 'company' && (
-                                        <>
-                                            {template?.documentUrl ? (
-                                                <div className="mt-4 p-4 border-2 border-dashed rounded-lg flex items-center justify-between bg-gray-50">
-                                                    <div className="flex items-center gap-2 text-blue-600 font-medium">
-                                                        <FileText className="w-5 h-5" />
-                                                        <span>{template.documentName}</span>
-                                                    </div>
-                                                    <Button onClick={removeDocument} variant="ghost" size="icon" className="w-6 h-6">
-                                                        <X className="w-4 h-4 text-gray-500"/>
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <div {...getRootProps()} className={`mt-4 p-8 border-2 border-dashed rounded-lg text-center text-gray-500 cursor-pointer ${isDragActive ? 'border-blue-600 bg-blue-50' : 'hover:border-blue-500'}`}>
-                                                    <input {...getInputProps()} />
-                                                    {isUploading ? (
-                                                        <p>Uploading...</p>
-                                                    ) : isDragActive ? (
-                                                        <p>Drop the file here ...</p>
-                                                    ) : (
-                                                        <div className="flex justify-center items-center text-blue-600">
-                                                            <Copy className="w-5 h-5 mr-2"/>
-                                                            <span>Add files or drop files here</span>
-                                                        </div>
-                                                    )}
-                                                    <p className="text-xs mt-1">DOCX only</p>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                </Card>
-                                <Card
-                                    className={`p-6 cursor-pointer relative ${selectedPaperSource === 'counterparty' ? 'border-green-600 border-2' : 'border'}`}
-                                    onClick={() => setSelectedPaperSource('counterparty')}
-                                >
-                                    {selectedPaperSource === 'counterparty' && <div className="absolute top-2 right-2 p-1 bg-green-600 rounded-full"><CheckCircle2 className="w-4 h-4 text-white" /></div>}
-                                    <div className="flex justify-between items-center">
-                                         <h3 className="font-semibold text-lg">The counterparty's paper</h3>
-                                        <Copy className="w-5 h-5 text-blue-600"/>
-                                    </div>
-                                    {selectedPaperSource === 'counterparty' && (
-                                         <p className="mt-4 text-sm text-gray-600">This will be collected in the Launch form</p>
-                                    )}
-                                </Card>
-                            </div>
-                            <div className="mt-8 flex justify-end">
-                                <Button size="lg" disabled={!selectedPaperSource}>Save paper source</Button>
+
+                {/* Right Panel */}
+                <section className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
+                    {initialTemplate.templateFileUrl ? (
+                        <div className="w-full h-full flex flex-col">
+                            <h2 className="text-xl font-bold mb-4 text-center flex-shrink-0">{initialTemplate.documentName}</h2>
+                            <div className="flex-grow min-h-0">
+                                <DocxPreviewer url={initialTemplate.templateFileUrl} />
                             </div>
                         </div>
+                    ) : (
+                        <form action={dispatch} className="w-full max-w-2xl text-center">
+                            <input type="hidden" name="templateId" value={initialTemplate.id} />
+                            <h2 className="text-2xl font-bold mb-4">Select paper source</h2>
+                            <p className="text-gray-600 mb-8">
+                                Will this workflow use a standard template or will the counterparty provide the main agreement?
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <Card className={`p-6 text-center border-2 ${selectedPaperSource === 'company' ? 'border-blue-600' : 'hover:border-gray-300'}`} onClick={() => setSelectedPaperSource('company')}>
+                                    <h3 className="font-semibold text-lg mb-2">My company's paper</h3>
+                                    <p className="text-sm text-gray-500 mb-6">Use a template from your company's library.</p>
+                                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
+                                        <div className={`p-10 border-2 border-dashed rounded-lg ${!selectedFile ? 'border-gray-300' : 'border-green-500 bg-green-50'}`}>
+                                            <input id="file-upload" name="file" type="file" className="sr-only" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)} />
+                                            {selectedFile ? (
+                                                <div className="text-green-700">
+                                                    <FileText className="w-8 h-8 mx-auto mb-2" />
+                                                    <p className="text-sm">{selectedFile.name}</p>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <UploadCloud className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                                                    <p className="text-sm text-gray-600">Browse to upload a .docx file</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    </label>
+                                </Card>
+                                <Card className={`p-6 text-center border-2 ${selectedPaperSource === 'counterparty' ? 'border-blue-600' : 'hover:border-gray-300'}`} onClick={() => setSelectedPaperSource('counterparty')}>
+                                    <h3 className="font-semibold text-lg mb-2">Counterparty paper</h3>
+                                    <p className="text-sm text-gray-500">The counterparty will provide their own agreement.</p>
+                                    <div className="p-10 border-2 border-dashed border-gray-300 rounded-lg bg-gray-100 flex items-center justify-center">
+                                       <CheckCircle2 className="w-8 h-8 text-gray-400" />
+                                    </div>
+                                </Card>
+                            </div>
+                            <Button className="mt-8" type="submit" disabled={pending || !selectedFile}>
+                                {pending ? "Saving..." : "Save paper source"}
+                            </Button>
+                            {state?.message && !state.success && <p className="mt-4 text-red-500 text-sm">{state.message}</p>}
+                            {state?.errors?.file && <p className="mt-2 text-red-500 text-sm">{state.errors.file[0]}</p>}
+                        </form>
                     )}
                 </section>
             </main>
         </div>
     );
-}
+};
 
 export default async function WorkflowEditorPage({ params }: { params: { id: string } }) {
-    return <WorkflowEditorClient id={params.id} />;
+    // This is a server component, so we can fetch data directly.
+    const template = await db.workflowTemplate.findUnique({ where: { id: params.id } });
+    if (!template) {
+        // A real app should handle this more gracefully (e.g., redirect to a 404 page)
+        return <div>Template not found.</div>;
+    }
+    return <WorkflowEditorClient initialTemplate={template} />;
 } 
