@@ -7,7 +7,7 @@ import path from 'path';
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,7 +15,7 @@ export async function POST(
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
 
-    const templateId = params.id;
+    const { id: templateId } = await params;
     const formData = await req.formData();
     const file = formData.get('file') as File;
 
@@ -52,16 +52,17 @@ export async function POST(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
+    const { id } = await params;
 
     const updatedTemplate = await db.workflowTemplate.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         documentName: null,
         documentUrl: null,

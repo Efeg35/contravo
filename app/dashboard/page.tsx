@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -658,10 +658,23 @@ export default function TaskFocusedDashboard() {
               </div>
 
               {/* Action Buttons */}
-              <button className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded hover:bg-teal-700 flex items-center">
-                <PlusIcon className="h-4 w-4 mr-1" />
-                Start workflow
-              </button>
+              <div className="flex items-center space-x-2">
+                <button className="p-2 rounded-md hover:bg-gray-100">
+                  <Cog6ToothIcon className="h-5 w-5 text-gray-500" />
+                </button>
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    {/* Search Bar */}
+                  </div>
+                  <div>
+                    {/* Action Buttons */}
+                    <button className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded hover:bg-teal-700 flex items-center">
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Start workflow
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               <div className="relative">
                 <button

@@ -29,5 +29,6 @@ declare module "next-auth/jwt" {
     companyId?: string
     iat?: number
     exp?: number
+    jti?: string
   }
 } 
