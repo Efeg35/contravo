@@ -16,6 +16,7 @@ model User {
   password                 String?
   passwordChangedAt        DateTime?             @default(now())
   role                     String                @default("VIEWER")
+  isCLevel                 Boolean               @default(false)
   department               String?
   departmentRole           String?
   createdAt                DateTime              @default(now())

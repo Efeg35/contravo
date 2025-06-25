@@ -7,7 +7,7 @@ import { sendNotificationEmail } from '@/lib/mail';
 
 const createApprovalSchema = z.object({
   approverIds: z.array(z.string()).optional(),
-  workflowTemplateId: z.string().optional(),
+  workflowTemplateId: z.string().nullable().optional(),
 });
 
 const updateApprovalSchema = z.object({
@@ -37,7 +37,8 @@ export async function GET(
         id,
         OR: [
           { createdById: session.user.id },
-          { company: { users: { some: { userId: session.user.id } } } }
+          { company: { users: { some: { userId: session.user.id } } } },
+          { approvals: { some: { approverId: session.user.id } } }
         ]
       }
     });
@@ -81,267 +82,76 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
     
-    console.log('Request body:', body);
-    
     const validatedData = createApprovalSchema.parse(body);
-    
-    // Eğer workflowTemplateId varsa, şablonu kullan
-    if (validatedData.workflowTemplateId) {
-      const workflowTemplate = await prisma.workflowTemplate.findUnique({
-        where: { id: validatedData.workflowTemplateId },
-        include: {
-          steps: {
-            include: {
-              team: {
-                include: {
-                  members: {
-                    include: {
-                      user: {
-                        select: { id: true, name: true, email: true }
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            orderBy: { order: 'asc' }
-          }
-        }
-      });
+    const finalApproverIds = new Set<string>();
 
-      if (!workflowTemplate) {
-        return NextResponse.json({ error: 'Seçilen onay akışı şablonu bulunamadı' }, { status: 404 });
-      }
-
-      // Sözleşmeyi tekrar al
-      const contract = await prisma.contract.findUnique({
-        where: { id },
-        include: {
-          createdBy: true,
-        },
-      });
-
-      if (!contract) {
-        return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
-      }
-
-      // Sözleşme durumunu 'IN_REVIEW' yap ve ilk onaylayıcıya assign et
-      const firstStepApprovers: string[] = [];
-      let firstApproverName = '';
-      if (workflowTemplate.steps.length > 0) {
-        const firstStep = workflowTemplate.steps[0];
-        if ((firstStep as any).isDynamicApprover) {
-          // Dinamik onaycı: Sözleşmeyi başlatan kullanıcının yöneticisi
-          const createdBy = contract.createdBy as any;
-          if (createdBy && createdBy.managerId) {
-            firstStepApprovers.push(createdBy.managerId);
-            // Yöneticinin adını bul
-            const manager = await prisma.user.findUnique({ where: { id: createdBy.managerId } });
-            if (manager) {
-              firstApproverName = manager.name || manager.email || 'Yönetici';
-            } else {
-              firstApproverName = 'Yönetici';
-            }
-          } else {
-            // Yönetici yoksa fallback
-            firstApproverName = 'Yönetici atanamadı';
-          }
-        } else if (firstStep.teamId && firstStep.team) {
-          firstStepApprovers.push(...firstStep.team.members.map(member => member.user.id));
-          if (!firstApproverName && firstStep.team.name) {
-            firstApproverName = firstStep.team.name;
-          }
-        } else if (firstStep.approverRole) {
-          const roleUsers = await prisma.user.findMany({
-            where: { role: firstStep.approverRole },
-            select: { id: true, name: true, email: true }
-          });
-          firstStepApprovers.push(...roleUsers.map(user => user.id));
-          if (!firstApproverName && roleUsers.length > 0) {
-            firstApproverName = `${firstStep.approverRole} Rolü`;
-          }
-        }
-      }
-
-      await prisma.contract.update({
-        where: { id },
-        data: { 
-          status: 'IN_REVIEW',
-          assignedToId: firstStepApprovers[0] || null
-        }
-      });
-
-      // Şablon adımları üzerinde döngü başlat
-      const createdApprovals = [];
-
-      for (const step of workflowTemplate.steps) {
-        let stepApprovers: string[] = [];
-
-        if ((step as any).isDynamicApprover) {
-          const createdBy = contract.createdBy as any;
-          if (createdBy && createdBy.managerId) {
-            stepApprovers = [createdBy.managerId];
-          }
-        } else if (step.teamId && step.team) {
-          stepApprovers = step.team.members.map(member => member.user.id);
-        } else if (step.approverRole) {
-          const roleUsers = await prisma.user.findMany({
-            where: { role: step.approverRole },
-            select: { id: true, name: true, email: true }
-          });
-          stepApprovers = roleUsers.map(user => user.id);
-        }
-
-        // Bu adım için onayları oluştur
-        for (const approverId of stepApprovers) {
-          const approval = await prisma.contractApproval.create({
-            data: {
-              contractId: id,
-              approverId,
-            },
-            include: {
-              approver: true,
-            },
-          });
-
-          createdApprovals.push(approval);
-
-          // Onaylayıcıya e-posta gönder
-          try {
-            await sendNotificationEmail({
-              to: approval.approver.email,
-              baslik: 'Yeni Bir Onay İsteğiniz Var',
-              mesaj: `${contract.title} sözleşmesi için onayınız isteniyor. Lütfen sözleşmeyi inceleyip onaylayın veya reddedin.`,
-              link: `${process.env.NEXTAUTH_URL}/dashboard/contracts/${id}`,
-              linkText: 'Sözleşmeyi İncele',
-            });
-          } catch (emailError) {
-            console.error('Email sending failed:', emailError);
-          }
-        }
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: `Sözleşmeniz, yöneticiniz ${firstApproverName}'na onay için gönderildi.`,
-        approvals: createdApprovals,
-        firstApproverName,
-        workflowTemplate: workflowTemplate.name
-      });
-    }
-    
-    // Eğer approverIds yoksa, varsayılan onaylayıcıları belirle
-    let approverIds = validatedData.approverIds;
-    
-    if (!approverIds || !Array.isArray(approverIds) || approverIds.length === 0) {
-      // Varsayılan olarak şirket yöneticilerini veya sözleşme sahibini onaylayıcı yap
-      const contract = await prisma.contract.findUnique({
-        where: { id },
-        include: {
-          createdBy: true,
-          company: {
-            include: {
-              users: {
-                where: {
-                  role: { in: ['ADMIN', 'MANAGER'] }
-                },
-                include: {
-                  user: {
-                    select: { id: true, name: true, email: true }
-                  }
-                }
-              }
-            }
-          }
-        },
-      });
-      
-      if (!contract) {
-        return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
-      }
-      
-      // Şirket yöneticileri varsa onları, yoksa sözleşme sahibini onaylayıcı yap
-      if (contract.company && contract.company.users.length > 0) {
-        approverIds = contract.company.users.map(cu => cu.user.id);
-      } else {
-        approverIds = [contract.createdById];
-      }
-    }
-
-    // Sözleşmeyi tekrar al (eğer yukarıda alınmadıysa)
-    const contract = await prisma.contract.findUnique({
-      where: { id },
-      include: {
-        createdBy: true,
+    // 1. Mevcut "aktif" onayları temizle (onaylanmamış veya reddedilmemiş)
+    await prisma.contractApproval.deleteMany({
+      where: {
+        contractId: id,
+        status: { in: ['PENDING', 'REVISION_REQUESTED'] },
       },
     });
 
-    if (!contract) {
-      return NextResponse.json({ error: 'Sözleşme bulunamadı' }, { status: 404 });
+    // 2. Şablondan gelen onaycıları ekle
+    if (validatedData.workflowTemplateId) {
+      const workflowTemplate = await prisma.workflowTemplate.findUnique({
+        where: { id: validatedData.workflowTemplateId },
+        include: { steps: { include: { team: { include: { members: true } } } } },
+      });
+
+      if (workflowTemplate) {
+        for (const step of workflowTemplate.steps) {
+          if (step.teamId && step.team) {
+            step.team.members.forEach(member => finalApproverIds.add(member.userId));
+          }
+        }
+      }
+    }
+    
+    // 3. Manuel eklenen onaycıları ekle
+    if (validatedData.approverIds) {
+      validatedData.approverIds.forEach(approverId => finalApproverIds.add(approverId));
     }
 
-    // Sözleşme durumunu 'IN_REVIEW' yap
+    if (finalApproverIds.size === 0) {
+      return NextResponse.json({ error: 'Onaylayıcı bulunamadı.' }, { status: 400 });
+    }
+    
+    // 4. Yeni onay kayıtlarını oluştur
+    const approvalPromises = Array.from(finalApproverIds).map(approverId => {
+      return prisma.contractApproval.create({
+        data: {
+          contractId: id,
+          approverId: approverId,
+          status: 'PENDING',
+        },
+      });
+    });
+
+    const createdApprovals = await prisma.$transaction(approvalPromises);
+
+    // Sözleşme durumunu güncelle
     await prisma.contract.update({
       where: { id },
-      data: { status: 'IN_REVIEW' }
+      data: { 
+        status: 'IN_REVIEW',
+        assignedToId: createdApprovals[0].approverId,
+      },
     });
-
-    console.log('Final approverIds before map:', approverIds);
     
-    // ApproverIds'in array olduğundan emin ol
-    if (!Array.isArray(approverIds) || approverIds.length === 0) {
-      return NextResponse.json({ error: 'Onaylayıcı bulunamadı' }, { status: 400 });
-    }
-
-    // Onaylayıcıları ekle
-    const approvals = await Promise.all(
-      approverIds.map(async (approverId: string) => {
-        const approval = await prisma.contractApproval.create({
-          data: {
-            contractId: id,
-            approverId,
-          },
-          include: {
-            approver: true,
-          },
-        });
-
-        // Onaylayıcıya e-posta gönder
-        try {
-          await sendNotificationEmail({
-            to: approval.approver.email,
-            baslik: 'Yeni Bir Onay İsteğiniz Var',
-            mesaj: `${contract.title} sözleşmesi için onayınız isteniyor. Lütfen sözleşmeyi inceleyip onaylayın veya reddedin.`,
-            link: `${process.env.NEXTAUTH_URL}/dashboard/contracts/${id}`,
-            linkText: 'Sözleşmeyi İncele',
-          });
-          console.log(`Approval email sent to ${approval.approver.email}`);
-        } catch (emailError) {
-          console.error('Email sending failed:', emailError);
-          // Email hatası olsa da approval oluşturmaya devam et
-        }
-
-        return approval;
-      })
-    );
-
-    // İlk onaylayıcının adını belirle
-    const firstApproverName = approvals.length > 0 ? 
-      (approvals[0].approver.name || approvals[0].approver.email) : 
-      'Onaylayıcılar';
-
+    // TODO: Bildirimleri buradan gönder
+    
     return NextResponse.json({
       success: true,
-      message: 'Onay istekleri başarıyla gönderildi',
-      approvals,
-      firstApproverName,
+      message: 'Onay akışı başarıyla başlatıldı.',
+      approvals: createdApprovals,
     });
+    
   } catch (error) {
-    console.error('Onay isteği gönderme hatası:', error);
-    return NextResponse.json(
-      { error: 'Sunucu hatası' },
-      { status: 500 }
-    );
+    console.error('Error in POST /api/contracts/[id]/approvals:', error);
+    const details = error instanceof Error ? error.message : 'Bilinmeyen bir hata.';
+    return NextResponse.json({ error: 'Sunucu hatası', details }, { status: 500 });
   }
 }
 

@@ -71,7 +71,15 @@ export async function getNextAction(contractId: string, userId: string): Promise
       userRole = (contract as any).company.users[0].role;
     }
 
-    const hasEditorAccess = isOwner || ['ADMIN', 'EDITOR'].includes(userRole);
+    // Onaycı olup olmadığını kontrol et
+    const isApprover = await db.contractApproval.findFirst({
+      where: {
+        contractId: contract.id,
+        approverId: userId
+      }
+    }) !== null;
+
+    const hasEditorAccess = isOwner || ['ADMIN', 'EDITOR'].includes(userRole) || isApprover;
 
     // Status'e göre sıradaki eylemi belirle
     switch (contract.status) {
@@ -95,6 +103,15 @@ export async function getNextAction(contractId: string, userId: string): Promise
           return {
             action: 'APPROVE_CONTRACT',
             label: 'Sözleşmeyi Onayla'
+          };
+        }
+
+        // Eğer mevcut kullanıcının onayı yoksa ama genel olarak bekleyen onay da kalmadıysa, imzaya gönder
+        const anyPendingApprovals = (contract as any).approvals?.length > 0;
+        if (!anyPendingApprovals && hasEditorAccess) {
+          return {
+            action: 'SEND_FOR_SIGNATURE',
+            label: 'İmzaya Gönder'
           };
         }
         break;

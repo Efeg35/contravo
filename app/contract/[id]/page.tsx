@@ -146,6 +146,7 @@ export default async function ContractFocusPage({ params }: PageProps) {
             contractId={contract.id}
             nextAction={nextAction}
             workflowTemplateId={(contract as any).workflowTemplateId}
+            approvals={contract.approvals}
           />
           
           {/* Revizyon Talep Et Butonu - Sadece onaycı sırasında göster */}

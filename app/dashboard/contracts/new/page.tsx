@@ -529,19 +529,25 @@ export default function NewContractPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     Bu sözleşmeyi ayrıca onaylaması gereken kişileri seçin. Bu seçim, seçili onay akışı şablonuna ek olarak çalışır.
                   </p>
-                  <div className="space-y-2 max-h-48 overflow-y-auto border dark:border-gray-700 rounded-md p-2">
-                    {potentialApprovers.map(user => (
-                      <div key={user.id} className="flex items-center">
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {potentialApprovers.map(approver => (
+                      <div key={approver.id} className="flex items-center">
                         <input
-                          id={`approver-${user.id}`}
+                          id={`approver-${approver.id}`}
+                          name="approvers"
                           type="checkbox"
-                          checked={selectedApprovers.includes(user.id)}
-                          onChange={() => handleApproverChange(user.id)}
+                          checked={selectedApprovers.includes(approver.id)}
+                          onChange={() => handleApproverChange(approver.id)}
                           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
-                        <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                          {user.name || user.email}
-                        </span>
+                        <label htmlFor={`approver-${approver.id}`} className="ml-3 flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {approver.name}
+                          {approver.departmentRole && (
+                            <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                              ({approver.departmentRole})
+                            </span>
+                          )}
+                        </label>
                       </div>
                     ))}
                   </div>
