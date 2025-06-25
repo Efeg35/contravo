@@ -108,7 +108,7 @@ export async function createUser(formData: FormData) {
       }
     });
 
-    revalidatePath('/dashboard/admin/users');
+    revalidatePath('/settings/company/users');
     return { success: true, user: newUser };
 
   } catch (error) {
@@ -184,8 +184,8 @@ export async function updateUser(userId: string, formData: FormData) {
       }
     });
 
-    revalidatePath('/dashboard/admin/users');
-    revalidatePath(`/dashboard/admin/users/${userId}`);
+    revalidatePath('/settings/company/users');
+    revalidatePath(`/settings/company/users/${userId}`);
     
     return { success: true, user: updatedUser };
 
@@ -248,7 +248,7 @@ export async function deleteUser(userId: string) {
       where: { id: userId }
     });
 
-    revalidatePath('/dashboard/admin/users');
+    revalidatePath('/settings/company/users');
     return { success: true };
 
   } catch (error) {

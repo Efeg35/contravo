@@ -12,9 +12,7 @@ import {
   BuildingOfficeIcon,
   DocumentDuplicateIcon,
   ChartBarIcon,
-  UsersIcon,
   Cog6ToothIcon,
-  BookOpenIcon,
   ChevronDownIcon,
   BellIcon,
   UserCircleIcon,
@@ -50,7 +48,7 @@ export default function DashboardLayout({
     }
   }, [session, status, router]);
 
-  const isAdmin = session?.user?.role === 'ADMIN';
+
 
   const toggleDropdown = (name: string) => {
     setOpenDropdowns(prev =>
@@ -258,74 +256,7 @@ export default function DashboardLayout({
                 <BellIcon className="w-5 h-5" />
               </button>
 
-              {/* Admin Menu - Only visible to ADMIN users */}
-              {isAdmin && (
-                <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleDropdown('admin');
-                    }}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname.startsWith('/dashboard/admin') ||
-                      pathname.startsWith('/dashboard/clauses') ||
-                      openDropdowns.includes('admin')
-                        ? 'bg-orange-50 text-orange-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Cog6ToothIcon className="w-4 h-4 mr-1" />
-                    Yönetici
-                    <ChevronDownIcon 
-                      className={`w-4 h-4 ml-1 transition-transform ${
-                        openDropdowns.includes('admin') ? 'rotate-180' : ''
-                      }`} 
-                    />
-                  </button>
 
-                  {/* Admin Dropdown Menu */}
-                  {openDropdowns.includes('admin') && (
-                    <div className="absolute top-full right-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                      <Link
-                        href="/dashboard/admin/users"
-                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
-                          pathname.startsWith('/dashboard/admin/users')
-                            ? 'bg-orange-50 text-orange-700'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                        onClick={() => setOpenDropdowns([])}
-                      >
-                        <UsersIcon className="w-4 h-4 mr-3" />
-                        Kullanıcı Yönetimi
-                      </Link>
-                      <Link
-                        href="/dashboard/admin/teams"
-                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
-                          pathname.startsWith('/dashboard/admin/teams')
-                            ? 'bg-orange-50 text-orange-700'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                        onClick={() => setOpenDropdowns([])}
-                      >
-                        <UsersIcon className="w-4 h-4 mr-3" />
-                        Takım Yönetimi
-                      </Link>
-                      <Link
-                        href="/dashboard/admin/clauses"
-                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
-                          pathname.startsWith('/dashboard/admin/clauses')
-                            ? 'bg-orange-50 text-orange-700'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                        onClick={() => setOpenDropdowns([])}
-                      >
-                        <BookOpenIcon className="w-4 h-4 mr-3" />
-                        Madde Kütüphanesi
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* User Profile Menu */}
               <div className="relative">

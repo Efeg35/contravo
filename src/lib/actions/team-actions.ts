@@ -61,7 +61,7 @@ export async function createTeam(formData: FormData) {
       },
     });
 
-    revalidatePath('/dashboard/admin/teams');
+    revalidatePath('/settings/company/groups');
     return { success: true, team };
   } catch (error) {
     console.error('Takım oluşturma hatası:', error);
@@ -98,8 +98,8 @@ export async function addUserToTeam(teamId: string, userId: string) {
       },
     });
 
-    revalidatePath(`/dashboard/admin/teams/${teamId}`);
-    revalidatePath('/dashboard/admin/teams');
+    revalidatePath(`/settings/company/groups/${teamId}`);
+    revalidatePath('/settings/company/groups');
     return { success: true };
   } catch (error) {
     console.error('Kullanıcı ekleme hatası:', error);
@@ -123,8 +123,8 @@ export async function removeUserFromTeam(teamId: string, userId: string) {
       },
     });
 
-    revalidatePath(`/dashboard/admin/teams/${teamId}`);
-    revalidatePath('/dashboard/admin/teams');
+    revalidatePath(`/settings/company/groups/${teamId}`);
+    revalidatePath('/settings/company/groups');
     return { success: true };
   } catch (error) {
     console.error('Kullanıcı çıkarma hatası:', error);

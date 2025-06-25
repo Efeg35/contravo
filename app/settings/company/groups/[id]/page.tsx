@@ -9,7 +9,7 @@ import { addUserToTeam, removeUserFromTeam } from '../../../../../src/lib/action
 import { UserSearch } from '@/components/UserSearch';
 import { Users, X } from 'lucide-react';
 
-interface TeamPageProps {
+interface GroupPageProps {
   params: Promise<{
     id: string;
   }>;
@@ -48,7 +48,7 @@ async function canManageTeam(teamId: string): Promise<boolean> {
   return false;
 }
 
-export default async function TeamPage({ params }: TeamPageProps) {
+export default async function GroupPage({ params }: GroupPageProps) {
   const session = await getServerSession(authOptions);
   
   // Kullanıcının giriş yapmış olması gerekiyor
@@ -79,20 +79,20 @@ export default async function TeamPage({ params }: TeamPageProps) {
   });
 
   if (!team) {
-    redirect('/dashboard/admin/teams');
+    redirect('/settings/company/groups');
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="max-w-6xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Users className="h-8 w-8 text-blue-600" />
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <Users className="h-6 w-6 text-blue-600" />
             {team.name}
           </h1>
-          <p className="text-gray-600 mt-2">
-            Takım üyelerini {canManage ? 'yönetin' : 'görüntüleyin'}
+          <p className="text-gray-600 mt-1">
+            {canManage ? 'Manage group members' : 'View group members'}
           </p>
         </div>
       </div>
@@ -101,9 +101,9 @@ export default async function TeamPage({ params }: TeamPageProps) {
       {canManage && (
       <Card>
         <CardHeader>
-          <CardTitle>Üye Ekle</CardTitle>
+          <CardTitle>Add Member</CardTitle>
           <CardDescription>
-            Takıma yeni bir üye eklemek için aşağıdaki arama kutusunu kullanın
+            Use the search box below to add a new member to the group
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -120,15 +120,15 @@ export default async function TeamPage({ params }: TeamPageProps) {
       {/* Üye Listesi */}
       <Card>
         <CardHeader>
-          <CardTitle>Takım Üyeleri</CardTitle>
+          <CardTitle>Group Members</CardTitle>
           <CardDescription>
-            Bu takımda yer alan üyelerin listesi
+            List of members in this group
           </CardDescription>
         </CardHeader>
         <CardContent>
           {team.members.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              Bu takımda henüz üye bulunmuyor.
+              No members in this group yet.
             </div>
           ) : (
             <div className="space-y-4">
@@ -143,7 +143,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
                       {member.user.email}
                     </p>
                     <p className="text-xs text-gray-400">
-                      Rol: {member.user.role} {member.user.departmentRole && `• ${member.user.departmentRole}`}
+                      Role: {member.user.role} {member.user.departmentRole && `• ${member.user.departmentRole}`}
                     </p>
                   </div>
                   {/* Kaldırma butonu - Sadece yetkili kullanıcılara göster */}
@@ -157,7 +157,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
                       variant="ghost"
                       size="icon"
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        title="Takımdan çıkar"
+                        title="Remove from group"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -175,7 +175,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="pt-6">
             <p className="text-yellow-800 text-sm">
-              <strong>Bilgi:</strong> Bu takımın üyelerini görüntüleyebilirsiniz, ancak düzenleme yetkisi sadece sistem yöneticileri ve takım müdürlerine aittir.
+              <strong>Info:</strong> You can view this group's members, but editing permissions are limited to system administrators and group managers.
             </p>
           </CardContent>
         </Card>
