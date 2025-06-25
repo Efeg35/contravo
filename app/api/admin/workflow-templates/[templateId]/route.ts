@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export async function GET(
-  request: Request,
+  _request: Request,
   context: { params: { templateId: string } }
 ) {
   try {
