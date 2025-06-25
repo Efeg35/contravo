@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { templateId: string } }
 ) {
   try {
@@ -52,7 +52,7 @@ export async function GET(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: Request,
   { params }: { params: { templateId: string } }
 ) {
   try {
