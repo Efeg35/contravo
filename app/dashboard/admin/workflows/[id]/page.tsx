@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, MoreHorizontal, Mail, CalendarDays, TextCursorInput, Timer, Repeat, ShieldQuestion, CheckCircle2, Copy } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Plus, MoreHorizontal, Mail, CalendarDays, TextCursorInput, Timer, Repeat, ShieldQuestion, CheckCircle2, Copy, FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,6 +23,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card } from "@/components/ui/card";
+import { useDropzone } from 'react-dropzone';
+
+interface WorkflowTemplate {
+    id: string;
+    name: string;
+    documentName: string | null;
+    documentUrl: string | null;
+    paperSource?: string | null; // Assuming this might be part of the model
+}
 
 // Simple stepper component based on the screenshot
 const StageStepper = ({
@@ -78,10 +87,102 @@ const mockProperties = {
     ]
 };
 
-const WorkflowEditorPage = ({ params }: { params: { id: string } }) => {
+const WorkflowEditorClient = ({ id }: { id: string }) => {
+    const [template, setTemplate] = useState<WorkflowTemplate | null>(null);
+    const [loading, setLoading] = useState(true);
     const [currentStep, setCurrentStep] = useState("Document");
     const [selectedPaperSource, setSelectedPaperSource] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
     const workflowSteps = ["Document", "Create", "Review", "Sign", "Archive"];
+
+    // Fetch initial template data
+    useEffect(() => {
+        const fetchTemplate = async () => {
+            try {
+                setLoading(true);
+                const res = await fetch(`/api/workflow-templates/${id}`);
+                if (!res.ok) {
+                    throw new Error("Failed to fetch template data");
+                }
+                const data = await res.json();
+                setTemplate(data);
+                // Assuming paperSource is a field on the template model
+                if (data.documentUrl) {
+                    setSelectedPaperSource('company');
+                } else if (data.paperSource === 'counterparty') {
+                    setSelectedPaperSource('counterparty');
+                }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchTemplate();
+    }, [id]);
+
+
+    const onDrop = useCallback(async (acceptedFiles: File[]) => {
+        const file = acceptedFiles[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch(`/api/workflow-templates/${id}/document`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                // Log the server response for more details
+                const errorText = await response.text();
+                console.error("File upload failed with status:", response.status, "and message:", errorText);
+                throw new Error(`File upload failed: ${errorText}`);
+            }
+
+            const updatedTemplate = await response.json();
+            setTemplate(updatedTemplate); // Update state with new document info
+
+        } catch (error) {
+            console.error(error);
+            // Add user-facing error handling (e.g., toast)
+        } finally {
+            setIsUploading(false);
+        }
+    }, [id]);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] },
+        maxFiles: 1,
+    });
+    
+    const removeDocument = async () => {
+        if (!template) return;
+        
+        try {
+            const response = await fetch(`/api/workflow-templates/${id}/document`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to remove document');
+            }
+            
+            const updatedTemplate = await response.json();
+            setTemplate(updatedTemplate);
+
+        } catch (error) {
+            console.error("Error removing document:", error);
+        }
+    };
+
+    if (loading) {
+        return <div>Loading...</div>; // Or a better skeleton loader
+    }
 
     return (
         <div className="flex flex-col h-screen bg-gray-50">
@@ -182,13 +283,34 @@ const WorkflowEditorPage = ({ params }: { params: { id: string } }) => {
                                     {selectedPaperSource === 'company' && <div className="absolute top-2 right-2 p-1 bg-green-600 rounded-full"><CheckCircle2 className="w-4 h-4 text-white" /></div>}
                                     <h3 className="font-semibold text-lg mb-2">My company's paper</h3>
                                     {selectedPaperSource === 'company' && (
-                                        <div className="mt-4 p-8 border-2 border-dashed rounded-lg text-center text-gray-500 hover:border-blue-500">
-                                            <div className="flex justify-center items-center text-blue-600">
-                                                <Copy className="w-5 h-5 mr-2"/>
-                                                <span>Add files or drop files here</span>
-                                            </div>
-                                            <p className="text-xs mt-1">DOCX only</p>
-                                        </div>
+                                        <>
+                                            {template?.documentUrl ? (
+                                                <div className="mt-4 p-4 border-2 border-dashed rounded-lg flex items-center justify-between bg-gray-50">
+                                                    <div className="flex items-center gap-2 text-blue-600 font-medium">
+                                                        <FileText className="w-5 h-5" />
+                                                        <span>{template.documentName}</span>
+                                                    </div>
+                                                    <Button onClick={removeDocument} variant="ghost" size="icon" className="w-6 h-6">
+                                                        <X className="w-4 h-4 text-gray-500"/>
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div {...getRootProps()} className={`mt-4 p-8 border-2 border-dashed rounded-lg text-center text-gray-500 cursor-pointer ${isDragActive ? 'border-blue-600 bg-blue-50' : 'hover:border-blue-500'}`}>
+                                                    <input {...getInputProps()} />
+                                                    {isUploading ? (
+                                                        <p>Uploading...</p>
+                                                    ) : isDragActive ? (
+                                                        <p>Drop the file here ...</p>
+                                                    ) : (
+                                                        <div className="flex justify-center items-center text-blue-600">
+                                                            <Copy className="w-5 h-5 mr-2"/>
+                                                            <span>Add files or drop files here</span>
+                                                        </div>
+                                                    )}
+                                                    <p className="text-xs mt-1">DOCX only</p>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </Card>
                                 <Card
@@ -216,4 +338,6 @@ const WorkflowEditorPage = ({ params }: { params: { id: string } }) => {
     );
 }
 
-export default WorkflowEditorPage; 
+export default async function WorkflowEditorPage({ params }: { params: { id: string } }) {
+    return <WorkflowEditorClient id={params.id} />;
+} 
