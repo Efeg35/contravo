@@ -1,5 +1,12 @@
-// Contract Status Enum
-export type ContractStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SENT_FOR_SIGNATURE' | 'SIGNED' | 'ARCHIVED';
+// Contract Status Enum - Modernized to match Prisma enum
+export enum ContractStatusEnum {
+  DRAFT = 'DRAFT',
+  REVIEW = 'REVIEW',
+  SIGNING = 'SIGNING',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export type ContractStatus = keyof typeof ContractStatusEnum;
 
 // Contract Types
 export type ContractType = 

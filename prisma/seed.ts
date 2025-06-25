@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import bcrypt from 'bcryptjs';
+import { ContractStatusEnum } from '../app/types';
 
 const prisma = new PrismaClient();
 
@@ -378,7 +379,7 @@ async function main() {
       const endDate = faker.date.future({ years: 1, refDate: startDate });
       
       const contractTypes = ['SERVICE_AGREEMENT', 'SALES_CONTRACT', 'CONSULTING_AGREEMENT', 'LICENSE_AGREEMENT', 'EMPLOYMENT_CONTRACT'];
-      const statuses = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'SIGNED', 'ACTIVE', 'EXPIRED'];
+      const statuses = ['DRAFT', 'REVIEW', 'SIGNING', 'ACTIVE', 'ARCHIVED', 'REJECTED'];
       
       // Departmana göre sözleşme değeri aralıkları
       let valueRange = { min: 5000, max: 50000 };
@@ -402,7 +403,7 @@ async function main() {
           title,
           description: `${dept.name} departmanı için ${title.toLowerCase()} sözleşmesi`,
           content,
-          status: faker.helpers.arrayElement(statuses),
+          status: faker.helpers.arrayElement(Object.values(ContractStatusEnum)),
           type: faker.helpers.arrayElement(contractTypes),
           value,
           startDate,

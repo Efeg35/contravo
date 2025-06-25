@@ -6,6 +6,7 @@ import { getCurrentUser } from '../../../lib/auth-helpers'
 import { getContractsVisibilityFilter } from '../../../lib/permissions'
 import { Prisma } from '@prisma/client'
 import { handleApiError, createSuccessResponse, commonErrors } from '@/lib/api-error-handler'
+import { ContractStatusEnum } from '@/app/types'
 
 const createContractSchema = z.object({
   title: z.string().min(1, 'Contract title is required'),
@@ -31,10 +32,10 @@ const createContractSchema = z.object({
   companyId: z.string().optional(),
   templateId: z.string().optional(),
   workflowTemplateId: z.string().optional().or(z.null()),
-  status: z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'SIGNED', 'ARCHIVED']).optional(),
+  status: z.enum(['DRAFT', 'REVIEW', 'SIGNING', 'ACTIVE', 'ARCHIVED', 'REJECTED']).optional(),
 })
 
-type ContractStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SIGNED' | 'ARCHIVED'
+type ContractStatus = 'DRAFT' | 'REVIEW' | 'SIGNING' | 'ACTIVE' | 'ARCHIVED' | 'REJECTED'
 
 // const contractQuerySchema = z.object({
 //   page: z.string().optional(),
@@ -160,10 +161,10 @@ export async function GET(request: NextRequest) {
           }
           break
         case 'completed':
-          whereClause.status = 'SIGNED'
+          whereClause.status = { in: [ContractStatusEnum.SIGNING] }
           break
         case 'archived':
-          whereClause.status = 'ARCHIVED'
+          whereClause.status = { in: [ContractStatusEnum.ARCHIVED] }
           break
         case 'overdue':
           const overdueConditions = [
@@ -171,13 +172,13 @@ export async function GET(request: NextRequest) {
               endDate: {
                 lt: new Date()
               },
-              status: { not: 'SIGNED' }
+              status: { not: ContractStatusEnum.SIGNING }
             },
             {
               expirationDate: {
                 lt: new Date()
               },
-              status: { not: 'SIGNED' }
+              status: { not: ContractStatusEnum.SIGNING }
             }
           ]
           
@@ -203,7 +204,7 @@ export async function GET(request: NextRequest) {
           break
         case 'general-mnda':
           whereClause.type = 'NDA'
-          whereClause.status = 'IN_REVIEW'
+          whereClause.status = ContractStatusEnum.REVIEW
           break
         case 'sales-high-value':
           whereClause.type = { in: ['SALES_AGREEMENT', 'SERVICE_AGREEMENT'] }
@@ -214,17 +215,17 @@ export async function GET(request: NextRequest) {
           break
         case 'ytd-completed':
           const yearStart = new Date(new Date().getFullYear(), 0, 1)
-          whereClause.status = { in: ['SIGNED', 'ARCHIVED'] }
+          whereClause.status = { in: [ContractStatusEnum.SIGNING, ContractStatusEnum.ARCHIVED] }
           whereClause.updatedAt = { gte: yearStart }
           break
         default:
           // Active/in progress contracts by default
-          whereClause.status = { in: ['DRAFT', 'IN_REVIEW', 'APPROVED'] }
+          whereClause.status = { in: [ContractStatusEnum.DRAFT, ContractStatusEnum.REVIEW, ContractStatusEnum.SIGNING] }
           break
       }
     } else {
       // Default view - active contracts
-      whereClause.status = { in: ['DRAFT', 'IN_REVIEW', 'APPROVED'] }
+      whereClause.status = { in: [ContractStatusEnum.DRAFT, ContractStatusEnum.REVIEW, ContractStatusEnum.SIGNING] }
     }
 
     // Build order by clause

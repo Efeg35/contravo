@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     const inProgressCount = await prisma.contract.count({
       where: { 
         ...baseWhere,
-        status: { in: ['DRAFT', 'IN_REVIEW', 'APPROVED'] } 
+        status: { in: ['DRAFT', 'REVIEW', 'SIGNING'] } 
       }
     });
     const assignedToMeCount = await prisma.contract.count({
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
     const completedCount = await prisma.contract.count({
       where: { 
         ...baseWhere,
-        status: 'SIGNED'
+        status: 'ACTIVE'
       }
     });
     const archivedCount = await prisma.contract.count({
@@ -131,11 +131,11 @@ export async function GET(request: NextRequest) {
         OR: [
           {
             endDate: { lt: new Date() },
-            status: { not: 'SIGNED' }
+            status: { not: 'ACTIVE' }
           },
           {
             expirationDate: { lt: new Date() },
-            status: { not: 'SIGNED' }
+            status: { not: 'ACTIVE' }
           }
         ]
       }
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
           gte: new Date(),
           lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
         },
-        status: { notIn: ['SIGNED', 'ARCHIVED'] }
+        status: { notIn: ['ACTIVE', 'ARCHIVED'] }
       }
     });
 
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
       where: { 
         ...baseWhere,
         type: 'NDA',
-        status: 'IN_REVIEW'
+        status: 'REVIEW'
       }
     });
     const salesHighValueCount = await prisma.contract.count({
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
     const ytdCompletedCount = await prisma.contract.count({
       where: { 
         ...baseWhere,
-        status: 'SIGNED',
+        status: 'ACTIVE',
         updatedAt: { gte: new Date(new Date().getFullYear(), 0, 1) }
       }
     });

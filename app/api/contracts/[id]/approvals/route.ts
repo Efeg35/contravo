@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { sendNotificationEmail } from '@/lib/mail';
+import { ContractStatusEnum } from '@/app/types';
 
 const createApprovalSchema = z.object({
   approverIds: z.array(z.string()).optional(),
@@ -135,7 +136,7 @@ export async function POST(
     await prisma.contract.update({
       where: { id },
       data: { 
-        status: 'IN_REVIEW',
+        status: ContractStatusEnum.REVIEW,
         assignedToId: createdApprovals[0].approverId,
       },
     });
@@ -238,7 +239,7 @@ export async function PUT(
     if (hasRejected) {
       newContractStatus = 'REJECTED';
     } else if (allApproved) {
-      newContractStatus = 'APPROVED';
+      newContractStatus = 'SIGNING';
     }
 
     // Sözleşme durumunu güncelle
@@ -250,12 +251,12 @@ export async function PUT(
     }
 
     // Sözleşme sahibine bilgilendirme e-postası gönder
-    if (newContractStatus === 'APPROVED' || newContractStatus === 'REJECTED') {
+    if (newContractStatus === 'SIGNING' || newContractStatus === 'REJECTED') {
       try {
         await sendNotificationEmail({
           to: contract.createdBy.email,
-          baslik: `Sözleşme ${newContractStatus === 'APPROVED' ? 'Onaylandı' : 'Reddedildi'}`,
-          mesaj: `${contract.title} sözleşmesi ${newContractStatus === 'APPROVED' ? 'onaylandı' : 'reddedildi'}.`,
+          baslik: `Sözleşme ${newContractStatus === 'SIGNING' ? 'İmza Sürecine Geçti' : 'Reddedildi'}`,
+          mesaj: `${contract.title} sözleşmesi ${newContractStatus === 'SIGNING' ? 'imza sürecine geçti' : 'reddedildi'}.`,
           link: `${process.env.NEXTAUTH_URL}/dashboard/contracts/${id}`,
           linkText: 'Sözleşmeyi Görüntüle',
         });
@@ -266,7 +267,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      message: validatedData.status === 'APPROVED' ? 'Sözleşme onaylandı' : 'Sözleşme reddedildi',
+      message: validatedData.status === 'APPROVED' ? 'Sözleşme onaylandı ve imza sürecine geçti' : 'Sözleşme reddedildi',
       contractStatus: newContractStatus,
     });
   } catch (error) {

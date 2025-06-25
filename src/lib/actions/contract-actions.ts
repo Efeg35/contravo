@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '../../../lib/auth-helpers';
 import { hasRequiredRole } from '@/lib/auth';
+import { ContractStatusEnum } from '@/app/types';
 
 /**
  * Ana sözleşmeye bağlı yeni bir ek sözleşme (amendment) oluşturur
@@ -76,7 +77,7 @@ export async function createAmendment(parentContractId: string) {
           `Ana sözleşme: ${parentContract.title}\n\n${parentContract.description}` : 
           `Ana sözleşme: ${parentContract.title}`,
         content: parentContract.content || '',
-        status: 'DRAFT',
+        status: ContractStatusEnum.DRAFT,
         type: parentContract.type,
         value: parentContract.value,
         startDate: parentContract.startDate,
@@ -174,7 +175,7 @@ export async function requestRevision(contractId: string, comment: string) {
     await db.contract.update({
       where: { id: contractId },
       data: {
-        status: 'DRAFT',
+        status: ContractStatusEnum.DRAFT,
         assignedToId: contract.createdById,
         updatedById: user.id,
         updatedAt: new Date()

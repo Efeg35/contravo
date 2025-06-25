@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import React from 'react';
+import { ContractStatusEnum } from '@/app/types';
 
 interface ReportRequestBody {
   title: string;
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
 
       if (filters.status && filters.status.length > 0) {
         whereClause.status = {
-          in: filters.status,
+          in: filters.status.map((s: string) => ContractStatusEnum[s as keyof typeof ContractStatusEnum]).filter(Boolean),
         };
       }
 
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
             {
               title: 'Mobil Uygulama Geliştirme Projesi',
               description: 'iOS ve Android uygulama geliştirme hizmetleri',
-              status: 'SIGNED',
+              status: ContractStatusEnum.SIGNING,
               type: 'SERVICE',
               value: 75000,
               startDate: new Date('2024-01-01'),
@@ -161,7 +162,7 @@ export async function POST(request: NextRequest) {
             {
               title: 'Web Sitesi Tasarım ve Geliştirme',
               description: 'Kurumsal web sitesi tasarım ve geliştirme',
-              status: 'ACTIVE',
+              status: ContractStatusEnum.SIGNING,
               type: 'SERVICE',
               value: 45000,
               startDate: new Date('2024-03-01'),
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
             {
               title: 'E-ticaret Platformu Entegrasyonu',
               description: 'Mevcut sistemle e-ticaret platformu entegrasyonu',
-              status: 'DRAFT',
+              status: ContractStatusEnum.SIGNING,
               type: 'SERVICE',
               value: 30000,
               startDate: new Date('2024-07-01'),

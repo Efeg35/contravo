@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { getCurrentUser, userHasPermission } from '@/lib/auth-helpers';
 import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '@/lib/permissions';
 import { Prisma } from '@prisma/client';
+import { ContractStatusEnum } from '@/app/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     // İmzalanmış sözleşmeleri al (SIGNED status) - WITH DEPARTMENT FILTERING
     const signedContracts = await prisma.contract.findMany({
-      where: getBaseWhereClause({ status: 'SIGNED' }),
+      where: getBaseWhereClause({ status: ContractStatusEnum.SIGNING }),
       select: {
         createdAt: true,
         updatedAt: true,
@@ -108,10 +109,10 @@ export async function GET(request: NextRequest) {
       where: getBaseWhereClause()
     });
     const activeContracts = await prisma.contract.count({
-      where: getBaseWhereClause({ status: 'ACTIVE' })
+      where: getBaseWhereClause({ status: ContractStatusEnum.SIGNING })
     });
     const pendingContracts = await prisma.contract.count({
-      where: getBaseWhereClause({ status: { in: ['DRAFT', 'REVIEW'] } })
+      where: getBaseWhereClause({ status: { in: [ContractStatusEnum.DRAFT, ContractStatusEnum.REVIEW] } })
     });
 
     // Ortalama tamamlanma süresini hesapla

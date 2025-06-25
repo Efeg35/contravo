@@ -7,6 +7,15 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+enum ContractStatus {
+  DRAFT     // Taslak
+  REVIEW    // İç Onayda
+  SIGNING   // İmza Sürecinde
+  ACTIVE    // İmzalandı ve Yürürlükte
+  ARCHIVED  // Arşivlendi
+  REJECTED  // Reddedildi
+}
+
 model User {
   id                       String                @id @default(cuid())
   name                     String?
@@ -34,6 +43,7 @@ model User {
   approvals                ContractApproval[]    @relation("ApprovalsByUser")
   uploadedAttachments      ContractAttachment[]  @relation("UploadedAttachments")
   createdTemplates         ContractTemplate[]    @relation("CreatedTemplates")
+  createdWorkflowTemplates WorkflowTemplate[]    @relation("CreatedWorkflowTemplates")
   passwordHistory          PasswordHistory[]
   sessions                 Session[]
   userSessions             UserSession[]         @relation("UserSessions")
@@ -226,7 +236,7 @@ model Contract {
   title             String
   description       String?
   content           String?
-  status            String               @default("DRAFT")
+  status            ContractStatus       @default(DRAFT)
   type              String
   value             Float?
   startDate         DateTime?
@@ -665,6 +675,10 @@ model WorkflowTemplate {
   updatedAt   DateTime               @updatedAt
   steps       WorkflowTemplateStep[]
   contracts   Contract[]             @relation("ContractWorkflowTemplates")
+  status      String                @default("UNPUBLISHED")
+
+  createdBy   User?    @relation("CreatedWorkflowTemplates", fields: [createdById], references: [id])
+  createdById String?
 
   @@index([name])
   @@index([createdAt])

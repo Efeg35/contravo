@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     // Get contract statistics with department filtering
     const [
       totalContracts,
-      signedContracts,
+      activeContracts,
       inReviewContracts,
       draftContracts,
       totalValue
@@ -93,13 +93,13 @@ export async function GET(request: NextRequest) {
       prisma.contract.count({
         where: {
           ...baseWhere,
-          status: 'SIGNED'
+          status: 'ACTIVE'
         }
       }),
       prisma.contract.count({
         where: {
           ...baseWhere,
-          status: 'IN_REVIEW'
+          status: 'REVIEW'
         }
       }),
       prisma.contract.count({
@@ -118,7 +118,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       totalContracts,
-      signedContracts,
+      signedContracts: activeContracts, // Backward compatibility
+      activeContracts,
       inReviewContracts,
       draftContracts,
       totalValue: totalValue._sum.value || 0,

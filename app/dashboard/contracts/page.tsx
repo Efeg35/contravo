@@ -31,13 +31,15 @@ import SortableHeader from './components/SortableHeader';
 import { getCurrentUser } from '@/lib/auth-helpers';
 import { getContractsVisibilityFilter } from '@/lib/permissions';
 import { redirect } from 'next/navigation';
+import StageStepper from '@/components/contracts/StageStepper';
+import { ContractStatus, ContractStatusEnum } from '@/app/types';
 // import BulkOperations from '@/components/BulkOperations';
 
 interface Contract {
   id: string;
   title: string;
   description?: string;
-  status: 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SIGNED' | 'ARCHIVED';
+  status: ContractStatus;
   type: string;
   value?: number;
   startDate?: string;
@@ -61,6 +63,27 @@ interface ContractStats {
   inReviewContracts: number;
   draftContracts: number;
   totalValue: number;
+}
+
+// Statüleri 4 ana aşamaya eşleyen fonksiyon
+function mapStatusToStage(status: string): 'DRAFT' | 'REVIEW' | 'SIGNING' | 'ARCHIVED' {
+  switch (status) {
+    case 'DRAFT':
+    case 'REJECTED':
+      return 'DRAFT';
+    case 'REVIEW':
+    case 'ONAY':
+    case 'APPROVAL':
+    case 'PENDING_APPROVAL':
+      return 'REVIEW';
+    case 'SIGNING':
+      return 'SIGNING';
+    case 'ACTIVE':
+    case 'ARCHIVED':
+      return 'ARCHIVED';
+    default:
+      return 'DRAFT';
+  }
 }
 
 export default async function ContractsPage({ 
@@ -102,10 +125,10 @@ export default async function ContractsPage({
   };
 
   // Paralel veri çekme - artık güvenlik filtresiyle
-  const [totalCount, reviewingCount, signedCount, contracts] = await Promise.all([
+  const [totalCount, reviewingCount, activeCount, contracts] = await Promise.all([
     prisma.contract.count({ where: { AND: [visibilityFilter] } }), // Güvenlik filtresi eklendi
-    prisma.contract.count({ where: { AND: [visibilityFilter, { status: 'IN_REVIEW' }] } }), // Güvenlik filtresi eklendi
-    prisma.contract.count({ where: { AND: [visibilityFilter, { status: 'SIGNED' }] } }), // Güvenlik filtresi eklendi
+    prisma.contract.count({ where: { AND: [visibilityFilter, { status: ContractStatusEnum.REVIEW as ContractStatus }] } }), // Güvenlik filtresi eklendi
+    prisma.contract.count({ where: { AND: [visibilityFilter, { status: ContractStatusEnum.SIGNING as ContractStatus }] } }), // Güvenlik filtresi eklendi
     prisma.contract.findMany({
       where,
       orderBy: { [sortBy]: order },
@@ -116,19 +139,15 @@ export default async function ContractsPage({
     })
   ]);
 
-  // Get status color
+  // Get status color - Sadece 4 ana statü
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-      case 'IN_REVIEW':
+      case 'REVIEW':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-300';
-      case 'APPROVED':
+      case 'SIGNING':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-300';
-      case 'REJECTED':
-        return 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-300';
-      case 'SIGNED':
-        return 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-300';
       case 'ARCHIVED':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-700 dark:text-purple-300';
       default:
@@ -136,15 +155,13 @@ export default async function ContractsPage({
     }
   };
 
-  // Get status text
+  // Get status text - Sadece 4 ana statü
   const getStatusText = (status: string) => {
     switch (status) {
       case 'DRAFT': return 'Taslak';
-      case 'IN_REVIEW': return 'İncelemede';
-      case 'APPROVED': return 'Onaylandı';
-      case 'REJECTED': return 'Reddedildi';
-      case 'SIGNED': return 'İmzalandı';
-      case 'ARCHIVED': return 'Arşivlendi';
+      case 'REVIEW': return 'İnceleme';
+      case 'SIGNING': return 'İmza';
+      case 'ARCHIVED': return 'Arşiv';
       default: return status;
     }
   };
@@ -245,10 +262,10 @@ export default async function ContractsPage({
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">İmzalanan</CardTitle>
+                    <CardTitle className="text-sm font-medium">Aktif</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{signedCount}</div>
+                    <div className="text-2xl font-bold text-green-600">{activeCount}</div>
                   </CardContent>
                 </Card>
               </div>
@@ -275,7 +292,7 @@ export default async function ContractsPage({
                       <SortableHeader label="Başlık" sortKey="title" />
                     </div>
                     <div className="col-span-2">
-                      <SortableHeader label="Durum" sortKey="status" />
+                      <SortableHeader label="Aşama" sortKey="status" />
                     </div>
                     <div className="col-span-2">
                       <SortableHeader label="Oluşturma Tarihi" sortKey="createdAt" />
@@ -297,9 +314,10 @@ export default async function ContractsPage({
                           </Link>
                               </div>
                         <div className="col-span-2">
-                          <Badge className={getStatusColor(contract.status)}>
-                            {getStatusText(contract.status)}
-                          </Badge>
+                          <StageStepper 
+                            status={mapStatusToStage(contract.status)}
+                            className="text-xs" 
+                          />
                         </div>
                         <div className="col-span-2 text-sm text-gray-500">
                           {new Date(contract.createdAt).toLocaleDateString('tr-TR')}

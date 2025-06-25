@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { ContractStatusEnum } from '../app/types';
 
 const prisma = new PrismaClient();
 
@@ -68,7 +69,7 @@ GEÇERLİLİK SÜRESİ:
 - Başlangıç: 1 Ocak 2024
 - Bitiş: 31 Aralık 2024
 - Otomatik yenileme seçeneği`,
-      status: 'SIGNED',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 27000,
       startDate: new Date('2024-01-01'),
@@ -102,7 +103,7 @@ GÜVENLİK:
 - SSL/TLS şifreleme
 - IAM kullanıcı yönetimi
 - Backup ve disaster recovery`,
-      status: 'IN_REVIEW',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 60000,
       startDate: new Date('2024-03-01'),
@@ -139,7 +140,7 @@ TESLİMAT AŞAMALARI:
 - %30 proje başlangıcı
 - %40 prototype teslimi
 - %30 final teslim`,
-      status: 'APPROVED',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 85000,
       startDate: new Date('2024-04-01'),
@@ -174,7 +175,7 @@ SÜRESİ:
 - 3 yıl (36 ay)
 - Erken çıkış: 6 ay önce ihbar
 - Yenileme opsiyonu`,
-      status: 'SIGNED',
+      status: ContractStatusEnum.SIGNING,
       type: 'LEASE_AGREEMENT',
       value: 3240000, // 36 ay x 90,000 TL
       startDate: new Date('2024-01-01'),
@@ -210,7 +211,7 @@ FİKRİ MÜLKİYET:
 - Tüm haklar müşteriye devredilir
 - Kaynak dosyalar (AI, PSD) dahil
 - Portfolio kullanım izni`,
-      status: 'DRAFT',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 45000,
       startDate: new Date('2024-04-15'),
@@ -247,7 +248,7 @@ SONUÇ ÇIKTILARI:
 - ISO 27001 hazırlık raporu
 - BGYS dokümantasyonu
 - Eğitim materyalleri`,
-      status: 'IN_REVIEW',
+      status: ContractStatusEnum.SIGNING,
       type: 'CONSULTING_AGREEMENT',
       value: 120000,
       startDate: new Date('2024-05-01'),
@@ -283,7 +284,7 @@ LOJİSTİK:
 - Express teslimat seçeneği
 - Kurulum hizmeti
 - Eski cihaz geri alım`,
-      status: 'SIGNED',
+      status: ContractStatusEnum.SIGNING,
       type: 'PURCHASE_AGREEMENT',
       value: 2500000,
       startDate: new Date('2024-01-01'),
@@ -322,7 +323,7 @@ YÜKÜMLÜLÜKLER:
 İHLAL DURUMU:
 - Tazminat miktarı: 500,000 TL
 - Hukuki işlem hakları`,
-      status: 'APPROVED',
+      status: ContractStatusEnum.SIGNING,
       type: 'NDA',
       value: 0,
       startDate: new Date('2024-03-01'),
@@ -364,7 +365,7 @@ HEDEF METRIKLƏR:
 REKLAM BÜTÇE:
 - Aylık ad spend: 50,000 TL
 - Ajans komisyonu: %15`,
-      status: 'IN_REVIEW',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 540000, // 12 ay x (50k + 7.5k ajans)
       startDate: new Date('2024-05-01'),
@@ -410,7 +411,7 @@ ESKALASYONs:
 - Level 2: Security analyst
 - Level 3: Senior security engineer
 - Level 4: CISO involvement`,
-      status: 'APPROVED',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 240000, // 12 ay x 20k
       startDate: new Date('2024-04-01'),
@@ -459,7 +460,7 @@ PERSONEL:
 - Background check completed
 - Uniform and ID cards
 - Insurance coverage`,
-      status: 'SIGNED',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 96000, // 12 ay x 8k
       startDate: new Date('2024-01-01'),
@@ -507,7 +508,7 @@ SLA GARANTİLERİ:
 - Cooling uptime: %99.9
 - Physical security: %100
 - Response time: < 15 min`,
-      status: 'ARCHIVED',
+      status: ContractStatusEnum.ARCHIVED,
       type: 'SERVICE_AGREEMENT',
       value: 144000, // 12 ay x 12k
       startDate: new Date('2023-06-01'),
@@ -553,7 +554,7 @@ FİYATLANDIRMA:
 - Device installment: 36 ay
 - Setup fee: Muaf
 - Corporate discount: %15`,
-      status: 'SIGNED',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 405000, // 12 ay x 75 hat x 450 TL
       startDate: new Date('2024-02-01'),
@@ -599,7 +600,7 @@ DESTEK:
 - Technical account manager
 - Training and best practices
 - Health check sessions`,
-      status: 'DRAFT',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 168000, // Yıllık lisans ücreti
       startDate: new Date('2024-06-01'),
@@ -647,7 +648,7 @@ TEKNOLOJİ PLATFORMU:
 - Self-service employee portal
 - Mobile app access
 - Reporting ve analytics`,
-      status: 'IN_REVIEW',
+      status: ContractStatusEnum.SIGNING,
       type: 'SERVICE_AGREEMENT',
       value: 216000, // 12 ay x 18k
       startDate: new Date('2024-06-01'),

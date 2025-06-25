@@ -69,8 +69,8 @@ export async function checkExpiringContracts() {
               }
             }
           ],
-          status: {
-            in: ['APPROVED', 'SIGNED'] // Only active contracts
+                  status: {
+          in: ['SIGNING', 'ACTIVE'] // Only active contracts
           },
           // renewalStatus filter temporarily commented due to type issues
           // renewalStatus: {
@@ -288,7 +288,7 @@ export async function checkExpiredContracts() {
           lt: today
         },
         status: {
-          in: ['APPROVED', 'SIGNED'] // Only active contracts
+          in: ['SIGNING', 'ACTIVE'] // Only active contracts
         }
       },
       include: {

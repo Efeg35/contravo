@@ -4,6 +4,7 @@ import { authOptions } from '../../../../lib/auth'
 import { db } from '../../../../lib/db'
 import { z } from 'zod'
 import prisma from '../../../../lib/prisma'
+import { ContractStatusEnum, ContractStatus } from '@/app/types'
 
 // 📅 ANAHTAR TARİH TAKİBİ - Güncelleme Doğrulama Şeması
 const updateContractSchema = z.object({
@@ -196,9 +197,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
     }
 
-    // 🔒 GÜVENLİK KONTROLÜ: İmzalanmış sözleşmeler düzenlenemez!
-    // Ancak SIGNED -> ARCHIVED status değişikliğine izin ver
-    if (existingContract.status === 'SIGNED') {
+    // 🔒 GÜVENLİK KONTROLÜ: Aktif sözleşmeler düzenlenemez!
+    // Ancak ACTIVE -> ARCHIVED status değişikliğine izin ver
+    if (existingContract.status === 'ACTIVE') {
       const isArchivingOnly = validatedData.status === 'ARCHIVED' && 
         Object.keys(validatedData).length === 1 && 
         Object.keys(validatedData)[0] === 'status';
@@ -206,17 +207,17 @@ export async function PUT(
       if (!isArchivingOnly) {
         return NextResponse.json(
           { 
-            error: 'İmzalanmış sözleşmeler düzenlenemez',
-            message: 'Bu sözleşme imzalanmış olduğu için düzenleyemezsiniz. Değişiklik yapmak için "Değişiklik Yap" butonunu kullanın.'
+            error: 'Aktif sözleşmeler düzenlenemez',
+            message: 'Bu sözleşme aktif olduğu için düzenleyemezsiniz. Değişiklik yapmak için "Değişiklik Yap" butonunu kullanın.'
           }, 
           { status: 403 }
         )
       }
     }
 
-    // 🔄 REVISION WORKFLOW FIX: Sözleşme DRAFT'tan IN_REVIEW'a geçiyorsa,
+    // 🔄 REVISION WORKFLOW FIX: Sözleşme DRAFT'tan REVIEW'a geçiyorsa,
     // REVISION_REQUESTED durumundaki approval'ları PENDING'e çevir
-    if (existingContract.status === 'DRAFT' && validatedData.status === 'IN_REVIEW') {
+    if (existingContract.status === 'DRAFT' && validatedData.status === 'REVIEW') {
       await prisma.contractApproval.updateMany({
         where: {
           contractId: id,
@@ -235,52 +236,26 @@ export async function PUT(
     // Transaction ile onaycıları ve sözleşmeyi güncelle
     if (Array.isArray(body.approverIds)) {
       try {
-        const transactionOps = [];
-        // 1. Eski onaycıları sil
-        transactionOps.push(
-          prisma.contractApproval.deleteMany({ where: { contractId: id } })
-        );
-        // 2. Yeni onaycıları ekle
-        if (body.approverIds.length > 0) {
-          transactionOps.push(
-            prisma.contractApproval.createMany({
+        await prisma.$transaction(async (tx) => {
+          // 1. Eski onaycıları sil
+          await tx.contractApproval.deleteMany({ where: { contractId: id } });
+          // 2. Yeni onaycıları ekle
+          if (body.approverIds.length > 0) {
+            await tx.contractApproval.createMany({
               data: body.approverIds.map((approverId: string) => ({ contractId: id, approverId }))
-            })
-          );
-        }
-        // 3. Sözleşmeyi güncelle
-        transactionOps.push(
-          db.contract.update({
-            where: { id: id },
+            });
+          }
+          // 3. Sözleşmeyi güncelle
+          await tx.contract.update({
+            where: { id },
             data: {
-              ...(validatedData.title !== undefined && { title: validatedData.title }),
-              ...(validatedData.description !== undefined && { description: validatedData.description }),
-              ...(validatedData.content !== undefined && { content: validatedData.content }),
-              ...(validatedData.status !== undefined && { status: validatedData.status as any }),
-              ...(validatedData.type !== undefined && { type: validatedData.type }),
-              ...(validatedData.value !== undefined && { value: validatedData.value }),
-              ...(validatedData.startDate !== undefined && { startDate: validatedData.startDate ? new Date(validatedData.startDate) : null }),
-              ...(validatedData.endDate !== undefined && { endDate: validatedData.endDate ? new Date(validatedData.endDate) : null }),
-              ...(validatedData.expirationDate !== undefined && { expirationDate: validatedData.expirationDate ? new Date(validatedData.expirationDate) : null }),
-              ...(validatedData.noticePeriodDays !== undefined && { noticePeriodDays: validatedData.noticePeriodDays }),
-              ...(validatedData.otherPartyName !== undefined && { otherPartyName: validatedData.otherPartyName }),
-              ...(validatedData.otherPartyEmail !== undefined && { otherPartyEmail: validatedData.otherPartyEmail }),
-              ...(validatedData.assignedToId !== undefined && { assignedToId: validatedData.assignedToId }),
-              updatedById: user.id,
-              updatedAt: new Date()
-            },
-            include: {
-              createdBy: {
-                select: {
-                  name: true,
-                }
-              }
+              ...validatedData,
+              status: validatedData.status as ContractStatus,
+              updatedById: user.id
             }
-          })
-        );
-        // Transactionu çalıştır
-        const [, , updatedContract] = await prisma.$transaction(transactionOps);
-        return NextResponse.json(updatedContract);
+          });
+        });
+        return NextResponse.json({ message: 'Contract updated successfully' });
       } catch (error) {
         console.error('Error updating approvers or contract (transaction):', error);
         return NextResponse.json(
@@ -289,43 +264,16 @@ export async function PUT(
         );
       }
     } else {
-      // Onaycı yoksa sadece contract'ı güncelle
-      try {
-        const contract = await db.contract.update({
-          where: { id: id },
-          data: {
-            ...(validatedData.title !== undefined && { title: validatedData.title }),
-            ...(validatedData.description !== undefined && { description: validatedData.description }),
-            ...(validatedData.content !== undefined && { content: validatedData.content }),
-            ...(validatedData.status !== undefined && { status: validatedData.status as any }),
-            ...(validatedData.type !== undefined && { type: validatedData.type }),
-            ...(validatedData.value !== undefined && { value: validatedData.value }),
-            ...(validatedData.startDate !== undefined && { startDate: validatedData.startDate ? new Date(validatedData.startDate) : null }),
-            ...(validatedData.endDate !== undefined && { endDate: validatedData.endDate ? new Date(validatedData.endDate) : null }),
-            ...(validatedData.expirationDate !== undefined && { expirationDate: validatedData.expirationDate ? new Date(validatedData.expirationDate) : null }),
-            ...(validatedData.noticePeriodDays !== undefined && { noticePeriodDays: validatedData.noticePeriodDays }),
-            ...(validatedData.otherPartyName !== undefined && { otherPartyName: validatedData.otherPartyName }),
-            ...(validatedData.otherPartyEmail !== undefined && { otherPartyEmail: validatedData.otherPartyEmail }),
-            ...(validatedData.assignedToId !== undefined && { assignedToId: validatedData.assignedToId }),
-            updatedById: user.id,
-            updatedAt: new Date()
-          },
-          include: {
-            createdBy: {
-              select: {
-                name: true,
-              }
-            }
-          }
-        });
-        return NextResponse.json(contract);
-      } catch (error) {
-        console.error('Error updating contract:', error);
-        return NextResponse.json(
-          { error: 'Sözleşme güncellenirken bir hata oluştu' },
-          { status: 500 }
-        );
-      }
+      // Sadece sözleşme alanlarını güncelle (onaycılar değişmiyorsa)
+      await prisma.contract.update({
+        where: { id },
+        data: {
+          ...validatedData,
+          status: validatedData.status as ContractStatus,
+          updatedById: user.id
+        }
+      });
+      return NextResponse.json({ message: 'Contract updated successfully' });
     }
   } catch (error) {
     console.error('Error in PUT request:', error);
@@ -385,11 +333,11 @@ export async function DELETE(
     }
 
     // 🔒 GÜVENLİK KONTROLÜ: İmzalanmış sözleşmeler silinemez!
-    if (existingContract.status === 'SIGNED') {
+    if (existingContract.status === ContractStatusEnum.SIGNING || existingContract.status === ContractStatusEnum.ARCHIVED) {
       return NextResponse.json(
         { 
-          error: 'İmzalanmış sözleşmeler silinemez',
-          message: 'Bu sözleşme imzalanmış olduğu için silemezsiniz.'
+          error: 'İmzalanmış veya arşivlenmiş sözleşmeler silinemez',
+          message: 'Bu sözleşme imzalanmış veya arşivlenmiş olduğu için silemezsiniz.'
         }, 
         { status: 403 }
       )

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
+import { ContractStatusEnum } from '@/app/types';
 
 const prisma = new PrismaClient();
 
@@ -97,7 +98,7 @@ export async function PATCH(
 
       await prisma.contract.update({
         where: { id },
-        data: { status: 'SIGNED' }
+        data: { status: ContractStatusEnum.SIGNING }
       });
     }
 

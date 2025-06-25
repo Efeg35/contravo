@@ -4,12 +4,13 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getCurrentUser, userHasPermission } from '@/lib/auth-helpers';
 import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '@/lib/permissions';
+import { ContractStatusEnum } from '@/app/types';
 
 
 interface BulkAssignment {
   contractId: string;
   companyId?: string;
-  status?: 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'SIGNED' | 'ARCHIVED';
+  status?: 'DRAFT' | 'REVIEW' | 'SIGNING' | 'ACTIVE' | 'ARCHIVED' | 'REJECTED';
   type?: 'general' | 'procurement' | 'service' | 'sales' | 'employment' | 'partnership' | 'nda' | 'rental';
 }
 
@@ -132,7 +133,11 @@ export async function POST(request: NextRequest) {
         if (!data?.status) {
           return NextResponse.json({ error: 'Durum bilgisi gerekli' }, { status: 400 });
         }
-        
+        // Sadece enum değerlerine izin ver
+        const allowedStatuses: string[] = Object.values(ContractStatusEnum);
+        if (!allowedStatuses.includes(data.status)) {
+          return NextResponse.json({ error: 'Geçersiz durum değeri' }, { status: 400 });
+        }
         result = await prisma.contract.updateMany({
           where: { id: { in: authorizedIds } },
           data: { 
@@ -141,7 +146,6 @@ export async function POST(request: NextRequest) {
             updatedById: session.user.id
           }
         });
-        
         result.message = `${result.count} sözleşmenin durumu güncellendi`;
         break;
 
@@ -166,7 +170,7 @@ export async function POST(request: NextRequest) {
         result = await prisma.contract.updateMany({
           where: { id: { in: authorizedIds } },
           data: { 
-            status: 'ARCHIVED',
+            status: ContractStatusEnum.ARCHIVED,
             updatedAt: new Date(),
             updatedById: session.user.id
           }

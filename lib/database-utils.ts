@@ -1,13 +1,14 @@
 import { PrismaClient } from '@prisma/client'
+import type { ContractStatus } from '@/app/types'
 
 const db = new PrismaClient()
 
 export const contractUtils = {
-  // Get active contracts (SIGNED status)
+  // Get active contracts (ACTIVE status)
   async getActiveContracts(companyId?: string) {
     return db.contract.findMany({
       where: {
-        status: 'SIGNED',
+        status: 'ACTIVE',
         companyId: companyId || undefined,
       },
       include: {
@@ -28,7 +29,7 @@ export const contractUtils = {
 
     return db.contract.findMany({
       where: {
-        status: 'SIGNED',
+        status: 'ACTIVE',
         expirationDate: {
           lte: futureDate,
           gte: new Date()
@@ -44,7 +45,7 @@ export const contractUtils = {
   },
 
   // Update contract status
-  async updateContractStatus(contractId: string, newStatus: string) {
+  async updateContractStatus(contractId: string, newStatus: ContractStatus) {
     return db.contract.update({
       where: { id: contractId },
       data: { status: newStatus }
@@ -53,13 +54,13 @@ export const contractUtils = {
 
   // Get contract statistics
   async getContractStats(companyId?: string) {
-    const [total, active, draft, expired] = await Promise.all([
+    const [total, active, draft] = await Promise.all([
       db.contract.count({
         where: { companyId: companyId || undefined }
       }),
       db.contract.count({
         where: { 
-          status: 'SIGNED',
+          status: 'ACTIVE',
           companyId: companyId || undefined 
         }
       }),
@@ -68,16 +69,10 @@ export const contractUtils = {
           status: 'DRAFT',
           companyId: companyId || undefined 
         }
-      }),
-      db.contract.count({
-        where: { 
-          status: 'EXPIRED',
-          companyId: companyId || undefined 
-        }
       })
     ])
 
-    return { total, active, draft, expired }
+    return { total, active, draft }
   }
 }
 

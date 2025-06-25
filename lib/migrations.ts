@@ -1,5 +1,6 @@
 /* eslint-disable */
 import { PrismaClient } from '@prisma/client'
+import type { ContractStatus } from '@/app/types';
 // Data Migration Management System
 export class MigrationManager {
   private prisma: PrismaClient
@@ -131,7 +132,7 @@ export class MigrationManager {
           lt: new Date()
         },
         status: {
-          in: ['SIGNED']
+          in: ['ACTIVE']
         }
       },
       data: {

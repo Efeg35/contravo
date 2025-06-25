@@ -1,6 +1,7 @@
 'use server';
 
 import { db } from './db';
+import type { ContractStatus } from '@/app/types';
 
 export interface NextAction {
   action: string | null;
@@ -93,7 +94,7 @@ export async function getNextAction(contractId: string, userId: string): Promise
         }
         break;
 
-      case 'IN_REVIEW':
+      case 'REVIEW':
         // İnceleme durumu: Bekleyen onayları kontrol et
         const pendingApproval = (contract as any).approvals?.find((approval: any) => 
           approval.approverId === userId && ['PENDING', 'REVISION_REQUESTED'].includes(approval.status)
@@ -116,18 +117,8 @@ export async function getNextAction(contractId: string, userId: string): Promise
         }
         break;
 
-      case 'APPROVED':
-        // Onaylanmış: İmzaya gönderilebilir
-        if (hasEditorAccess) {
-          return {
-            action: 'SEND_FOR_SIGNATURE',
-            label: 'İmzaya Gönder'
-          };
-        }
-        break;
-
-      case 'SENT_FOR_SIGNATURE':
-        // İmzada: Sıradaki imzalayan kontrolü
+      case 'SIGNING':
+        // İmza sürecinde: Sıradaki imzalayan kontrolü
         const nextSignature = (contract as any).digitalSignatures?.find((sig: any) => 
           sig.userId === userId && ['PENDING', 'SENT'].includes(sig.status)
         );
@@ -140,12 +131,12 @@ export async function getNextAction(contractId: string, userId: string): Promise
         }
         break;
 
-      case 'SIGNED':
-        // İmzalanmış: Aktif hale getirilebilir
+      case 'ACTIVE':
+        // Aktif: Arşivlenebilir
         if (hasEditorAccess) {
           return {
-            action: 'ACTIVATE_CONTRACT',
-            label: 'Sözleşmeyi Aktif Et'
+            action: 'ARCHIVE_CONTRACT',
+            label: 'Sözleşmeyi Arşivle'
           };
         }
         break;

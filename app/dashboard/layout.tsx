@@ -118,6 +118,19 @@ export default function DashboardLayout({
                   Dashboard
                 </Link>
 
+                {/* Workflow Designer Link */}
+                <Link
+                  href="/dashboard/admin/workflows"
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname.startsWith('/dashboard/admin/workflows')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <Cog6ToothIcon className="w-4 h-4 mr-2" />
+                  Workflow Designer
+                </Link>
+
                 {/* Repository Dropdown */}
                 <div className="relative">
                   <button

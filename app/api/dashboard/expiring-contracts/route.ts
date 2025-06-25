@@ -6,6 +6,7 @@ import { handleApiError, createSuccessResponse } from '@/lib/api-error-handler';
 import { getCurrentUser, userHasPermission } from '@/lib/auth-helpers';
 import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '@/lib/permissions';
 import { Prisma } from '@prisma/client';
+import { ContractStatusEnum } from '@/app/types';
 
 // 🚀 PROAKTIF DASHBOARD API - "Kör Depolama" Probleminin Çözümü
 export async function GET() {
@@ -107,7 +108,7 @@ export async function GET() {
       // Kritik: 7 gün içinde bitenler - WITH DEPARTMENT FILTERING
       prisma.contract.findMany({
         where: getBaseWhereClause({
-          status: { in: ['APPROVED', 'SIGNED'] },
+          status: { in: [ContractStatusEnum.SIGNING] },
           endDate: {
             gte: today,
             lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -134,7 +135,7 @@ export async function GET() {
       // Acil: 30 gün içinde bitenler - WITH DEPARTMENT FILTERING
       prisma.contract.findMany({
         where: getBaseWhereClause({
-          status: { in: ['APPROVED', 'SIGNED'] },
+          status: { in: [ContractStatusEnum.SIGNING] },
           endDate: {
             gt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
@@ -160,7 +161,7 @@ export async function GET() {
       // Yaklaşan: 60 gün içinde bitenler - WITH DEPARTMENT FILTERING
       prisma.contract.count({
         where: getBaseWhereClause({
-          status: { in: ['APPROVED', 'SIGNED'] },
+          status: { in: [ContractStatusEnum.SIGNING] },
           endDate: {
             gt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             lte: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
@@ -171,7 +172,7 @@ export async function GET() {
       // Planlama: 90 gün içinde bitenler - WITH DEPARTMENT FILTERING
       prisma.contract.count({
         where: getBaseWhereClause({
-          status: { in: ['APPROVED', 'SIGNED'] },
+          status: { in: [ContractStatusEnum.SIGNING] },
           endDate: {
             gt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
             lte: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
@@ -182,7 +183,7 @@ export async function GET() {
       // Süresi dolmuş ama henüz arşivlenmemiş - WITH DEPARTMENT FILTERING
       prisma.contract.findMany({
         where: getBaseWhereClause({
-          status: { in: ['APPROVED', 'SIGNED'] },
+          status: { in: [ContractStatusEnum.SIGNING] },
           endDate: {
             lt: today
           }
@@ -211,7 +212,7 @@ export async function GET() {
     // 📊 İSTATİSTİKLER VE TRENDLERİ - WITH DEPARTMENT FILTERING
     const totalActive = await prisma.contract.count({
       where: getBaseWhereClause({
-        status: { in: ['APPROVED', 'SIGNED'] }
+        status: { in: [ContractStatusEnum.SIGNING] }
       })
     });
 
@@ -233,7 +234,7 @@ export async function GET() {
             }
           }
         ],
-        status: { in: ['APPROVED', 'SIGNED'] },
+        status: { in: [ContractStatusEnum.SIGNING] },
         endDate: {
           gte: today
         }

@@ -79,8 +79,8 @@ export async function PATCH(
       // If any approval is rejected, contract is rejected
       newContractStatus = 'REJECTED';
     } else if (pendingApprovals.length === 0 && approvedApprovals.length > 0) {
-      // If all approvals are completed and at least one is approved, contract is approved
-      newContractStatus = 'APPROVED';
+      // If all approvals are completed and at least one is approved, contract moves to signing
+      newContractStatus = 'SIGNING';
     }
 
     // Update contract status and assignment if needed
@@ -88,7 +88,7 @@ export async function PATCH(
       let assignedToId = null;
 
       // If contract is approved, check if there are more pending approvals
-      if (newContractStatus === 'APPROVED' && pendingApprovals.length === 0) {
+      if (newContractStatus === 'SIGNING' && pendingApprovals.length === 0) {
         // All approvals complete, remove assignment
         assignedToId = null;
       } else if (pendingApprovals.length > 0) {
@@ -112,7 +112,7 @@ export async function PATCH(
     return NextResponse.json({ 
       approval: updatedApproval,
       contractStatus: newContractStatus,
-      message: validatedData.status === 'APPROVED' ? 'Sözleşme onaylandı' : 'Sözleşme reddedildi'
+      message: validatedData.status === 'APPROVED' ? 'Sözleşme onaylandı ve imza sürecine geçti' : 'Sözleşme reddedildi'
     });
 
   } catch (error) {

@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { getCurrentUser, userHasPermission } from '@/lib/auth-helpers';
 import { Permission, Department, PermissionManager, CONTRACT_TYPE_DEPARTMENT_MAPPING } from '@/lib/permissions';
 import { Prisma } from '@prisma/client';
+import { ContractStatusEnum } from '@/app/types';
 
 export async function GET() {
   try {
@@ -34,7 +35,7 @@ export async function GET() {
     // Build department-based where clause
     const whereClause: Prisma.ContractWhereInput = (() => {
       const baseWhere: Prisma.ContractWhereInput = {
-        status: 'SIGNED',
+        status: ContractStatusEnum.SIGNING,
         updatedAt: {
           gte: threeMonthsAgo
         }

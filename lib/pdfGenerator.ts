@@ -190,9 +190,9 @@ export const generatePDFFromElement = async (elementId: string, filename: string
 // Helper fonksiyonlar
 function getStatusText(status: string): string {
   switch (status) {
-    case 'SIGNED': return 'İmzalandı';
-    case 'IN_REVIEW': return 'İncelemede';
-    case 'APPROVED': return 'Onaylandı';
+    case 'ACTIVE': return 'Aktif';
+    case 'REVIEW': return 'İncelemede';
+    case 'SIGNING': return 'İmza Sürecinde';
     case 'REJECTED': return 'Reddedildi';
     case 'DRAFT': return 'Taslak';
     case 'ARCHIVED': return 'Arşivlendi';

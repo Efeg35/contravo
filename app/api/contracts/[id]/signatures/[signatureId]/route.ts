@@ -97,7 +97,7 @@ export async function PATCH(
 
       await prisma.contract.update({
         where: { id },
-        data: { status: 'SIGNED' }
+        data: { status: 'ACTIVE' }
       });
     }
 

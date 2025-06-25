@@ -114,11 +114,11 @@ export default function ContractDetailPage({ params }: PageProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'SIGNED':
+      case 'ACTIVE':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'IN_REVIEW':
+      case 'REVIEW':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'APPROVED':
+      case 'SIGNING':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       case 'REJECTED':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
@@ -133,9 +133,9 @@ export default function ContractDetailPage({ params }: PageProps) {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'SIGNED': return 'İmzalandı';
-      case 'IN_REVIEW': return 'İncelemede';
-      case 'APPROVED': return 'Onaylandı';
+      case 'ACTIVE': return 'Aktif';
+      case 'REVIEW': return 'İncelemede';
+      case 'SIGNING': return 'İmza Sürecinde';
       case 'REJECTED': return 'Reddedildi';
       case 'DRAFT': return 'Taslak';
       case 'ARCHIVED': return 'Arşivlendi';
@@ -490,10 +490,10 @@ export default function ContractDetailPage({ params }: PageProps) {
                           className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         >
                           <option value="DRAFT">Taslak</option>
-                          <option value="IN_REVIEW">İncelemede</option>
-                          <option value="APPROVED">Onaylandı</option>
+                          <option value="REVIEW">İncelemede</option>
+                          <option value="SIGNING">İmza Sürecinde</option>
+                          <option value="ACTIVE">Aktif</option>
                           <option value="REJECTED">Reddedildi</option>
-                          <option value="SIGNED">İmzalandı</option>
                           <option value="ARCHIVED">Arşivlendi</option>
                         </select>
                       ) : (

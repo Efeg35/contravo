@@ -94,15 +94,40 @@ const RISK_COLORS = {
   'HIGH': 'bg-red-100 text-red-800'
 };
 
-// Contract workflow stages
-const CONTRACT_STAGES = [
-  { key: 'DRAFT', label: 'Taslak', color: 'bg-gray-400' },
-  { key: 'IN_REVIEW', label: 'İncelemede', color: 'bg-yellow-400' },
-  { key: 'APPROVED', label: 'Onaylandı', color: 'bg-blue-400' },
-  { key: 'SENT_FOR_SIGNATURE', label: 'İmzada', color: 'bg-purple-400' },
-  { key: 'SIGNED', label: 'İmzalandı', color: 'bg-green-400' },
-  { key: 'ARCHIVED', label: 'Arşivlendi', color: 'bg-gray-400' }
+// Contract workflow stages - Simplified to 4 main stages for the stepper
+const WORKFLOW_STAGES = [
+  { key: 'DRAFT', label: 'Taslak' },
+  { key: 'REVIEW', label: 'İnceleme' },
+  { key: 'SIGNING', label: 'İmza' },
+  { key: 'ARCHIVED', label: 'Arşiv' }
 ];
+
+// Maps various specific statuses to one of the 4 main stages
+const mapStatusToStage = (status: string): 'DRAFT' | 'REVIEW' | 'SIGNING' | 'ARCHIVED' => {
+  if (!status) return 'DRAFT';
+  const upperCaseStatus = status.toUpperCase();
+
+  switch (upperCaseStatus) {
+    case 'DRAFT':
+    case 'REJECTED':
+      return 'DRAFT';
+    case 'IN_REVIEW':
+    case 'REVIEW':
+    case 'PENDING_APPROVAL':
+    case 'ONAY':
+    case 'APPROVED': // Approved is part of the review process until signing
+      return 'REVIEW';
+    case 'SENT_FOR_SIGNATURE':
+    case 'SIGNING':
+      return 'SIGNING';
+    case 'SIGNED':
+    case 'ACTIVE':
+    case 'ARCHIVED':
+      return 'ARCHIVED';
+    default:
+      return 'DRAFT'; // Fallback for any other status
+  }
+};
 
 export default function TaskFocusedDashboard() {
   const router = useRouter();
@@ -330,15 +355,8 @@ export default function TaskFocusedDashboard() {
   };
 
   const getStageDisplay = (stage: string) => {
-    const stageMap = {
-      'DRAFT': 'Review',
-      'IN_REVIEW': 'Review',
-      'APPROVED': 'Archive',
-      'SIGNED': 'Archive',
-      'ARCHIVED': 'Archive',
-      'REJECTED': 'Review'
-    };
-    return stageMap[stage as keyof typeof stageMap] || 'Review';
+    const mappedStage = WORKFLOW_STAGES.find(s => s.key === mapStatusToStage(stage));
+    return mappedStage ? mappedStage.label : 'Bilinmiyor';
   };
 
   const getStageBadgeColor = (stage: string) => {
@@ -398,50 +416,41 @@ export default function TaskFocusedDashboard() {
 
   // Stepper Component for Workflow Stages
   const WorkflowStepper = ({ currentStage }: { currentStage: string }) => {
-    const currentStageIndex = CONTRACT_STAGES.findIndex(stage => stage.key === currentStage);
-    const currentStageLabel = CONTRACT_STAGES[currentStageIndex]?.label || 'Bilinmiyor';
-    
+    const mappedStageKey = mapStatusToStage(currentStage);
+    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === mappedStageKey);
+
     return (
-      <div className="flex flex-col items-center">
-        <div className="flex items-center space-x-1">
-          {CONTRACT_STAGES.map((stage, index) => {
-            const isCompleted = index <= currentStageIndex;
-            const isCurrent = index === currentStageIndex;
-            
-            return (
-              <div key={stage.key} className="flex items-center">
-                <div 
-                  className={`relative w-1.5 h-1.5 rounded-full transition-all duration-200 group ${
-                    isCurrent 
-                      ? 'w-2 h-2 bg-blue-500 ring-1 ring-blue-200' 
-                      : isCompleted 
-                        ? 'bg-green-400' 
-                        : 'bg-gray-300'
-                  }`}
-                  title={stage.label}
-                >
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-1.5 py-0.5 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                    {stage.label}
-                  </div>
-                </div>
-                
-                {/* Connection line between stages */}
-                {index < CONTRACT_STAGES.length - 1 && (
-                  <div 
-                    className={`w-2 h-0.5 ${
-                      index < currentStageIndex ? 'bg-green-400' : 'bg-gray-300'
-                    }`}
-                  />
-                )}
+      <div className="flex items-center">
+        {WORKFLOW_STAGES.map((stage, index) => {
+          const isCompleted = index < currentStageIndex;
+          const isCurrent = index === currentStageIndex;
+
+          return (
+            <div key={stage.key} className="group relative flex items-center">
+              {/* Stepper Dot - Made smaller */}
+              <div
+                className={`
+                  w-2 h-2 rounded-full transition-all duration-300
+                  ${isCurrent
+                    ? 'bg-blue-600 ring-2 ring-offset-1 ring-blue-300' // Current step
+                    : isCompleted
+                      ? 'bg-green-500' // Completed step
+                      : 'bg-gray-300' // Pending step
+                  }
+                `}
+              />
+              {/* Tooltip on Hover */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap">
+                {stage.label}
               </div>
-            );
-          })}
-        </div>
-        {/* Current stage label - perfectly centered */}
-        <div className="text-xs text-gray-600 text-center w-full mt-0.5">
-          {currentStageLabel}
-        </div>
+
+              {/* Connecting Line - Made smaller */}
+              {index < WORKFLOW_STAGES.length - 1 && (
+                <div className={`w-4 h-px mx-0.5 transition-all duration-300 ${isCompleted ? 'bg-green-400' : 'bg-gray-300'}`} />
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -741,7 +750,7 @@ export default function TaskFocusedDashboard() {
                 )}
 
                 {visibleColumns.stage && (
-                  <SortableHeader column="currentStage" className="w-32">
+                  <SortableHeader column="status" className="w-32">
                     STAGE
                   </SortableHeader>
                 )}
@@ -845,8 +854,13 @@ export default function TaskFocusedDashboard() {
                       )}
 
                       {visibleColumns.stage && (
-                        <td className="px-3 py-2 text-left">
-                          <WorkflowStepper currentStage={contract.currentStage} />
+                        <td className="px-3 py-3 text-sm text-gray-700 whitespace-nowrap">
+                          <div className="flex flex-col items-center">
+                            <WorkflowStepper currentStage={contract.status} />
+                            <span className="mt-1.5 text-xs text-gray-500">
+                              {getStageDisplay(contract.status)}
+                            </span>
+                          </div>
                         </td>
                       )}
 

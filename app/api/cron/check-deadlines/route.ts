@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { ContractStatusEnum } from '@/app/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     // Check for contracts expiring within a week
     const expiringContracts = await db.contract.findMany({
       where: {
-        status: 'SIGNED',
+        status: ContractStatusEnum.SIGNING,
         expirationDate: {
           gte: now,
           lte: oneWeekFromNow,
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     // Check for contracts that need renewal
     const renewalContracts = await db.contract.findMany({
       where: {
-        status: 'SIGNED',
+        status: ContractStatusEnum.SIGNING,
         autoRenewal: true,
         renewalDate: {
           gte: now,
