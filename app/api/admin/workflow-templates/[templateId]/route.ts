@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 
 export async function GET(
   request: Request,
-  { params }: { params: { templateId: string } }
+  context: { params: { templateId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 })
     }
 
-    const { templateId } = params
+    const { templateId } = context.params
 
     if (!templateId) {
       return NextResponse.json(
@@ -53,7 +53,7 @@ export async function GET(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { templateId: string } }
+  context: { params: { templateId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -62,7 +62,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 })
     }
 
-    const { templateId } = params
+    const { templateId } = context.params
 
     if (!templateId) {
       return NextResponse.json(
