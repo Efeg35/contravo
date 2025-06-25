@@ -1,12 +1,6 @@
-import { FlatCompat } from '@eslint/eslintrc';
-import js from '@eslint/js';
+import nextPlugin from '@next/eslint-plugin-next';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
-
-const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
-  recommendedConfig: js.configs.recommended,
-});
 
 export default [
   {
@@ -20,19 +14,20 @@ export default [
       '*.config.mjs',
     ],
   },
-  ...compat.extends('next/core-web-vitals'),
-  ...compat.extends('next/typescript'),
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
+    plugins: {
+      '@next/next': nextPlugin,
+    },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs['core-web-vitals'].rules,
+    },
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
     languageOptions: {
       parser: typescriptParser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        ecmaFeatures: {
-          jsx: true,
-        },
-      },
     },
     plugins: {
       '@typescript-eslint': typescriptEslint,
@@ -40,10 +35,6 @@ export default [
     rules: {
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-empty-object-type': 'off',
-      'react/no-unescaped-entities': 'off',
-      'prefer-const': 'error',
-      'no-var': 'error',
     },
   },
 ]; 
