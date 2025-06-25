@@ -359,7 +359,15 @@ export default function DashboardLayout({
                       onClick={() => setOpenDropdowns([])}
                     >
                       <UserCircleIcon className="w-4 h-4 mr-3" />
-                      Ayarlar
+                      Profil
+                    </Link>
+                    <Link
+                      href="/settings/company/profile"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setOpenDropdowns([])}
+                    >
+                      <Cog6ToothIcon className="w-4 h-4 mr-3" />
+                      Company Settings
                     </Link>
                     <hr className="my-1 border-gray-200" />
                     <button
