@@ -679,9 +679,12 @@ model WorkflowTemplate {
   status      String                 @default("UNPUBLISHED")
   companyId   String?
   company     Company?               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  createdBy   User?    @relation("CreatedWorkflowTemplates", fields: [createdById], references: [id])
   createdById String?
+  createdBy   User?    @relation("CreatedWorkflowTemplates", fields: [createdById], references: [id])
+  
+  documentName    String?
+  documentUrl     String?
+  templateFileUrl String?
 
   @@index([name])
   @@index([createdAt])

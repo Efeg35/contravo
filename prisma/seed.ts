@@ -292,12 +292,12 @@ async function main() {
   });
 
   await prisma.companyUser.create({
-    data: {
+      data: {
       userId: haticeUser.id,
       companyId: companies[0].id, // İlk oluşturulan şirkete ata
       role: 'ADMIN',
-    },
-  });
+      },
+    });
   console.log(`✅ Hatice Ergün kullanıcısı oluşturuldu ve ${companies[0].name} şirketine atandı.`);
 
   // 5. Kullanıcıları oluştur ve şirketlere/departmanlara ata
