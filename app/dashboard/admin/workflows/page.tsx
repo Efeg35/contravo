@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 
 interface WorkflowTemplate {
     id: string;
@@ -65,6 +66,29 @@ const WorkflowDesignerPage = () => {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleCreateWorkflow = async () => {
+    setError(null); // Reset error before new attempt
+    try {
+      const response = await fetch('/api/workflow-templates', {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.details 
+          ? `${errorData.error} - Detay: ${errorData.details}`
+          : errorData.error || 'Failed to create workflow';
+        throw new Error(errorMessage);
+      }
+      const newTemplate = await response.json();
+      router.push(`/dashboard/admin/workflows/${newTemplate.id}`);
+    } catch (err: any) {
+      // Handle error properly in a real app (e.g., show a toast notification)
+      console.error(err);
+      setError(err.message || 'Could not create a new workflow. Please try again.');
+    }
+  };
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -107,7 +131,10 @@ const WorkflowDesignerPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+        <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={handleCreateWorkflow}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg font-medium">New internal workflow</CardTitle>
             <PlusCircle className="w-6 h-6 text-gray-400" />

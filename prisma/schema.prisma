@@ -179,6 +179,7 @@ model Company {
   users       CompanyUser[]
   contracts   Contract[]
   templates   ContractTemplate[] @relation("CompanyTemplates")
+  workflowTemplates WorkflowTemplate[]
 
   @@index([createdById])
   @@index([name])
@@ -675,7 +676,9 @@ model WorkflowTemplate {
   updatedAt   DateTime               @updatedAt
   steps       WorkflowTemplateStep[]
   contracts   Contract[]             @relation("ContractWorkflowTemplates")
-  status      String                @default("UNPUBLISHED")
+  status      String                 @default("UNPUBLISHED")
+  companyId   String?
+  company     Company?               @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   createdBy   User?    @relation("CreatedWorkflowTemplates", fields: [createdById], references: [id])
   createdById String?

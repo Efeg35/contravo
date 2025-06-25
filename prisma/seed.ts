@@ -248,20 +248,61 @@ async function main() {
 
   // 2. Departmanları (Team olarak) oluştur
   console.log('🏢 Departmanlar oluşturuluyor...');
-  const createdTeams: { [key: string]: any } = {};
-  
-  for (const dept of departments) {
-    const team = await prisma.team.create({
-      data: {
-        name: dept.name,
-      },
-    });
-    createdTeams[dept.code] = team;
-  }
+  await prisma.team.createMany({
+    data: departments.map(d => ({ name: d.name })),
+  });
+  const createdTeams = await prisma.team.findMany();
+  const teamsMap = new Map(createdTeams.map((t: { id: string; name: string }) => [t.name, t.id]));
+  console.log(`✅ ${createdTeams.length} departman oluşturuldu.`);
 
-  // 3. C-Level yöneticilerini oluştur
-  console.log('👔 C-Level yöneticiler oluşturuluyor...');
-  const cLevelUsers = [];
+  // 3. Admin kullanıcısını oluştur (şirketlerin 'createdBy' alanı için)
+  const adminUser = await prisma.user.create({
+    data: {
+        name: 'Sistem Admin',
+        email: `admin_${faker.string.uuid()}@contravo.com`,
+        password: hashedPassword,
+        role: 'SUPER_ADMIN',
+      }
+  });
+
+  // 4. Şirketleri oluştur
+  console.log('🏭 Şirketler oluşturuluyor...');
+  const companyNames = Array.from({ length: 15 }, generateCompanyName);
+  const companiesData = companyNames.map(name => ({
+    name,
+    description: faker.company.catchPhrase(),
+    address: faker.location.streetAddress(),
+    phone: faker.phone.number(),
+    website: `https://${name.toLowerCase().replace(/\s/g, '')}.com`,
+    createdById: adminUser.id,
+  }));
+  await prisma.company.createMany({ data: companiesData });
+  const companies = await prisma.company.findMany();
+  console.log(`✅ ${companies.length} şirket oluşturuldu.`);
+
+  // === Statik kullanıcıyı oluştur ve ilk şirkete ata ===
+  console.log('👤 Statik kullanıcı (hatice.ergun) oluşturuluyor...');
+  const haticeUser = await prisma.user.create({
+    data: {
+      name: 'Hatice Ergün',
+      email: 'hatice.ergun9446@contravo.com',
+      password: hashedPassword,
+      role: 'ADMIN',
+    },
+  });
+
+  await prisma.companyUser.create({
+    data: {
+      userId: haticeUser.id,
+      companyId: companies[0].id, // İlk oluşturulan şirkete ata
+      role: 'ADMIN',
+    },
+  });
+  console.log(`✅ Hatice Ergün kullanıcısı oluşturuldu ve ${companies[0].name} şirketine atandı.`);
+
+  // 5. Kullanıcıları oluştur ve şirketlere/departmanlara ata
+  console.log('👥 Kullanıcılar oluşturuluyor...');
+  const users = [];
   const cLevelTitles = [
     { title: 'CEO', name: 'İcra Kurulu Başkanı' },
     { title: 'CTO', name: 'Teknoloji Direktörü' },
@@ -285,19 +326,21 @@ async function main() {
     });
 
     // Yönetim takımına ekle
+    const teamId = teamsMap.get('Yönetim');
+    if (!teamId) throw new Error('Takım bulunamadı: Yönetim');
     await prisma.usersOnTeams.create({
       data: {
         userId: user.id,
-        teamId: createdTeams.MANAGEMENT.id,
+        teamId,
       },
     });
 
-    cLevelUsers.push(user);
+    users.push(user);
   }
 
-  // 4. Her departman için müdür ve çalışanları oluştur
+  // 6. Her departman için müdür ve çalışanları oluştur
   console.log('👥 Departman çalışanları oluşturuluyor...');
-  const allUsers = [...cLevelUsers];
+  const allUsers = [...users];
 
   for (const dept of departments) {
     if (dept.code === 'MANAGEMENT') continue; // Yönetim zaten oluşturuldu
@@ -318,10 +361,12 @@ async function main() {
       },
     });
 
+    const teamId = teamsMap.get(dept.name);
+    if (!teamId) throw new Error(`Takım bulunamadı: ${dept.name}`);
     await prisma.usersOnTeams.create({
       data: {
         userId: manager.id,
-        teamId: createdTeams[dept.code].id,
+        teamId,
       },
     });
 
@@ -348,10 +393,12 @@ async function main() {
         },
       });
 
+      const teamId = teamsMap.get(dept.name);
+      if (!teamId) throw new Error(`Takım bulunamadı: ${dept.name}`);
       await prisma.usersOnTeams.create({
         data: {
           userId: employee.id,
-          teamId: createdTeams[dept.code].id,
+          teamId,
         },
       });
 
@@ -359,7 +406,7 @@ async function main() {
     }
   }
 
-  // 5. Her departman için gerçekçi sözleşmeler oluştur
+  // 7. Her departman için gerçekçi sözleşmeler oluştur
   console.log('📋 Departman sözleşmeleri oluşturuluyor...');
   
   for (const dept of departments) {
