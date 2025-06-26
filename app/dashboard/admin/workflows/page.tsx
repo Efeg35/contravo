@@ -19,13 +19,16 @@ interface WorkflowTemplate {
     status: 'PUBLISHED' | 'UNPUBLISHED';
 }
 
-const WorkflowTemplateCard = ({ template }: { template: WorkflowTemplate }) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between pb-2">
-      <CardTitle className="text-base font-semibold">{template.name}</CardTitle>
+const WorkflowTemplateCard = ({ template, onDelete }: { template: WorkflowTemplate; onDelete: (id: string) => void }) => {
+  const router = useRouter();
+  
+  return (
+    <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push(`/dashboard/admin/workflows/${template.id}`)}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-base font-semibold">{template.name}</CardTitle>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
+          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
             <span className="sr-only">Open menu</span>
             <MoreVertical className="h-4 w-4" />
           </Button>
@@ -45,7 +48,13 @@ const WorkflowTemplateCard = ({ template }: { template: WorkflowTemplate }) => (
               {template.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
             </span>
           </DropdownMenuItem>
-          <DropdownMenuItem className="text-red-600">
+          <DropdownMenuItem 
+            className="text-red-600"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(template.id);
+            }}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             <span>Delete</span>
           </DropdownMenuItem>
@@ -60,7 +69,8 @@ const WorkflowTemplateCard = ({ template }: { template: WorkflowTemplate }) => (
         )}
     </CardContent>
   </Card>
-);
+  );
+};
 
 const WorkflowDesignerPage = () => {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
@@ -69,24 +79,31 @@ const WorkflowDesignerPage = () => {
   const router = useRouter();
 
   const handleCreateWorkflow = async () => {
-    setError(null); // Reset error before new attempt
+    // Veritabanına kaydetmeden direkt editöre geç
+    router.push(`/dashboard/admin/workflows/new`);
+  };
+
+  const handleDeleteWorkflow = async (id: string) => {
+    if (!confirm('Bu workflow\'u silmek istediğinizden emin misiniz?')) {
+      return;
+    }
+
     try {
-      const response = await fetch('/api/workflow-templates', {
-        method: 'POST',
+      const response = await fetch(`/api/workflow-templates/${id}`, {
+        method: 'DELETE',
       });
-      if (!response.ok) {
+
+      if (response.ok) {
+        // Template'i listeden kaldır
+        setTemplates(prev => prev.filter(t => t.id !== id));
+        alert('Workflow başarıyla silindi!');
+      } else {
         const errorData = await response.json();
-        const errorMessage = errorData.details 
-          ? `${errorData.error} - Detay: ${errorData.details}`
-          : errorData.error || 'Failed to create workflow';
-        throw new Error(errorMessage);
+        alert(`Silme hatası: ${errorData.error}`);
       }
-      const newTemplate = await response.json();
-      router.push(`/dashboard/admin/workflows/${newTemplate.id}`);
-    } catch (err: any) {
-      // Handle error properly in a real app (e.g., show a toast notification)
-      console.error(err);
-      setError(err.message || 'Could not create a new workflow. Please try again.');
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Silme sırasında hata oluştu!');
     }
   };
 
@@ -169,7 +186,7 @@ const WorkflowDesignerPage = () => {
         <p className="text-gray-500">{publishedTemplates.length} configurations</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {publishedTemplates.map(template => (
-            <WorkflowTemplateCard key={template.id} template={template} />
+            <WorkflowTemplateCard key={template.id} template={template} onDelete={handleDeleteWorkflow} />
           ))}
         </div>
       </div>
@@ -180,7 +197,7 @@ const WorkflowDesignerPage = () => {
         <p className="text-gray-500">{unpublishedTemplates.length} configurations</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {unpublishedTemplates.map(template => (
-            <WorkflowTemplateCard key={template.id} template={template} />
+            <WorkflowTemplateCard key={template.id} template={template} onDelete={handleDeleteWorkflow} />
           ))}
         </div>
       </div>

@@ -4,12 +4,9 @@ import { useState, useEffect, useTransition } from "react";
 import { ChevronLeft, FileText, ClipboardCopy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { UploadButton } from "@uploadthing/react";
-import { saveTemplateFileUrl } from "@/src/lib/actions/workflow-template-actions";
+import { TemplateUploader } from "@/components/upload/TemplateUploader";
 import DocxPreviewer from "./DocxPreviewer";
 import type { WorkflowTemplate } from "@prisma/client";
-import { toast } from "sonner";
-import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import {
     Accordion,
     AccordionContent,
@@ -21,31 +18,78 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     const [selectedPaperSource, setSelectedPaperSource] = useState<'company' | 'counterparty' | null>(null);
     const workflowSteps = ["Document", "Create", "Review", "Sign", "Archive"];
     const [isPending, startTransition] = useTransition();
+    const [currentTemplate, setCurrentTemplate] = useState(initialTemplate);
 
     useEffect(() => {
-        if(initialTemplate.templateFileUrl) {
+        if(currentTemplate.templateFileUrl) {
             setSelectedPaperSource('company');
         }
-    }, [initialTemplate.templateFileUrl]);
+    }, [currentTemplate.templateFileUrl]);
 
-    const handleUploadComplete = (res: any) => {
-        if (res && res.length > 0) {
-            const uploadedFile = res[0];
-            startTransition(async () => {
-                const result = await saveTemplateFileUrl({
-                    templateId: initialTemplate.id,
-                    fileUrl: uploadedFile.url,
-                    fileName: uploadedFile.name
-                });
-
-                if (result.success) {
-                    toast.success("File uploaded successfully! The page will now reload.");
-                    window.location.reload();
+    const handleSave = async () => {
+        startTransition(async () => {
+            try {
+                if (currentTemplate.id === 'new') {
+                    // Yeni template oluştur
+                    const response = await fetch('/api/workflow-templates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: currentTemplate.name,
+                            description: currentTemplate.description
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const savedTemplate = await response.json();
+                        setCurrentTemplate(savedTemplate);
+                        
+                        // Pending upload varsa uygula
+                        const pendingUpload = localStorage.getItem('pendingUpload');
+                        if (pendingUpload) {
+                            const uploadData = JSON.parse(pendingUpload);
+                            
+                            // Upload'ı template'e bağla
+                            const uploadResponse = await fetch(`/api/workflow-templates/${savedTemplate.id}/document`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    documentUrl: uploadData.fileUrl,
+                                    documentName: uploadData.fileName
+                                })
+                            });
+                            
+                            if (uploadResponse.ok) {
+                                localStorage.removeItem('pendingUpload');
+                                alert('Workflow ve dosya başarıyla kaydedildi!');
+                            }
+                        } else {
+                            alert('Workflow başarıyla kaydedildi!');
+                        }
+                        
+                        // URL'yi güncelle
+                        window.history.replaceState({}, '', `/dashboard/admin/workflows/${savedTemplate.id}`);
+                    }
                 } else {
-                    toast.error(result.message || "Failed to save the file URL.");
+                    // Mevcut template'i güncelle
+                    const response = await fetch(`/api/workflow-templates/${currentTemplate.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: currentTemplate.name,
+                            description: currentTemplate.description
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        alert('Workflow başarıyla güncellendi!');
+                    }
                 }
-            });
-        }
+            } catch (error) {
+                console.error('Save error:', error);
+                alert('Kaydetme sırasında hata oluştu!');
+            }
+        });
     };
     
     return (
@@ -61,7 +105,9 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline">Preview</Button>
-                    <Button variant="outline" disabled={isPending}>Save</Button>
+                    <Button variant="outline" disabled={isPending} onClick={handleSave}>
+                        {isPending ? "Kaydediliyor..." : "Save"}
+                    </Button>
                     <Button disabled={isPending}>Publish</Button>
                 </div>
             </header>
@@ -127,11 +173,11 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
 
                 {/* Right Panel */}
                 <section className="flex-1 flex flex-col items-center bg-gray-50 p-8 overflow-y-auto">
-                    {initialTemplate.templateFileUrl ? (
+                    {currentTemplate.templateFileUrl ? (
                         <div className="w-full h-full flex flex-col">
-                            <h2 className="text-xl font-bold mb-4 text-center flex-shrink-0">{initialTemplate.documentName}</h2>
+                            <h2 className="text-xl font-bold mb-4 text-center flex-shrink-0">{currentTemplate.documentName}</h2>
                             <div className="flex-grow min-h-0">
-                                <DocxPreviewer url={initialTemplate.templateFileUrl} />
+                                <DocxPreviewer url={currentTemplate.templateFileUrl} />
                             </div>
                         </div>
                     ) : (
@@ -147,16 +193,21 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                                 >
                                     <h3 className="font-semibold text-lg">My company's paper</h3>
                                     {selectedPaperSource === 'company' && (
-                                        <div className="mt-6 p-6 border-2 border-dashed rounded-lg border-gray-300 text-center bg-white">
-                                            <FileText className="w-8 h-8 mx-auto mb-4 text-gray-400" />
-                                            <UploadButton<OurFileRouter, "workflowTemplateUploader">
-                                                    endpoint="workflowTemplateUploader"
-                                                    onClientUploadComplete={handleUploadComplete}
-                                                    onUploadError={(error: Error) => {
-                                                        toast.error(`Upload Failed: ${error.message}`);
-                                                    }}
-                                                />
-                                        </div>
+                                        <TemplateUploader 
+                                            templateId={currentTemplate.id} 
+                                            onUploadComplete={() => {
+                                                // Upload sonrası state'i güncelle
+                                                const pendingUpload = localStorage.getItem('pendingUpload');
+                                                if (pendingUpload && currentTemplate.id === 'new') {
+                                                    const uploadData = JSON.parse(pendingUpload);
+                                                    setCurrentTemplate(prev => ({
+                                                        ...prev,
+                                                        templateFileUrl: uploadData.fileUrl,
+                                                        documentName: uploadData.fileName
+                                                    }));
+                                                }
+                                            }}
+                                        />
                                     )}
                                 </div>
                                 <div

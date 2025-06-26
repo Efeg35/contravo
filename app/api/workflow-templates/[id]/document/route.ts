@@ -16,6 +16,28 @@ export async function POST(
     }
 
     const { id: templateId } = await params;
+    const contentType = req.headers.get('content-type');
+
+    // JSON ile gelen pending upload data'sı
+    if (contentType?.includes('application/json')) {
+      const { documentUrl, documentName } = await req.json();
+
+      if (!documentUrl || !documentName) {
+        return NextResponse.json({ error: 'Document URL ve Name gereklidir.' }, { status: 400 });
+      }
+
+      const updatedTemplate = await db.workflowTemplate.update({
+        where: { id: templateId },
+        data: {
+          templateFileUrl: documentUrl,
+          documentName: documentName,
+        },
+      });
+
+      return NextResponse.json(updatedTemplate);
+    }
+
+    // FormData ile gelen dosya upload'ı 
     const formData = await req.formData();
     const file = formData.get('file') as File;
 
@@ -37,8 +59,8 @@ export async function POST(
     const updatedTemplate = await db.workflowTemplate.update({
       where: { id: templateId },
       data: {
+        templateFileUrl: publicUrl,
         documentName: file.name,
-        documentUrl: publicUrl,
       },
     });
 
