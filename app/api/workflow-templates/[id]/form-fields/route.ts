@@ -40,7 +40,22 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       customError,
       dependsOn,
       dependsOnValue,
-      helpText
+      helpText,
+      // Sprint 2: Enhanced validation and rules
+      isConditional,
+      validationRules,
+      defaultValue,
+      isReadOnly,
+      isHidden,
+      showWhen,
+      hideWhen,
+      validateWhen,
+      errorMessage,
+      warningMessage,
+      successMessage,
+      fieldGroup,
+      priority,
+      realTimeValidation
     } = body;
     
     if (!templateId || !name || !type) {
@@ -63,7 +78,22 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       customError,
       dependsOn,
       dependsOnValue,
-      helpText
+      helpText,
+      // Sprint 2: Enhanced validation and rules
+      isConditional,
+      validationRules,
+      defaultValue,
+      isReadOnly,
+      isHidden,
+      showWhen,
+      hideWhen,
+      validateWhen,
+      errorMessage,
+      warningMessage,
+      successMessage,
+      fieldGroup,
+      priority,
+      realTimeValidation
     });
     return NextResponse.json(result);
   } catch (error) {

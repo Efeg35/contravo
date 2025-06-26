@@ -58,7 +58,21 @@ function mapToFormFieldType(type: string): string {
     };
     
     const upperType = type.toUpperCase();
-    return typeMap[upperType] || 'TEXT'; // Bilinmeyen tipler için TEXT varsayılan
+    const mappedType = typeMap[upperType] || 'TEXT';
+    
+    // Prisma enum değerlerini kontrol et
+    const validTypes = [
+        'TEXT', 'TEXTAREA', 'NUMBER', 'DATE', 'EMAIL', 'URL', 'PHONE',
+        'SINGLE_SELECT', 'MULTI_SELECT', 'CHECKBOX', 'FILE_UPLOAD', 
+        'USER_PICKER', 'DATE_RANGE', 'TABLE'
+    ];
+    
+    if (!validTypes.includes(mappedType)) {
+        console.warn(`Geçersiz form field tipi: ${type}, varsayılan TEXT kullanılıyor`);
+        return 'TEXT';
+    }
+    
+    return mappedType;
 }
 
 export async function addFieldToLaunchForm({
@@ -176,7 +190,22 @@ export async function addFormFieldToTemplate({
     customError,
     dependsOn,
     dependsOnValue,
-    helpText
+    helpText,
+    // Sprint 2: Enhanced validation and rules
+    isConditional,
+    validationRules,
+    defaultValue,
+    isReadOnly,
+    isHidden,
+    showWhen,
+    hideWhen,
+    validateWhen,
+    errorMessage,
+    warningMessage,
+    successMessage,
+    fieldGroup,
+    priority,
+    realTimeValidation
 }: {
     templateId: string,
     name: string,
@@ -193,7 +222,22 @@ export async function addFormFieldToTemplate({
     customError?: string,
     dependsOn?: string,
     dependsOnValue?: string,
-    helpText?: string
+    helpText?: string,
+    // Sprint 2: Enhanced validation and rules
+    isConditional?: boolean,
+    validationRules?: any,
+    defaultValue?: string,
+    isReadOnly?: boolean,
+    isHidden?: boolean,
+    showWhen?: any,
+    hideWhen?: any,
+    validateWhen?: any,
+    errorMessage?: string,
+    warningMessage?: string,
+    successMessage?: string,
+    fieldGroup?: string,
+    priority?: number,
+    realTimeValidation?: boolean
 }) {
     if (!templateId || !name || !type) {
         throw new Error('Template ID, name ve type zorunludur.');
@@ -219,7 +263,22 @@ export async function addFormFieldToTemplate({
                 customError,
                 dependsOn,
                 dependsOnValue,
-                helpText
+                helpText,
+                // Sprint 2: Enhanced validation and rules
+                isConditional: isConditional || false,
+                validationRules: validationRules || undefined,
+                defaultValue,
+                isReadOnly: isReadOnly || false,
+                isHidden: isHidden || false,
+                showWhen: showWhen || undefined,
+                hideWhen: hideWhen || undefined,
+                validateWhen: validateWhen || undefined,
+                errorMessage,
+                warningMessage,
+                successMessage,
+                fieldGroup,
+                priority: priority || 0,
+                realTimeValidation: realTimeValidation || false
             }
         });
         return { success: true };

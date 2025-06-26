@@ -705,8 +705,16 @@ model WorkflowTemplate {
   templateFileUrl String?
 
   formFields FormField[]
+  validationRules FormValidationRule[]
 
   launchFormLayout  Json?  // Formdaki alanların ID'lerini ve sıralarını tutan bir JSON objesi
+  
+  // Sprint 2: Form validation ayarları
+  enableRealTimeValidation Boolean @default(false)  // Gerçek zamanlı validasyon aktif mi?
+  validationMode          String  @default("SUBMIT") // "SUBMIT", "BLUR", "CHANGE"
+  showValidationSummary   Boolean @default(true)     // Validation özeti gösterilsin mi?
+  allowPartialSave        Boolean @default(false)    // Kısmi kaydetmeye izin ver
+  formRules               Json?   // Form seviyesinde genel kurallar
 
   @@index([name])
   @@index([createdAt])
@@ -770,9 +778,50 @@ model FormField {
   dependsOnValue String?  // Bağımlılık değeri
   helpText       String?  // Alan için yardım metni
 
+  // Sprint 2: Gelişmiş validation ve rules
+  isConditional      Boolean   @default(false)  // Alan koşullu mu?
+  validationRules    Json?     // Gelişmiş validasyon kuralları JSON formatında
+  defaultValue       String?   // Varsayılan değer
+  isReadOnly         Boolean   @default(false)  // Salt okunur alan
+  isHidden           Boolean   @default(false)  // Gizli alan
+  showWhen           Json?     // Ne zaman gösterilecek (koşullar)
+  hideWhen           Json?     // Ne zaman gizlenecek (koşullar)
+  validateWhen       Json?     // Ne zaman validate edilecek
+  errorMessage       String?   // Genel hata mesajı
+  warningMessage     String?   // Uyarı mesajı
+  successMessage     String?   // Başarı mesajı
+  fieldGroup         String?   // Alan grubu (section/group için)
+  priority           Int       @default(0)      // Validasyon önceliği
+  realTimeValidation Boolean   @default(false)  // Gerçek zamanlı validasyon
+
   templateId  String
   template    WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   // Bu alanın gösterilmesi için gereken koşullar
   displayConditions Condition[] @relation("DisplayConditions")
+}
+
+// Sprint 2: Form seviyesinde validation kuralları
+model FormValidationRule {
+  id              String   @id @default(cuid())
+  name            String   // Kural adı, örn: "Email Match Validation"
+  description     String?  // Kural açıklaması
+  ruleType        String   // "CROSS_FIELD", "CONDITIONAL", "BUSINESS_RULE", vb.
+  targetFields    Json     // Hangi alanları etkiliyor
+  conditions      Json     // Koşullar
+  validationLogic Json     // Validasyon mantığı
+  errorMessage    String   // Hata mesajı
+  severity        String   @default("ERROR") // "ERROR", "WARNING", "INFO"
+  isActive        Boolean  @default(true)
+  priority        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  templateId      String
+  template        WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([ruleType])
+  @@index([isActive])
+  @@index([priority])
 }

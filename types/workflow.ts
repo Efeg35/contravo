@@ -1,6 +1,63 @@
 // Workflow Property Types
 export type PropertyType = 'text' | 'email' | 'url' | 'phone' | 'date' | 'date_range' | 'duration' | 'number' | 'user' | 'select' | 'multi_select' | 'boolean' | 'checkbox' | 'file_upload' | 'textarea';
 
+// Sprint 2: Validation Rule Types
+export type ValidationRuleType = 'REQUIRED' | 'MIN_LENGTH' | 'MAX_LENGTH' | 'MIN_VALUE' | 'MAX_VALUE' | 'PATTERN' | 'EMAIL' | 'URL' | 'PHONE' | 'CUSTOM' | 'CROSS_FIELD' | 'CONDITIONAL' | 'BUSINESS_RULE';
+
+export type ValidationOperator = 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'starts_with' | 'ends_with' | 'greater_than' | 'greater_than_or_equal' | 'less_than' | 'less_than_or_equal' | 'is_empty' | 'is_not_empty' | 'in' | 'not_in' | 'between' | 'regex';
+
+export type ValidationSeverity = 'ERROR' | 'WARNING' | 'INFO';
+
+export type ValidationMode = 'SUBMIT' | 'BLUR' | 'CHANGE' | 'REAL_TIME';
+
+export interface ValidationRule {
+  id: string;
+  type: ValidationRuleType;
+  operator?: ValidationOperator;
+  value?: any;
+  message: string;
+  severity: ValidationSeverity;
+  priority: number;
+  isActive: boolean;
+}
+
+export interface FieldCondition {
+  field: string;
+  operator: ValidationOperator;
+  value: any;
+  logicalOperator?: 'AND' | 'OR';
+}
+
+export interface ConditionalRule {
+  id: string;
+  name: string;
+  conditions: FieldCondition[];
+  actions: {
+    show?: string[];      // Alan ID'leri
+    hide?: string[];      // Alan ID'leri
+    require?: string[];   // Alan ID'leri
+    unrequire?: string[]; // Alan ID'leri
+    setValues?: { [fieldId: string]: any };
+    validateFields?: string[];
+  };
+  priority: number;
+  isActive: boolean;
+}
+
+export interface FormValidationRule {
+  id: string;
+  name: string;
+  description?: string;
+  ruleType: string;
+  targetFields: string[];
+  conditions: FieldCondition[];
+  validationLogic: any;
+  errorMessage: string;
+  severity: ValidationSeverity;
+  isActive: boolean;
+  priority: number;
+}
+
 export interface WorkflowProperty {
   id: string;
   name: string;
@@ -14,6 +71,21 @@ export interface WorkflowProperty {
     max?: number;
     pattern?: string;
   };
+  
+  // Sprint 2: Enhanced validation and rules
+  isConditional?: boolean;
+  validationRules?: ValidationRule[];
+  isReadOnly?: boolean;
+  isHidden?: boolean;
+  showWhen?: FieldCondition[];
+  hideWhen?: FieldCondition[];
+  validateWhen?: FieldCondition[];
+  errorMessage?: string;
+  warningMessage?: string;
+  successMessage?: string;
+  fieldGroup?: string;
+  priority?: number;
+  realTimeValidation?: boolean;
 }
 
 export interface WorkflowCondition {
@@ -42,6 +114,33 @@ export interface WorkflowSchema {
     enabled: boolean;
     questionsCount: number;
   };
+  
+  // Sprint 2: Form validation settings
+  enableRealTimeValidation?: boolean;
+  validationMode?: ValidationMode;
+  showValidationSummary?: boolean;
+  allowPartialSave?: boolean;
+  formRules?: FormValidationRule[];
+  conditionalRules?: ConditionalRule[];
+}
+
+// Validation State Types
+export interface FieldValidationState {
+  isValid: boolean;
+  isDirty: boolean;
+  isTouched: boolean;
+  errors: string[];
+  warnings: string[];
+  isValidating: boolean;
+}
+
+export interface FormValidationState {
+  isValid: boolean;
+  isDirty: boolean;
+  isSubmitting: boolean;
+  fields: { [fieldId: string]: FieldValidationState };
+  globalErrors: string[];
+  globalWarnings: string[];
 }
 
 // Property Icons

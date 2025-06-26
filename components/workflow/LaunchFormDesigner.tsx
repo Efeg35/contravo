@@ -41,7 +41,18 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded 
     maxValue: '',
     pattern: '',
     customError: '',
-    options: [] as string[]
+    options: [] as string[],
+    // Sprint 2: Enhanced validation and rules
+    defaultValue: '',
+    isReadOnly: false,
+    isHidden: false,
+    errorMessage: '',
+    warningMessage: '',
+    successMessage: '',
+    fieldGroup: '',
+    priority: 0,
+    realTimeValidation: false,
+    isConditional: false
   });
   const [optionInput, setOptionInput] = useState('');
 
@@ -80,7 +91,18 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded 
           maxValue: fieldData.maxValue ? parseFloat(fieldData.maxValue) : undefined,
           pattern: fieldData.pattern || undefined,
           customError: fieldData.customError || undefined,
-          options: fieldData.options.length > 0 ? fieldData.options : undefined
+          options: fieldData.options.length > 0 ? fieldData.options : undefined,
+          // Sprint 2: Enhanced validation and rules
+          defaultValue: fieldData.defaultValue || undefined,
+          isReadOnly: fieldData.isReadOnly || false,
+          isHidden: fieldData.isHidden || false,
+          errorMessage: fieldData.errorMessage || undefined,
+          warningMessage: fieldData.warningMessage || undefined,
+          successMessage: fieldData.successMessage || undefined,
+          fieldGroup: fieldData.fieldGroup || undefined,
+          priority: fieldData.priority ? parseInt(fieldData.priority.toString()) : 0,
+          realTimeValidation: fieldData.realTimeValidation || false,
+          isConditional: fieldData.isConditional || false
         })
       });
       
@@ -99,7 +121,18 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded 
           maxValue: '',
           pattern: '',
           customError: '',
-          options: []
+          options: [],
+          // Sprint 2: Enhanced validation and rules
+          defaultValue: '',
+          isReadOnly: false,
+          isHidden: false,
+          errorMessage: '',
+          warningMessage: '',
+          successMessage: '',
+          fieldGroup: '',
+          priority: 0,
+          realTimeValidation: false,
+          isConditional: false
         });
         onFieldAdded();
       } else {
@@ -303,6 +336,122 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded 
               onChange={(e) => setFieldData(prev => ({ ...prev, customError: e.target.value }))}
               placeholder="Geçersiz giriş durumunda gösterilecek mesaj"
             />
+          </div>
+
+          {/* Sprint 2: Enhanced Validation and Rules */}
+          <div className="border-t pt-4 space-y-4">
+            <h4 className="text-sm font-medium text-gray-700">Gelişmiş Validasyon Ayarları</h4>
+            
+            <div>
+              <Label htmlFor="defaultValue">Varsayılan Değer</Label>
+              <Input
+                id="defaultValue"
+                value={fieldData.defaultValue}
+                onChange={(e) => setFieldData(prev => ({ ...prev, defaultValue: e.target.value }))}
+                placeholder="Bu alanın varsayılan değeri"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isReadOnly"
+                  checked={fieldData.isReadOnly}
+                  onChange={(e) => setFieldData(prev => ({ ...prev, isReadOnly: e.target.checked }))}
+                  className="rounded"
+                />
+                <Label htmlFor="isReadOnly" className="text-sm">Salt Okunur</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isHidden"
+                  checked={fieldData.isHidden}
+                  onChange={(e) => setFieldData(prev => ({ ...prev, isHidden: e.target.checked }))}
+                  className="rounded"
+                />
+                <Label htmlFor="isHidden" className="text-sm">Gizli</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="realTimeValidation"
+                  checked={fieldData.realTimeValidation}
+                  onChange={(e) => setFieldData(prev => ({ ...prev, realTimeValidation: e.target.checked }))}
+                  className="rounded"
+                />
+                <Label htmlFor="realTimeValidation" className="text-sm">Anlık Validasyon</Label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="fieldGroup">Alan Grubu</Label>
+                <Input
+                  id="fieldGroup"
+                  value={fieldData.fieldGroup}
+                  onChange={(e) => setFieldData(prev => ({ ...prev, fieldGroup: e.target.value }))}
+                  placeholder="Grup adı (örn: Sözleşme Bilgileri)"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="priority">Öncelik Seviyesi</Label>
+                <Input
+                  id="priority"
+                  type="number"
+                  value={fieldData.priority}
+                  onChange={(e) => setFieldData(prev => ({ ...prev, priority: parseInt(e.target.value) || 0 }))}
+                  placeholder="0-100 arası"
+                  min="0"
+                  max="100"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="errorMessage">Hata Mesajı</Label>
+              <Input
+                id="errorMessage"
+                value={fieldData.errorMessage}
+                onChange={(e) => setFieldData(prev => ({ ...prev, errorMessage: e.target.value }))}
+                placeholder="Validasyon başarısız olduğunda gösterilecek mesaj"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="warningMessage">Uyarı Mesajı</Label>
+              <Input
+                id="warningMessage"
+                value={fieldData.warningMessage}
+                onChange={(e) => setFieldData(prev => ({ ...prev, warningMessage: e.target.value }))}
+                placeholder="Uyarı durumunda gösterilecek mesaj"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="successMessage">Başarı Mesajı</Label>
+              <Input
+                id="successMessage"
+                value={fieldData.successMessage}
+                onChange={(e) => setFieldData(prev => ({ ...prev, successMessage: e.target.value }))}
+                placeholder="Validasyon başarılı olduğunda gösterilecek mesaj"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isConditional"
+                checked={fieldData.isConditional}
+                onChange={(e) => setFieldData(prev => ({ ...prev, isConditional: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="isConditional">Koşullu Alan (Diğer alanlara bağlı gösterim)</Label>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

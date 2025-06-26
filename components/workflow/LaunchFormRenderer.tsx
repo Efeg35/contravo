@@ -1,8 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ConditionEditorModal } from './ConditionEditorModal';
 import { addDisplayConditionToField } from '../../src/lib/actions/workflow-template-actions';
+import { formValidationEngine } from '../../lib/form-validation';
+import { 
+  ValidationRule, 
+  ConditionalRule, 
+  FieldValidationState, 
+  FormValidationState,
+  FieldCondition 
+} from '../../types/workflow';
 
 interface FormField {
   id: string;
@@ -22,6 +30,22 @@ interface FormField {
   dependsOn?: string;
   dependsOnValue?: string;
   helpText?: string;
+  
+  // Sprint 2: Enhanced validation and rules
+  isConditional?: boolean;
+  validationRules?: ValidationRule[];
+  defaultValue?: string;
+  isReadOnly?: boolean;
+  isHidden?: boolean;
+  showWhen?: FieldCondition[];
+  hideWhen?: FieldCondition[];
+  validateWhen?: FieldCondition[];
+  errorMessage?: string;
+  warningMessage?: string;
+  successMessage?: string;
+  fieldGroup?: string;
+  priority?: number;
+  realTimeValidation?: boolean;
 }
 
 interface LaunchFormRendererProps {
@@ -30,6 +54,11 @@ interface LaunchFormRendererProps {
   formData?: Record<string, any>;
   setFormData?: React.Dispatch<React.SetStateAction<Record<string, any>>>;
   displayConditions?: Record<string, any>;
+  conditionalRules?: ConditionalRule[];
+  enableRealTimeValidation?: boolean;
+  validationMode?: 'SUBMIT' | 'BLUR' | 'CHANGE' | 'REAL_TIME';
+  showValidationSummary?: boolean;
+  onValidationChange?: (validation: FormValidationState) => void;
 }
 
 const getSortedFields = (fields: FormField[], layout: any) => {
@@ -39,15 +68,132 @@ const getSortedFields = (fields: FormField[], layout: any) => {
   return [...fields].sort((a, b) => Number(orderMap.get(a.id) ?? 999) - Number(orderMap.get(b.id) ?? 999));
 };
 
-const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, layout, formData, setFormData, displayConditions }) => {
+const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ 
+  formFields, 
+  layout, 
+  formData = {}, 
+  setFormData, 
+  displayConditions,
+  conditionalRules = [],
+  enableRealTimeValidation = false,
+  validationMode = 'SUBMIT',
+  showValidationSummary = true,
+  onValidationChange
+}) => {
   const sortedFields = getSortedFields(formFields, layout);
 
   const [selectedConditionField, setSelectedConditionField] = useState<FormField | null>(null);
   const [isConditionModalOpen, setIsConditionModalOpen] = useState(false);
+  
+  // Sprint 2: Validation state
+  const [fieldValidations, setFieldValidations] = useState<{ [fieldId: string]: FieldValidationState }>({});
+  const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set(formFields.map(f => f.id)));
+  const [requiredFields, setRequiredFields] = useState<Set<string>>(new Set(formFields.filter(f => f.isRequired).map(f => f.id)));
+  const [readOnlyFields, setReadOnlyFields] = useState<Set<string>>(new Set(formFields.filter(f => f.isReadOnly).map(f => f.id)));
+
+  // Sprint 2: Field validation hook
+  const validateField = useCallback((field: FormField, value: any) => {
+    if (!field.validationRules || field.validationRules.length === 0) {
+      return {
+        isValid: true,
+        isDirty: false,
+        isTouched: false,
+        errors: [],
+        warnings: [],
+        isValidating: false
+      };
+    }
+
+    return formValidationEngine.validateField(value, field.validationRules, formData);
+  }, [formData]);
+
+  // Sprint 2: Conditional rules evaluation
+  const evaluateConditionalRules = useCallback(() => {
+    if (conditionalRules.length === 0) return;
+
+    const result = formValidationEngine.evaluateConditionalRules(conditionalRules, formData);
+    
+    // Update visible fields
+    const newVisibleFields = new Set(visibleFields);
+    result.fieldsToShow.forEach(fieldId => newVisibleFields.add(fieldId));
+    result.fieldsToHide.forEach(fieldId => newVisibleFields.delete(fieldId));
+    setVisibleFields(newVisibleFields);
+
+    // Update required fields
+    const newRequiredFields = new Set(requiredFields);
+    result.fieldsToRequire.forEach(fieldId => newRequiredFields.add(fieldId));
+    result.fieldsToUnrequire.forEach(fieldId => newRequiredFields.delete(fieldId));
+    setRequiredFields(newRequiredFields);
+
+    // Set field values
+    if (Object.keys(result.valuesToSet).length > 0 && setFormData) {
+      setFormData(prev => ({ ...prev, ...result.valuesToSet }));
+    }
+
+    // Validate specific fields
+    if (result.fieldsToValidate.length > 0) {
+      result.fieldsToValidate.forEach(fieldId => {
+        const field = formFields.find(f => f.id === fieldId);
+        if (field) {
+          const validation = validateField(field, formData[field.apiKey]);
+          setFieldValidations(prev => ({ ...prev, [fieldId]: validation }));
+        }
+      });
+    }
+  }, [conditionalRules, formData, visibleFields, requiredFields, formFields, validateField, setFormData]);
+
+  // Sprint 2: Real-time validation effect
+  useEffect(() => {
+    if (enableRealTimeValidation || validationMode === 'REAL_TIME') {
+      evaluateConditionalRules();
+      
+      // Validate all visible fields
+      const newValidations: { [fieldId: string]: FieldValidationState } = {};
+      formFields.forEach(field => {
+        if (visibleFields.has(field.id)) {
+          newValidations[field.id] = validateField(field, formData[field.apiKey]);
+        }
+      });
+      setFieldValidations(newValidations);
+
+      // Notify parent of validation changes
+      if (onValidationChange) {
+        const formValidation: FormValidationState = {
+          isValid: Object.values(newValidations).every(v => v.isValid),
+          isDirty: Object.values(newValidations).some(v => v.isDirty),
+          isSubmitting: false,
+          fields: newValidations,
+          globalErrors: [],
+          globalWarnings: []
+        };
+        onValidationChange(formValidation);
+      }
+    }
+  }, [formData, enableRealTimeValidation, validationMode, visibleFields, formFields, validateField, evaluateConditionalRules, onValidationChange]);
 
   const handleChange = (apiKey: string, value: any) => {
     if (setFormData) {
       setFormData((prev) => ({ ...prev, [apiKey]: value }));
+    }
+
+    // Sprint 2: Trigger validation on change if needed
+    if (validationMode === 'CHANGE' || enableRealTimeValidation) {
+      const field = formFields.find(f => f.apiKey === apiKey);
+      if (field) {
+        const validation = validateField(field, value);
+        setFieldValidations(prev => ({ ...prev, [field.id]: validation }));
+      }
+    }
+  };
+
+  const handleBlur = (apiKey: string) => {
+    // Sprint 2: Trigger validation on blur if needed
+    if (validationMode === 'BLUR') {
+      const field = formFields.find(f => f.apiKey === apiKey);
+      if (field) {
+        const validation = validateField(field, formData[field.apiKey]);
+        setFieldValidations(prev => ({ ...prev, [field.id]: validation }));
+      }
     }
   };
 
@@ -75,24 +221,74 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
     setSelectedConditionField(null);
   };
 
+  // Sprint 2: Get field validation state
+  const getFieldValidation = (fieldId: string): FieldValidationState => {
+    return fieldValidations[fieldId] || {
+      isValid: true,
+      isDirty: false,
+      isTouched: false,
+      errors: [],
+      warnings: [],
+      isValidating: false
+    };
+  };
+
+  // Sprint 2: Get validation CSS classes
+  const getValidationClasses = (fieldId: string): string => {
+    const validation = getFieldValidation(fieldId);
+    if (!validation.isDirty && !validation.isTouched) return "border-gray-300";
+    if (validation.errors.length > 0) return "border-red-500 bg-red-50";
+    if (validation.warnings.length > 0) return "border-yellow-500 bg-yellow-50";
+    if (validation.isValid) return "border-green-500 bg-green-50";
+    return "border-gray-300";
+  };
+
+  // Sprint 2: Render validation messages
+  const renderValidationMessages = (fieldId: string) => {
+    const validation = getFieldValidation(fieldId);
+    if (!validation.isDirty && !validation.isTouched) return null;
+
+    return (
+      <div className="mt-1">
+        {validation.errors.map((error, index) => (
+          <p key={`error-${index}`} className="text-xs text-red-600">{error}</p>
+        ))}
+        {validation.warnings.map((warning, index) => (
+          <p key={`warning-${index}`} className="text-xs text-yellow-600">{warning}</p>
+        ))}
+      </div>
+    );
+  };
+
   // Section ve alanları render eden yardımcı fonksiyonlar
   const renderField = (field: FormField) => {
-    const value = formData?.[field.apiKey] ?? "";
+    // Sprint 2: Check if field should be visible
+    if (!visibleFields.has(field.id) || field.isHidden) {
+      return null;
+    }
+
+    const value = formData?.[field.apiKey] ?? field.defaultValue ?? "";
+    const isFieldRequired = requiredFields.has(field.id) || field.isRequired;
+    const isFieldReadOnly = readOnlyFields.has(field.id) || field.isReadOnly;
+    const validationClasses = getValidationClasses(field.id);
+    
     const dc = displayConditions && displayConditions[field.id];
     const conditionSummary = dc ? (
       <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
         Gösterim kuralı: {dc.field} {dc.operator} {dc.value}
       </span>
     ) : null;
+    
     const labelWithCondition = (
       <div className="flex items-center gap-2">
-        <span>{field.label}{field.isRequired && <span className="text-red-500">*</span>}</span>
+        <span>{field.label}{isFieldRequired && <span className="text-red-500">*</span>}</span>
         <button type="button" className="text-blue-500 hover:text-blue-700 text-xs underline" onClick={() => handleAddCondition(field)}>
           Koşul Ekle
         </button>
         {conditionSummary}
       </div>
     );
+
     switch (field.type) {
       case "TEXT":
         return (
@@ -100,16 +296,19 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
             <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
             <input
               type="text"
-              className="w-full px-3 py-2 border rounded-md"
+              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
               placeholder={field.placeholder}
-              required={field.isRequired}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
+              onBlur={() => handleBlur(field.apiKey)}
               minLength={field.minLength}
               maxLength={field.maxLength}
               pattern={field.pattern}
             />
             {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+            {renderValidationMessages(field.id)}
           </div>
         );
       case "EMAIL":
@@ -118,14 +317,17 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
             <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
             <input
               type="email"
-              className="w-full px-3 py-2 border rounded-md"
+              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
               placeholder={field.placeholder || "ornek@email.com"}
-              required={field.isRequired}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
+              onBlur={() => handleBlur(field.apiKey)}
               pattern={field.pattern}
             />
             {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+            {renderValidationMessages(field.id)}
           </div>
         );
       case "URL":
@@ -134,14 +336,17 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
             <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
             <input
               type="url"
-              className="w-full px-3 py-2 border rounded-md"
+              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
               placeholder={field.placeholder || "https://example.com"}
-              required={field.isRequired}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
+              onBlur={() => handleBlur(field.apiKey)}
               pattern={field.pattern}
             />
             {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+            {renderValidationMessages(field.id)}
           </div>
         );
       case "PHONE":
@@ -150,14 +355,17 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
             <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
             <input
               type="tel"
-              className="w-full px-3 py-2 border rounded-md"
+              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
               placeholder={field.placeholder || "+90 555 123 45 67"}
-              required={field.isRequired}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
+              onBlur={() => handleBlur(field.apiKey)}
               pattern={field.pattern}
             />
             {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+            {renderValidationMessages(field.id)}
           </div>
         );
       case "CHECKBOX":
@@ -167,13 +375,16 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
               <input
                 type="checkbox"
                 className="rounded"
-                required={field.isRequired}
+                required={isFieldRequired}
+                disabled={isFieldReadOnly}
                 checked={Boolean(value)}
                 onChange={e => handleChange(field.apiKey, e.target.checked)}
+                onBlur={() => handleBlur(field.apiKey)}
               />
-              <span className="text-sm font-medium">{field.label}{field.isRequired && <span className="text-red-500">*</span>}</span>
+              <span className="text-sm font-medium">{field.label}{isFieldRequired && <span className="text-red-500">*</span>}</span>
             </label>
             {field.helpText && <p className="text-xs text-gray-500 mt-1 ml-6">{field.helpText}</p>}
+            {renderValidationMessages(field.id)}
           </div>
         );
       case "FILE_UPLOAD":
@@ -182,14 +393,17 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
             <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
             <input
               type="file"
-              className="w-full px-3 py-2 border rounded-md"
-              required={field.isRequired}
+              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              required={isFieldRequired}
+              disabled={isFieldReadOnly}
               onChange={e => {
                 const file = e.target.files?.[0];
                 handleChange(field.apiKey, file);
               }}
+              onBlur={() => handleBlur(field.apiKey)}
             />
             {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+            {renderValidationMessages(field.id)}
           </div>
         );
       case "USER_PICKER":
@@ -197,10 +411,12 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
           <div key={field.id}>
             <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
             <select
-              className="w-full px-3 py-2 border rounded-md"
-              required={field.isRequired}
+              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              required={isFieldRequired}
+              disabled={isFieldReadOnly}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
+              onBlur={() => handleBlur(field.apiKey)}
             >
               <option value="">Kullanıcı Seçiniz</option>
               {(Array.isArray(field.options) ? field.options : [])
@@ -209,6 +425,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
                 ))}
             </select>
             {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+            {renderValidationMessages(field.id)}
           </div>
         );
       case "DATE_RANGE":
@@ -218,17 +435,20 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="date"
-                className="px-3 py-2 border rounded-md"
+                className={`px-3 py-2 border rounded-md ${validationClasses}`}
                 placeholder="Başlangıç"
-                required={field.isRequired}
+                required={isFieldRequired}
+                disabled={isFieldReadOnly}
                 value={value?.start || ""}
                 onChange={e => handleChange(field.apiKey, { ...value, start: e.target.value })}
+                onBlur={() => handleBlur(field.apiKey)}
               />
               <input
                 type="date"
-                className="px-3 py-2 border rounded-md"
+                className={`px-3 py-2 border rounded-md ${validationClasses}`}
                 placeholder="Bitiş"
-                required={field.isRequired}
+                required={isFieldRequired}
+                disabled={isFieldReadOnly}
                 value={value?.end || ""}
                 onChange={e => handleChange(field.apiKey, { ...value, end: e.target.value })}
               />
@@ -241,16 +461,19 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
           <div key={field.id}>
             <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
             <textarea
-              className="w-full px-3 py-2 border rounded-md"
+              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
               placeholder={field.placeholder}
-              required={field.isRequired}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
+              onBlur={() => handleBlur(field.apiKey)}
               rows={4}
               minLength={field.minLength}
               maxLength={field.maxLength}
             />
             {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+            {renderValidationMessages(field.id)}
           </div>
         );
       case "NUMBER":
@@ -259,15 +482,18 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
             <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
             <input
               type="number"
-              className="w-full px-3 py-2 border rounded-md"
+              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
               placeholder={field.placeholder}
-              required={field.isRequired}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value === "" ? "" : Number(e.target.value))}
+              onBlur={() => handleBlur(field.apiKey)}
               min={field.minValue}
               max={field.maxValue}
             />
             {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+            {renderValidationMessages(field.id)}
           </div>
         );
       case "DATE":
@@ -404,12 +630,49 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
     );
   };
 
+  // Sprint 2: Render validation summary
+  const renderValidationSummary = () => {
+    if (!showValidationSummary) return null;
+
+    const allErrors = Object.values(fieldValidations).flatMap(v => v.errors);
+    const allWarnings = Object.values(fieldValidations).flatMap(v => v.warnings);
+
+    if (allErrors.length === 0 && allWarnings.length === 0) return null;
+
+    return (
+      <div className="mb-4 p-4 border rounded-lg bg-red-50 border-red-200">
+        <h3 className="text-sm font-medium text-red-800 mb-2">Form Doğrulama Özeti</h3>
+        {allErrors.length > 0 && (
+          <div className="mb-2">
+            <h4 className="text-xs font-medium text-red-700 mb-1">Hatalar:</h4>
+            <ul className="text-xs text-red-600 space-y-1">
+              {allErrors.map((error, index) => (
+                <li key={index}>• {error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {allWarnings.length > 0 && (
+          <div>
+            <h4 className="text-xs font-medium text-yellow-700 mb-1">Uyarılar:</h4>
+            <ul className="text-xs text-yellow-600 space-y-1">
+              {allWarnings.map((warning, index) => (
+                <li key={index}>• {warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (!formFields || formFields.length === 0) {
     return <div className="text-gray-500 text-sm">Bu şablona ait özel bir başlatma formu yok.</div>;
   }
 
   return (
     <>
+      {renderValidationSummary()}
       <form className="space-y-4">
         {renderForm()}
         <div className="mt-4">
