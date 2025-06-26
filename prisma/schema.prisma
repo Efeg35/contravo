@@ -16,6 +16,16 @@ enum ContractStatus {
   REJECTED  // Reddedildi
 }
 
+enum FormFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  DATE
+  SINGLE_SELECT
+  MULTI_SELECT
+  TABLE
+}
+
 model User {
   id                       String                @id @default(cuid())
   name                     String?
@@ -686,6 +696,8 @@ model WorkflowTemplate {
   documentUrl     String?
   templateFileUrl String?
 
+  formFields FormField[] @relation(orderBy: { order: "asc" })
+
   @@index([name])
   @@index([createdAt])
 }
@@ -722,4 +734,24 @@ model Condition {
   value     String
   step      WorkflowTemplateStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
   stepId    String
+
+  displayConditionForFieldId String?   @unique
+  displayConditionForField   FormField? @relation(name: "DisplayConditions", fields: [displayConditionForFieldId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+model FormField {
+  id          String   @id @default(cuid())
+  label       String   // Kullanıcının gördüğü soru, örn: "Sözleşme Değeri"
+  apiKey      String   // Arka plandaki benzersiz anahtar, örn: "contractValue"
+  type        FormFieldType // Yukarıda tanımladığımız enum'ı kullanır
+  isRequired  Boolean  @default(false)
+  placeholder String?
+  options     Json?    // SINGLE_SELECT veya MULTI_SELECT için seçenekleri (örn: ['Opsiyon A', 'Opsiyon B']) JSON olarak saklar
+  order       Int      // Formdaki sırası
+
+  templateId  String
+  template    WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  // Bu alanın gösterilmesi için gereken koşullar
+  displayConditions Condition[]
 }
