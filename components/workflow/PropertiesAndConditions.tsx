@@ -12,6 +12,7 @@ import { WorkflowSchema, WorkflowProperty, WorkflowCondition } from '@/types/wor
 import { PROPERTY_ICONS, PROPERTY_COLORS } from '@/types/workflow';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { PropertyEditorModal } from './PropertyEditorModal';
+import { ConditionEditorModal } from './ConditionEditorModal';
 
 interface PropertiesAndConditionsProps {
   schema: WorkflowSchema;
@@ -27,7 +28,8 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<{ property: WorkflowProperty | null, groupId: string | null }>({ property: null, groupId: null });
 
-  const [selectedCondition, setSelectedCondition] = useState<WorkflowCondition | null>(null);
+  const [isConditionModalOpen, setIsConditionModalOpen] = useState(false);
+  const [editingCondition, setEditingCondition] = useState<WorkflowCondition | null>(null);
 
   const handlePropertyClick = (property: WorkflowProperty, groupId: string) => {
     setEditingProperty({ property, groupId });
@@ -35,9 +37,8 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
   };
 
   const handleConditionClick = (condition: WorkflowCondition) => {
-    setSelectedCondition(condition);
-    // TODO: Open condition edit modal
-    console.log('Edit condition:', condition);
+    setEditingCondition(condition);
+    setIsConditionModalOpen(true);
   };
 
   const addNewProperty = (groupId: string) => {
@@ -46,8 +47,8 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
   };
 
   const addNewCondition = () => {
-    // TODO: Open add condition modal
-    console.log('Add new condition');
+    setEditingCondition(null);
+    setIsConditionModalOpen(true);
   };
 
   const handleSaveProperty = (savedProperty: WorkflowProperty) => {
@@ -70,6 +71,28 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
 
     onSchemaChange(newSchema);
     setIsModalOpen(false);
+  };
+
+  const handleSaveCondition = (savedCondition: WorkflowCondition) => {
+    const newSchema = JSON.parse(JSON.stringify(schema));
+    const conditionIndex = newSchema.conditions.findIndex((c: WorkflowCondition) => c.id === savedCondition.id);
+
+    if (conditionIndex !== -1) { // Editing existing
+        newSchema.conditions[conditionIndex] = savedCondition;
+    } else { // Adding new
+        newSchema.conditions.push(savedCondition);
+    }
+
+    onSchemaChange(newSchema);
+    setIsConditionModalOpen(false);
+  };
+
+  const handleDeleteCondition = (conditionId: string) => {
+    if (window.confirm('Are you sure you want to delete this condition?')) {
+        const newSchema = JSON.parse(JSON.stringify(schema));
+        newSchema.conditions = newSchema.conditions.filter((c: WorkflowCondition) => c.id !== conditionId);
+        onSchemaChange(newSchema);
+    }
   };
 
   const getPropertyIcon = (type: string) => {
@@ -114,7 +137,7 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
     <div 
       key={condition.id}
       className="px-4 py-2 hover:bg-gray-100 rounded-md flex items-center justify-between group cursor-pointer"
-      onClick={() => handleConditionClick(condition)}
+      onClick={() => isEditable && handleConditionClick(condition)}
     >
       <div className="flex items-center gap-2">
         <span className="w-4 h-4 bg-purple-100 rounded flex items-center justify-center text-xs">
@@ -124,10 +147,10 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
       </div>
       {isEditable && (
         <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); handleConditionClick(condition); }}>
             <Edit className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500">
+          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500" onClick={(e) => { e.stopPropagation(); handleDeleteCondition(condition.id); }}>
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>
@@ -221,6 +244,14 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveProperty}
         property={editingProperty.property}
+      />
+
+      <ConditionEditorModal
+        isOpen={isConditionModalOpen}
+        onClose={() => setIsConditionModalOpen(false)}
+        onSave={handleSaveCondition}
+        condition={editingCondition}
+        properties={schema.propertyGroups.flatMap(g => g.properties)}
       />
     </aside>
   );
