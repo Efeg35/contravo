@@ -21,8 +21,15 @@ enum FormFieldType {
   TEXTAREA
   NUMBER
   DATE
+  EMAIL
+  URL
+  PHONE
   SINGLE_SELECT
   MULTI_SELECT
+  CHECKBOX
+  FILE_UPLOAD
+  USER_PICKER
+  DATE_RANGE
   TABLE
 }
 
@@ -751,6 +758,17 @@ model FormField {
   placeholder String?
   options     Json?    // SINGLE_SELECT veya MULTI_SELECT için seçenekleri (örn: ['Opsiyon A', 'Opsiyon B']) JSON olarak saklar
   order       Int      // Formdaki sırası
+
+  // Validation kuralları
+  minLength      Int?
+  maxLength      Int?
+  minValue       Float?
+  maxValue       Float?
+  pattern        String?  // Regex pattern
+  customError    String?  // Custom validation mesajı
+  dependsOn      String?  // Bağımlı olduğu alan ID'si
+  dependsOnValue String?  // Bağımlılık değeri
+  helpText       String?  // Alan için yardım metni
 
   templateId  String
   template    WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)

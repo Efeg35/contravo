@@ -25,17 +25,45 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
     
     // Manuel alan ekleme isteği
-    const { name, type, required, description, options } = body;
+    const { 
+      name, 
+      type, 
+      required, 
+      description, 
+      options,
+      placeholder,
+      minLength,
+      maxLength,
+      minValue,
+      maxValue,
+      pattern,
+      customError,
+      dependsOn,
+      dependsOnValue,
+      helpText
+    } = body;
+    
     if (!templateId || !name || !type) {
       return NextResponse.json({ success: false, message: 'Eksik parametre.' }, { status: 400 });
     }
+    
     const result = await addFormFieldToTemplate({
       templateId,
       name,
       type,
       required,
       description,
-      options
+      options,
+      placeholder,
+      minLength,
+      maxLength,
+      minValue,
+      maxValue,
+      pattern,
+      customError,
+      dependsOn,
+      dependsOnValue,
+      helpText
     });
     return NextResponse.json(result);
   } catch (error) {

@@ -40,14 +40,20 @@ export async function saveTemplateFileUrl({
 function mapToFormFieldType(type: string): string {
     const typeMap: { [key: string]: string } = {
         'TEXT': 'TEXT',
-        'EMAIL': 'TEXT',
+        'EMAIL': 'EMAIL',
+        'URL': 'URL',
+        'PHONE': 'PHONE',
         'TEXTAREA': 'TEXTAREA', 
         'NUMBER': 'NUMBER',
         'DATE': 'DATE',
+        'DATE_RANGE': 'DATE_RANGE',
         'SELECT': 'SINGLE_SELECT',
         'SINGLE_SELECT': 'SINGLE_SELECT',
         'MULTI_SELECT': 'MULTI_SELECT',
-        'USER': 'SINGLE_SELECT', // User picker -> select olarak
+        'CHECKBOX': 'CHECKBOX',
+        'FILE_UPLOAD': 'FILE_UPLOAD',
+        'USER': 'USER_PICKER', // User picker
+        'USER_PICKER': 'USER_PICKER',
         'TABLE': 'TABLE'
     };
     
@@ -160,14 +166,34 @@ export async function addFormFieldToTemplate({
     type,
     required,
     description,
-    options
+    options,
+    placeholder,
+    minLength,
+    maxLength,
+    minValue,
+    maxValue,
+    pattern,
+    customError,
+    dependsOn,
+    dependsOnValue,
+    helpText
 }: {
     templateId: string,
     name: string,
     type: string,
     required: boolean,
     description?: string,
-    options?: any[]
+    options?: any[],
+    placeholder?: string,
+    minLength?: number,
+    maxLength?: number,
+    minValue?: number,
+    maxValue?: number,
+    pattern?: string,
+    customError?: string,
+    dependsOn?: string,
+    dependsOnValue?: string,
+    helpText?: string
 }) {
     if (!templateId || !name || !type) {
         throw new Error('Template ID, name ve type zorunludur.');
@@ -182,8 +208,18 @@ export async function addFormFieldToTemplate({
                 apiKey: name.toLowerCase().replace(/\s+/g, '_'),
                 type: mapToFormFieldType(type) as any,
                 isRequired: required,
+                placeholder,
                 options: options && options.length > 0 ? options : undefined,
-                order: count + 1
+                order: count + 1,
+                minLength,
+                maxLength,
+                minValue,
+                maxValue,
+                pattern,
+                customError,
+                dependsOn,
+                dependsOnValue,
+                helpText
             }
         });
         return { success: true };

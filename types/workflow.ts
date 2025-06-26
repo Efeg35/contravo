@@ -1,5 +1,5 @@
 // Workflow Property Types
-export type PropertyType = 'text' | 'email' | 'date' | 'duration' | 'number' | 'user' | 'select' | 'boolean';
+export type PropertyType = 'text' | 'email' | 'url' | 'phone' | 'date' | 'date_range' | 'duration' | 'number' | 'user' | 'select' | 'multi_select' | 'boolean' | 'checkbox' | 'file_upload' | 'textarea';
 
 export interface WorkflowProperty {
   id: string;
@@ -48,22 +48,36 @@ export interface WorkflowSchema {
 export const PROPERTY_ICONS: Record<PropertyType, string> = {
   text: 'T',
   email: '@',
+  url: '🌐',
+  phone: '📞',
   date: '📅',
+  date_range: '📅',
   duration: '⏰',
   number: '📊',
   user: 'fx',
   select: '🔽',
-  boolean: '✓'
+  multi_select: '🔽',
+  boolean: '✓',
+  checkbox: '☑',
+  file_upload: '📎',
+  textarea: '📄'
 };
 
 // Property Colors
 export const PROPERTY_COLORS: Record<PropertyType, string> = {
   text: 'bg-orange-100',
   email: 'bg-blue-100',
+  url: 'bg-cyan-100',
+  phone: 'bg-green-100',
   date: 'bg-teal-100',
+  date_range: 'bg-teal-100',
   duration: 'bg-blue-100',
   number: 'bg-purple-100',
   user: 'bg-yellow-100',
   select: 'bg-green-100',
-  boolean: 'bg-red-100'
+  multi_select: 'bg-green-100',
+  boolean: 'bg-red-100',
+  checkbox: 'bg-red-100',
+  file_upload: 'bg-gray-100',
+  textarea: 'bg-orange-100'
 }; 

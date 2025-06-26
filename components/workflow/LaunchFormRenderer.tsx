@@ -13,6 +13,15 @@ interface FormField {
   placeholder?: string;
   options?: any;
   order?: number;
+  minLength?: number;
+  maxLength?: number;
+  minValue?: number;
+  maxValue?: number;
+  pattern?: string;
+  customError?: string;
+  dependsOn?: string;
+  dependsOnValue?: string;
+  helpText?: string;
 }
 
 interface LaunchFormRendererProps {
@@ -96,7 +105,135 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
               required={field.isRequired}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
+              minLength={field.minLength}
+              maxLength={field.maxLength}
+              pattern={field.pattern}
             />
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+          </div>
+        );
+      case "EMAIL":
+        return (
+          <div key={field.id}>
+            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <input
+              type="email"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder={field.placeholder || "ornek@email.com"}
+              required={field.isRequired}
+              value={value}
+              onChange={e => handleChange(field.apiKey, e.target.value)}
+              pattern={field.pattern}
+            />
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+          </div>
+        );
+      case "URL":
+        return (
+          <div key={field.id}>
+            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <input
+              type="url"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder={field.placeholder || "https://example.com"}
+              required={field.isRequired}
+              value={value}
+              onChange={e => handleChange(field.apiKey, e.target.value)}
+              pattern={field.pattern}
+            />
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+          </div>
+        );
+      case "PHONE":
+        return (
+          <div key={field.id}>
+            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <input
+              type="tel"
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder={field.placeholder || "+90 555 123 45 67"}
+              required={field.isRequired}
+              value={value}
+              onChange={e => handleChange(field.apiKey, e.target.value)}
+              pattern={field.pattern}
+            />
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+          </div>
+        );
+      case "CHECKBOX":
+        return (
+          <div key={field.id}>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                className="rounded"
+                required={field.isRequired}
+                checked={Boolean(value)}
+                onChange={e => handleChange(field.apiKey, e.target.checked)}
+              />
+              <span className="text-sm font-medium">{field.label}{field.isRequired && <span className="text-red-500">*</span>}</span>
+            </label>
+            {field.helpText && <p className="text-xs text-gray-500 mt-1 ml-6">{field.helpText}</p>}
+          </div>
+        );
+      case "FILE_UPLOAD":
+        return (
+          <div key={field.id}>
+            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <input
+              type="file"
+              className="w-full px-3 py-2 border rounded-md"
+              required={field.isRequired}
+              onChange={e => {
+                const file = e.target.files?.[0];
+                handleChange(field.apiKey, file);
+              }}
+            />
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+          </div>
+        );
+      case "USER_PICKER":
+        return (
+          <div key={field.id}>
+            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <select
+              className="w-full px-3 py-2 border rounded-md"
+              required={field.isRequired}
+              value={value}
+              onChange={e => handleChange(field.apiKey, e.target.value)}
+            >
+              <option value="">Kullanıcı Seçiniz</option>
+              {(Array.isArray(field.options) ? field.options : [])
+                .map((user: any, i: number) => (
+                  <option key={i} value={user.id || user.value}>{user.name || user.label}</option>
+                ))}
+            </select>
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
+          </div>
+        );
+      case "DATE_RANGE":
+        return (
+          <div key={field.id}>
+            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="date"
+                className="px-3 py-2 border rounded-md"
+                placeholder="Başlangıç"
+                required={field.isRequired}
+                value={value?.start || ""}
+                onChange={e => handleChange(field.apiKey, { ...value, start: e.target.value })}
+              />
+              <input
+                type="date"
+                className="px-3 py-2 border rounded-md"
+                placeholder="Bitiş"
+                required={field.isRequired}
+                value={value?.end || ""}
+                onChange={e => handleChange(field.apiKey, { ...value, end: e.target.value })}
+              />
+            </div>
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
           </div>
         );
       case "TEXTAREA":
@@ -110,7 +247,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
               rows={4}
+              minLength={field.minLength}
+              maxLength={field.maxLength}
             />
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
           </div>
         );
       case "NUMBER":
@@ -124,7 +264,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
               required={field.isRequired}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value === "" ? "" : Number(e.target.value))}
+              min={field.minValue}
+              max={field.maxValue}
             />
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
           </div>
         );
       case "DATE":
@@ -138,6 +281,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
             />
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
           </div>
         );
       case "SINGLE_SELECT":
@@ -156,6 +300,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
                   <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
                 ))}
             </select>
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
           </div>
         );
       case "MULTI_SELECT":
@@ -177,6 +322,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ formFields, lay
                   <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
                 ))}
             </select>
+            {field.helpText && <p className="text-xs text-gray-500 mt-1">{field.helpText}</p>}
           </div>
         );
       case "TABLE":
