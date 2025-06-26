@@ -38,15 +38,37 @@ export async function saveTemplateFileUrl({
 
 export async function addFieldToLaunchForm({
     templateId,
-    fieldId
+    property
 }: {
     templateId: string,
-    fieldId: string
+    property: {
+        id: string,
+        name: string,
+        type: string,
+        required: boolean,
+        description?: string,
+        options?: any[]
+    }
 }) {
-    if (!templateId || !fieldId) {
-        throw new Error('Template ID ve Field ID gereklidir.');
+    if (!templateId || !property || !property.name || !property.type) {
+        throw new Error('Template ID ve property bilgileri gereklidir.');
     }
     try {
+        // 1. Önce FormField oluştur
+        const count = await db.formField.count({ where: { templateId } });
+        const formField = await db.formField.create({
+            data: {
+                templateId,
+                label: property.name,
+                apiKey: property.name.toLowerCase().replace(/\s+/g, '_'),
+                type: property.type.toUpperCase() as any,
+                isRequired: property.required,
+                options: property.options && property.options.length > 0 ? property.options : undefined,
+                order: count + 1
+            }
+        });
+
+        // 2. Ardından layout'a ekle
         const template = await db.workflowTemplate.findUnique({
             where: { id: templateId },
             select: { launchFormLayout: true }
@@ -58,13 +80,17 @@ export async function addFieldToLaunchForm({
             layout = template?.launchFormLayout || { fieldOrder: [] };
         }
         if (!Array.isArray(layout.fieldOrder)) layout.fieldOrder = [];
-        if (!layout.fieldOrder.includes(fieldId)) {
-            layout.fieldOrder.push(fieldId);
+        
+        // FormField'in ID'sini layout'a ekle
+        if (!layout.fieldOrder.includes(formField.id)) {
+            layout.fieldOrder.push(formField.id);
         }
+        
         await db.workflowTemplate.update({
             where: { id: templateId },
             data: { launchFormLayout: layout }
         });
+
         revalidatePath(`/dashboard/admin/workflows/${templateId}`);
         return { success: true };
     } catch (error) {

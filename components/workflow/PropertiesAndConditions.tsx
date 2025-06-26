@@ -103,7 +103,17 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
 
   const handleAddToForm = async (property: WorkflowProperty) => {
     try {
-      const result = await addFieldToLaunchForm({ templateId, fieldId: property.id });
+      const result = await addFieldToLaunchForm({ 
+        templateId, 
+        property: {
+          id: property.id,
+          name: property.name,
+          type: property.type,
+          required: property.required,
+          description: property.description,
+          options: property.options
+        }
+      });
       console.log('Alan ekleme sonucu:', result);
       if (result && result.success && refreshForm) {
         refreshForm();
