@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { PropertiesAndConditions } from "@/components/workflow/PropertiesAndConditions";
 import { DEFAULT_WORKFLOW_SCHEMA } from "@/lib/workflow-defaults";
 import { WorkflowSchema } from "@/types/workflow";
+import { LaunchFormDesigner } from '@/components/workflow/LaunchFormDesigner';
 
 export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: WorkflowTemplate }) => {
     const [selectedPaperSource, setSelectedPaperSource] = useState<'company' | 'counterparty' | null>(null);
@@ -19,6 +20,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     const [currentTemplate, setCurrentTemplate] = useState(initialTemplate);
     const [workflowSchema, setWorkflowSchema] = useState<WorkflowSchema>(DEFAULT_WORKFLOW_SCHEMA);
     const router = useRouter();
+    const [activeStep, setActiveStep] = useState("Document");
 
     useEffect(() => {
         if(currentTemplate.templateFileUrl) {
@@ -118,10 +120,15 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
 
             {/* Stepper */}
             <nav className="flex items-center justify-center border-b bg-white shadow-sm">
-                {workflowSteps.map((step, index) => (
-                <a href="#" key={step} className={`flex items-center py-4 px-6 text-sm font-medium border-b-2 ${step === "Document" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
-                    {step}
-                </a>
+                {workflowSteps.map((step) => (
+                    <button
+                        key={step}
+                        className={`flex items-center py-4 px-6 text-sm font-medium border-b-2 focus:outline-none transition-colors ${activeStep === step ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                        onClick={() => setActiveStep(step)}
+                        type="button"
+                    >
+                        {step}
+                    </button>
                 ))}
             </nav>
 
@@ -136,55 +143,60 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
 
                 {/* Right Panel */}
                 <section className="flex-1 flex flex-col items-center bg-gray-50 p-8 overflow-y-auto">
-                    {currentTemplate.templateFileUrl ? (
-                        <div className="w-full h-full flex flex-col">
-                            <h2 className="text-xl font-bold mb-4 text-center flex-shrink-0">{currentTemplate.documentName}</h2>
-                            <div className="flex-grow min-h-0">
-                                <DocxPreviewer url={currentTemplate.templateFileUrl} />
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="w-full max-w-2xl">
-                             <h2 className="text-2xl font-bold mb-2 text-center">Select paper source</h2>
-                            <p className="text-gray-600 mb-8 text-center">
-                                At least one must be selected
-                            </p>
-                            <div className="space-y-4">
-                                <div 
-                                    className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${selectedPaperSource === 'company' ? 'border-blue-600 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400'}`}
-                                    onClick={() => setSelectedPaperSource('company')}
-                                >
-                                    <h3 className="font-semibold text-lg">My company's paper</h3>
-                                    {selectedPaperSource === 'company' && (
-                                        <TemplateUploader 
-                                            templateId={currentTemplate.id} 
-                                            onUploadComplete={() => {
-                                                // Upload sonrası state'i güncelle
-                                                const pendingUpload = localStorage.getItem('pendingUpload');
-                                                if (pendingUpload && currentTemplate.id === 'new') {
-                                                    const uploadData = JSON.parse(pendingUpload);
-                                                    setCurrentTemplate(prev => ({
-                                                        ...prev,
-                                                        templateFileUrl: uploadData.fileUrl,
-                                                        documentName: uploadData.fileName
-                                                    }));
-                                                }
-                                            }}
-                                        />
-                                    )}
-                                </div>
-                                <div
-                                    className={`p-6 border-2 rounded-lg cursor-pointer flex justify-between items-center transition-all ${selectedPaperSource === 'counterparty' ? 'border-blue-600 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400'}`}
-                                    onClick={() => setSelectedPaperSource('counterparty')}
-                                >
-                                    <h3 className="font-semibold text-lg">The counterparty's paper</h3>
-                                    <ClipboardCopy className="w-6 h-6 text-gray-500" />
+                    {activeStep === "Document" && (
+                        currentTemplate.templateFileUrl ? (
+                            <div className="w-full h-full flex flex-col">
+                                <h2 className="text-xl font-bold mb-4 text-center flex-shrink-0">{currentTemplate.documentName}</h2>
+                                <div className="flex-grow min-h-0">
+                                    <DocxPreviewer url={currentTemplate.templateFileUrl} />
                                 </div>
                             </div>
-                             <div className="mt-8 flex justify-end">
-                                <Button size="lg" disabled={!selectedPaperSource || isPending}>Save paper source</Button>
+                        ) : (
+                            <div className="w-full max-w-2xl">
+                                 <h2 className="text-2xl font-bold mb-2 text-center">Select paper source</h2>
+                                <p className="text-gray-600 mb-8 text-center">
+                                    At least one must be selected
+                                </p>
+                                <div className="space-y-4">
+                                    <div 
+                                        className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${selectedPaperSource === 'company' ? 'border-blue-600 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+                                        onClick={() => setSelectedPaperSource('company')}
+                                    >
+                                        <h3 className="font-semibold text-lg">My company's paper</h3>
+                                        {selectedPaperSource === 'company' && (
+                                            <TemplateUploader 
+                                                templateId={currentTemplate.id} 
+                                                onUploadComplete={() => {
+                                                    // Upload sonrası state'i güncelle
+                                                    const pendingUpload = localStorage.getItem('pendingUpload');
+                                                    if (pendingUpload && currentTemplate.id === 'new') {
+                                                        const uploadData = JSON.parse(pendingUpload);
+                                                        setCurrentTemplate(prev => ({
+                                                            ...prev,
+                                                            templateFileUrl: uploadData.fileUrl,
+                                                            documentName: uploadData.fileName
+                                                        }));
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                    <div
+                                        className={`p-6 border-2 rounded-lg cursor-pointer flex justify-between items-center transition-all ${selectedPaperSource === 'counterparty' ? 'border-blue-600 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+                                        onClick={() => setSelectedPaperSource('counterparty')}
+                                    >
+                                        <h3 className="font-semibold text-lg">The counterparty's paper</h3>
+                                        <ClipboardCopy className="w-6 h-6 text-gray-500" />
+                                    </div>
+                                </div>
+                                 <div className="mt-8 flex justify-end">
+                                    <Button size="lg" disabled={!selectedPaperSource || isPending}>Save paper source</Button>
+                                </div>
                             </div>
-                        </div>
+                        )
+                    )}
+                    {activeStep === "Create" && (
+                        <LaunchFormDesigner />
                     )}
                 </section>
             </main>

@@ -696,7 +696,9 @@ model WorkflowTemplate {
   documentUrl     String?
   templateFileUrl String?
 
-  formFields FormField[] @relation(orderBy: { order: "asc" })
+  formFields FormField[]
+
+  launchFormLayout  Json?  // Formdaki alanların ID'lerini ve sıralarını tutan bir JSON objesi
 
   @@index([name])
   @@index([createdAt])
@@ -753,5 +755,5 @@ model FormField {
   template    WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   // Bu alanın gösterilmesi için gereken koşullar
-  displayConditions Condition[]
+  displayConditions Condition[] @relation("DisplayConditions")
 }

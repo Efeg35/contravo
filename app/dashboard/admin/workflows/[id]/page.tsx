@@ -10,7 +10,7 @@ interface WorkflowEditorPageProps {
 export default async function WorkflowEditorPage({ params }: WorkflowEditorPageProps) {
     const { id } = await params;
     if (id === 'new') {
-        const newTemplate: WorkflowTemplate = {
+        const newTemplate = {
             id: 'new',
             name: 'Yeni İş Akışı',
             description: '',
@@ -22,7 +22,8 @@ export default async function WorkflowEditorPage({ params }: WorkflowEditorPageP
             status: 'DRAFT',
             createdAt: new Date(),
             updatedAt: new Date(),
-        };
+            launchFormLayout: null,
+        } as any;
         return <WorkflowEditorClient initialTemplate={newTemplate} />;
     }
 
