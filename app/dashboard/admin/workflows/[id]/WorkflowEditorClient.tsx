@@ -7,18 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { TemplateUploader } from "@/components/upload/TemplateUploader";
 import DocxPreviewer from "./DocxPreviewer";
 import type { WorkflowTemplate } from "@prisma/client";
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion";
+import { useRouter } from "next/navigation";
+import { PropertiesAndConditions } from "@/components/workflow/PropertiesAndConditions";
+import { DEFAULT_WORKFLOW_SCHEMA } from "@/lib/workflow-defaults";
+import { WorkflowSchema } from "@/types/workflow";
 
 export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: WorkflowTemplate }) => {
     const [selectedPaperSource, setSelectedPaperSource] = useState<'company' | 'counterparty' | null>(null);
     const workflowSteps = ["Document", "Create", "Review", "Sign", "Archive"];
     const [isPending, startTransition] = useTransition();
     const [currentTemplate, setCurrentTemplate] = useState(initialTemplate);
+    const [workflowSchema, setWorkflowSchema] = useState<WorkflowSchema>(DEFAULT_WORKFLOW_SCHEMA);
+    const router = useRouter();
 
     useEffect(() => {
         if(currentTemplate.templateFileUrl) {
@@ -91,13 +91,17 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
             }
         });
     };
+
+    const handleGoBack = () => {
+        router.push('/dashboard/admin/workflows');
+    };
     
     return (
         <div className="flex flex-col h-screen bg-gray-50">
             {/* Header */}
             <header className="flex items-center justify-between px-6 py-3 border-b bg-white">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" className="rounded-full">
+                    <Button variant="ghost" size="icon" className="rounded-full" onClick={handleGoBack}>
                         <ChevronLeft className="w-5 h-5" />
                     </Button>
                     <h1 className="text-xl font-semibold">{initialTemplate.name || 'Untitled workflow configuration'}</h1>
@@ -124,52 +128,11 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
             {/* Main Content */}
             <main className="flex-1 flex overflow-hidden">
                 {/* Left Attributes Panel */}
-                <aside className="w-[380px] flex-shrink-0 bg-white border-r p-6 overflow-y-auto">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-lg font-semibold">Properties and Conditions</h2>
-                        {/* Placeholder for future tabs like "Clauses" */}
-                    </div>
-
-                    <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
-                        <h3 className="font-semibold text-gray-800">LIFECYCLE PRESET (17)</h3>
-                        <p className="text-sm text-gray-500 mt-2">Monitor and edit any contract's renewals and expirations with an applied set of properties, conditions, and date questions.</p>
-                        <a href="#" className="text-sm text-blue-600 mt-2 block">10 questions added. Edit launch form</a>
-                        <div className="flex gap-2 mt-4">
-                            <Button variant="outline" size="sm" className="bg-white">Help center</Button>
-                            <Button variant="outline" size="sm" className="bg-white">Remove Lifecycle Preset</Button>
-                        </div>
-                    </div>
-
-                    <Accordion type="multiple" className="w-full mt-4" defaultValue={['item-2', 'item-3', 'item-4', 'item-5']}>
-                        <AccordionItem value="item-1">
-                            <AccordionTrigger>PROPERTIES (1)</AccordionTrigger>
-                            <AccordionContent><div className="px-4 py-2 hover:bg-gray-100 rounded-md">Counterparty Name</div></AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="item-2">
-                            <AccordionTrigger>COUNTERPARTY SIGNER (2)</AccordionTrigger>
-                            <AccordionContent>
-                                <div className="px-4 py-2 hover:bg-gray-100 rounded-md">Counterparty Signer Email</div>
-                                <div className="px-4 py-2 mt-1 hover:bg-gray-100 rounded-md">Counterparty Signer Name</div>
-                            </AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="item-3">
-                            <AccordionTrigger>PROPERTIES (11)</AccordionTrigger>
-                            <AccordionContent>
-                                <div className="px-4 py-2 hover:bg-gray-100 rounded-md">Contract Owner</div>
-                                <div className="px-4 py-2 mt-1 hover:bg-gray-100 rounded-md">Effective Date</div>
-                                <div className="px-4 py-2 mt-1 hover:bg-gray-100 rounded-md">Initial Term Length</div>
-                                {/* Add other properties as needed */}
-                            </AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="item-4">
-                            <AccordionTrigger>CONDITIONS (6)</AccordionTrigger>
-                            <AccordionContent>
-                                <div className="px-4 py-2 hover:bg-gray-100 rounded-md">Renewal Type is Auto-Renew</div>
-                                {/* Add other conditions as needed */}
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                </aside>
+                <PropertiesAndConditions 
+                    schema={workflowSchema}
+                    onSchemaChange={setWorkflowSchema}
+                    isEditable={true}
+                />
 
                 {/* Right Panel */}
                 <section className="flex-1 flex flex-col items-center bg-gray-50 p-8 overflow-y-auto">
