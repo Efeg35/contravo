@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { sendNotificationEmail } from '@/lib/mail';
 import { ContractStatusEnum } from '@/app/types';
+import { evaluateConditions } from '@/lib/conditions';
 
 const createApprovalSchema = z.object({
   approverIds: z.array(z.string()).optional(),
@@ -96,15 +97,36 @@ export async function POST(
 
     // 2. Şablondan gelen onaycıları ekle
     if (validatedData.workflowTemplateId) {
+      // Adım koşullarını da include et
       const workflowTemplate = await prisma.workflowTemplate.findUnique({
         where: { id: validatedData.workflowTemplateId },
-        include: { steps: { include: { team: { include: { members: true } } } } },
+        include: {
+          steps: {
+            include: {
+              team: { include: { members: true } },
+              conditions: true
+            }
+          }
+        },
       });
 
-      if (workflowTemplate) {
+      // Sözleşme verisini çek
+      const contract = await prisma.contract.findUnique({ where: { id } });
+
+      if (workflowTemplate && contract) {
         for (const step of workflowTemplate.steps) {
-          if (step.teamId && step.team) {
-            step.team.members.forEach(member => finalApproverIds.add(member.userId));
+          // Eğer adımın koşulu yoksa veya tüm koşulları sağlanıyorsa ekle
+          let shouldInclude = true;
+          const conditions = (step.conditions || []).map((c: any) => ({
+            field: c.field,
+            operator: c.operator as import('@/lib/conditions').Operator,
+            value: c.value
+          }));
+          if (conditions.length > 0) {
+            shouldInclude = await evaluateConditions(conditions, contract);
+          }
+          if (shouldInclude && step.teamId && step.team) {
+            step.team.members.forEach((member: any) => finalApproverIds.add(member.userId));
           }
         }
       }

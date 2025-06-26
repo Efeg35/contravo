@@ -705,9 +705,21 @@ model WorkflowTemplateStep {
   team         Team?   @relation(fields: [teamId], references: [id])
   approverRole String? // ADMIN, EDITOR, VIEWER gibi roller
 
+  // Yeni ilişki:
+  conditions Condition[]
+
   @@unique([templateId, order])
   @@index([templateId])
   @@index([order])
   @@index([teamId])
   @@index([approverRole])
+}
+
+model Condition {
+  id        String @id @default(cuid())
+  field     String
+  operator  String
+  value     String
+  step      WorkflowTemplateStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  stepId    String
 }
