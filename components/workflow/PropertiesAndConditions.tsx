@@ -13,7 +13,6 @@ import { PROPERTY_ICONS, PROPERTY_COLORS } from '@/types/workflow';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { PropertyEditorModal } from './PropertyEditorModal';
 import { ConditionEditorModal } from './ConditionEditorModal';
-import { addFieldToLaunchForm } from '../../src/lib/actions/workflow-template-actions';
 
 interface PropertiesAndConditionsProps {
   schema: WorkflowSchema;
@@ -103,23 +102,35 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
 
   const handleAddToForm = async (property: WorkflowProperty) => {
     try {
-      const result = await addFieldToLaunchForm({ 
-        templateId, 
-        property: {
-          id: property.id,
-          name: property.name,
-          type: property.type,
-          required: property.required,
-          description: property.description,
-          options: property.options
-        }
+      const response = await fetch(`/api/workflow-templates/${templateId}/form-fields`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'addFromProperty',
+          property: {
+            id: property.id,
+            name: property.name,
+            type: property.type,
+            required: property.required,
+            description: property.description,
+            options: property.options
+          }
+        })
       });
+      
+      const result = await response.json();
       console.log('Alan ekleme sonucu:', result);
-      if (result && result.success && refreshForm) {
-        refreshForm();
+      
+      if (result && result.success) {
+        if (refreshForm) {
+          refreshForm();
+        }
+      } else {
+        alert(result.message || 'Alan eklenirken bir hata oluştu.');
       }
     } catch (e) {
       console.error('Alan eklenirken hata:', e);
+      alert('Sunucuya ulaşılamadı veya beklenmeyen bir hata oluştu.');
     }
   };
 

@@ -36,6 +36,25 @@ export async function saveTemplateFileUrl({
     }
 }
 
+// FormField type mapping function - Prisma enum değerlerine dönüştürür
+function mapToFormFieldType(type: string): string {
+    const typeMap: { [key: string]: string } = {
+        'TEXT': 'TEXT',
+        'EMAIL': 'TEXT',
+        'TEXTAREA': 'TEXTAREA', 
+        'NUMBER': 'NUMBER',
+        'DATE': 'DATE',
+        'SELECT': 'SINGLE_SELECT',
+        'SINGLE_SELECT': 'SINGLE_SELECT',
+        'MULTI_SELECT': 'MULTI_SELECT',
+        'USER': 'SINGLE_SELECT', // User picker -> select olarak
+        'TABLE': 'TABLE'
+    };
+    
+    const upperType = type.toUpperCase();
+    return typeMap[upperType] || 'TEXT'; // Bilinmeyen tipler için TEXT varsayılan
+}
+
 export async function addFieldToLaunchForm({
     templateId,
     property
@@ -61,7 +80,7 @@ export async function addFieldToLaunchForm({
                 templateId,
                 label: property.name,
                 apiKey: property.name.toLowerCase().replace(/\s+/g, '_'),
-                type: property.type.toUpperCase() as any,
+                type: mapToFormFieldType(property.type) as any,
                 isRequired: property.required,
                 options: property.options && property.options.length > 0 ? property.options : undefined,
                 order: count + 1
@@ -161,7 +180,7 @@ export async function addFormFieldToTemplate({
                 templateId,
                 label: name,
                 apiKey: name.toLowerCase().replace(/\s+/g, '_'),
-                type: type as any,
+                type: mapToFormFieldType(type) as any,
                 isRequired: required,
                 options: options && options.length > 0 ? options : undefined,
                 order: count + 1
