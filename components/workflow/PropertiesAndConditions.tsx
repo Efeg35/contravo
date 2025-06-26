@@ -13,23 +13,29 @@ import { PROPERTY_ICONS, PROPERTY_COLORS } from '@/types/workflow';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { PropertyEditorModal } from './PropertyEditorModal';
 import { ConditionEditorModal } from './ConditionEditorModal';
+import { addFieldToLaunchForm } from '../../src/lib/actions/workflow-template-actions';
 
 interface PropertiesAndConditionsProps {
   schema: WorkflowSchema;
   onSchemaChange: (schema: WorkflowSchema) => void;
   isEditable?: boolean;
+  templateId: string;
+  refreshForm?: () => void;
 }
 
 export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = ({
   schema,
   onSchemaChange,
-  isEditable = true
+  isEditable = true,
+  templateId,
+  refreshForm
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<{ property: WorkflowProperty | null, groupId: string | null }>({ property: null, groupId: null });
-
   const [isConditionModalOpen, setIsConditionModalOpen] = useState(false);
   const [editingCondition, setEditingCondition] = useState<WorkflowCondition | null>(null);
+
+  if (!schema) return null;
 
   const handlePropertyClick = (property: WorkflowProperty, groupId: string) => {
     setEditingProperty({ property, groupId });
@@ -95,6 +101,18 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
     }
   };
 
+  const handleAddToForm = async (property: WorkflowProperty) => {
+    try {
+      const result = await addFieldToLaunchForm({ templateId, fieldId: property.id });
+      console.log('Alan ekleme sonucu:', result);
+      if (result && result.success && refreshForm) {
+        refreshForm();
+      }
+    } catch (e) {
+      console.error('Alan eklenirken hata:', e);
+    }
+  };
+
   const getPropertyIcon = (type: string) => {
     return PROPERTY_ICONS[type as keyof typeof PROPERTY_ICONS] || 'T';
   };
@@ -121,13 +139,18 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
         )}
       </div>
       {isEditable && (
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); handlePropertyClick(property, groupId); }}>
-            <Edit className="h-3 w-3" />
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); handleAddToForm(property); }}>
+            <Plus className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500">
-            <Trash2 className="h-3 w-3" />
-          </Button>
+          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); handlePropertyClick(property, groupId); }}>
+              <Edit className="h-3 w-3" />
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500">
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
       )}
     </div>

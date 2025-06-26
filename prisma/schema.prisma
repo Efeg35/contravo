@@ -270,6 +270,7 @@ model Contract {
   updatedById       String?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
+  metadata          Json?
   clauses           ClausesOnContracts[]
   clauseUsages      ClauseUsage[]
   assignedTo        User?                @relation("AssignedContracts", fields: [assignedToId], references: [id])

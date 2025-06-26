@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import LaunchFormRenderer from '@/components/workflow/LaunchFormRenderer';
 
 export default function NewContractPage() {
   const { status } = useSession();
@@ -42,6 +43,9 @@ export default function NewContractPage() {
   const [selectedApprovers, setSelectedApprovers] = useState<string[]>([]);
   const [workflowTemplates, setWorkflowTemplates] = useState<any[]>([]);
   const [selectedWorkflowTemplate, setSelectedWorkflowTemplate] = useState<string>('');
+  const [dynamicFormFields, setDynamicFormFields] = useState<any[]>([]);
+  const [dynamicFormLayout, setDynamicFormLayout] = useState<any>(null);
+  const [launchFormData, setLaunchFormData] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -124,6 +128,31 @@ export default function NewContractPage() {
       });
   }, []);
 
+  useEffect(() => {
+    if (!selectedWorkflowTemplate) {
+      setDynamicFormFields([]);
+      setDynamicFormLayout(null);
+      return;
+    }
+    const fetchWorkflowTemplate = async () => {
+      try {
+        const res = await fetch(`/api/workflow-templates/${selectedWorkflowTemplate}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDynamicFormFields(data.formFields || []);
+          setDynamicFormLayout(data.launchFormLayout || null);
+        } else {
+          setDynamicFormFields([]);
+          setDynamicFormLayout(null);
+        }
+      } catch (e) {
+        setDynamicFormFields([]);
+        setDynamicFormLayout(null);
+      }
+    };
+    fetchWorkflowTemplate();
+  }, [selectedWorkflowTemplate]);
+
   const getTypeFromCategory = (category: string) => {
     const categoryMap: Record<string, string> = {
       'EMPLOYMENT': 'employment',
@@ -171,7 +200,8 @@ export default function NewContractPage() {
         body: JSON.stringify({ 
           ...formData, 
           approverIds: selectedApprovers,
-          workflowTemplateId: selectedWorkflowTemplate || null
+          workflowTemplateId: selectedWorkflowTemplate || null,
+          metadata: launchFormData,
         }),
       });
       if (response.ok) {
@@ -520,6 +550,12 @@ export default function NewContractPage() {
                     </div>
                   )}
                 </div>
+
+                {selectedWorkflowTemplate && (
+                  <div className="mt-6">
+                    <LaunchFormRenderer formFields={dynamicFormFields} layout={dynamicFormLayout} formData={launchFormData} setFormData={setLaunchFormData} />
+                  </div>
+                )}
 
                 {/* Onaylayıcılar */}
                 <div>

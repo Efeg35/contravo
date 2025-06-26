@@ -21,13 +21,39 @@ export const TemplateUploader = ({ templateId, onUploadComplete }: TemplateUploa
       console.log("Uploaded file details:", uploadedFile);
       
       if (templateId === "new") {
-        // Geçici olarak localStorage'a kaydet
-        localStorage.setItem('pendingUpload', JSON.stringify({
-          fileUrl: uploadedFile.url,
-          fileName: uploadedFile.name
-        }));
-        toast.success("Dosya başarıyla yüklendi! Save butonuna basarak kaydedin.");
-        onUploadComplete?.();
+        // Otomatik olarak yeni template oluştur ve dosya bilgisini ekle
+        startTransition(async () => {
+          // 1. Yeni template oluştur
+          const response = await fetch('/api/workflow-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: `Untitled workflow configuration ${Date.now()}`,
+              description: 'A new workflow template.'
+            })
+          });
+          if (response.ok) {
+            const newTemplate = await response.json();
+            // 2. Dosya bilgisini template'e ekle
+            const docRes = await fetch(`/api/workflow-templates/${newTemplate.id}/document`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                documentUrl: uploadedFile.url,
+                documentName: uploadedFile.name
+              })
+            });
+            if (docRes.ok) {
+              toast.success("Dosya ve şablon başarıyla kaydedildi! Yönlendiriliyorsunuz...");
+              // 3. Yeni template'in düzenleme ekranına yönlendir
+              window.location.href = `/dashboard/admin/workflows/${newTemplate.id}`;
+            } else {
+              toast.error("Dosya şablona eklenirken hata oluştu.");
+            }
+          } else {
+            toast.error("Yeni şablon oluşturulamadı.");
+          }
+        });
       } else {
         // Normal template için direkt kaydet
         startTransition(async () => {

@@ -31,49 +31,8 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     const handleSave = async () => {
         startTransition(async () => {
             try {
-                if (currentTemplate.id === 'new') {
-                    // Yeni template oluştur
-                    const response = await fetch('/api/workflow-templates', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            name: currentTemplate.name,
-                            description: currentTemplate.description
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        const savedTemplate = await response.json();
-                        setCurrentTemplate(savedTemplate);
-                        
-                        // Pending upload varsa uygula
-                        const pendingUpload = localStorage.getItem('pendingUpload');
-                        if (pendingUpload) {
-                            const uploadData = JSON.parse(pendingUpload);
-                            
-                            // Upload'ı template'e bağla
-                            const uploadResponse = await fetch(`/api/workflow-templates/${savedTemplate.id}/document`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    documentUrl: uploadData.fileUrl,
-                                    documentName: uploadData.fileName
-                                })
-                            });
-                            
-                            if (uploadResponse.ok) {
-                                localStorage.removeItem('pendingUpload');
-                                alert('Workflow ve dosya başarıyla kaydedildi!');
-                            }
-                        } else {
-                            alert('Workflow başarıyla kaydedildi!');
-                        }
-                        
-                        // URL'yi güncelle
-                        window.history.replaceState({}, '', `/dashboard/admin/workflows/${savedTemplate.id}`);
-                    }
-                } else {
-                    // Mevcut template'i güncelle
+                // Sadece mevcut template güncellemesi
+                if (currentTemplate.id !== 'new') {
                     const response = await fetch(`/api/workflow-templates/${currentTemplate.id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -82,7 +41,6 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                             description: currentTemplate.description
                         })
                     });
-                    
                     if (response.ok) {
                         alert('Workflow başarıyla güncellendi!');
                     }
@@ -139,6 +97,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                     schema={workflowSchema}
                     onSchemaChange={setWorkflowSchema}
                     isEditable={true}
+                    templateId={currentTemplate.id}
                 />
 
                 {/* Right Panel */}
@@ -196,7 +155,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                         )
                     )}
                     {activeStep === "Create" && (
-                        <LaunchFormDesigner />
+                        <LaunchFormDesigner templateId={currentTemplate.id} />
                     )}
                 </section>
             </main>

@@ -17,6 +17,9 @@ export async function GET(
 
     const template = await db.workflowTemplate.findUnique({
       where: { id: id },
+      include: {
+        formFields: true,
+      },
     });
 
     if (!template) {

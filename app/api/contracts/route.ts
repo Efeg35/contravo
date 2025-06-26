@@ -33,6 +33,7 @@ const createContractSchema = z.object({
   templateId: z.string().optional(),
   workflowTemplateId: z.string().optional().or(z.null()),
   status: z.enum(['DRAFT', 'REVIEW', 'SIGNING', 'ACTIVE', 'ARCHIVED', 'REJECTED']).optional(),
+  metadata: z.any().optional(),
 })
 
 type ContractStatus = 'DRAFT' | 'REVIEW' | 'SIGNING' | 'ACTIVE' | 'ARCHIVED' | 'REJECTED'
@@ -447,6 +448,7 @@ export async function POST(request: NextRequest) {
         // workflowTemplateId: validatedData.workflowTemplateId, // Temporarily disabled
         createdById: user.id,
         status: validatedData.status || 'DRAFT',
+        metadata: validatedData.metadata,
       },
       include: {
         company: {
