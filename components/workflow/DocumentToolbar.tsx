@@ -7,9 +7,11 @@ import {
   ListOrdered,
   Heading2,
   Underline,
-  Quote,
   Undo,
   Redo,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
   Code,
 } from 'lucide-react'
 import { Toggle } from '@/components/ui/toggle'
@@ -19,81 +21,94 @@ type Props = {
 }
 
 export function DocumentToolbar({ editor }: Props) {
-  if (!editor) {
-    return null
-  }
+  if (!editor) return null;
 
   return (
-    <div className="border border-input bg-transparent rounded-md p-1 flex flex-wrap items-center gap-1">
-      <Toggle
-        size="sm"
-        pressed={editor.isActive('heading', { level: 2 })}
-        onPressedChange={() =>
-          editor.chain().focus().toggleHeading({ level: 2 }).run()
-        }
-      >
-        <Heading2 className="h-4 w-4" />
-      </Toggle>
+    <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center space-x-2 overflow-x-auto">
       <Toggle
         size="sm"
         pressed={editor.isActive('bold')}
         onPressedChange={() => editor.chain().focus().toggleBold().run()}
       >
-        <Bold className="h-4 w-4" />
+        <Bold className="w-5 h-5 text-gray-700" />
       </Toggle>
       <Toggle
         size="sm"
         pressed={editor.isActive('italic')}
         onPressedChange={() => editor.chain().focus().toggleItalic().run()}
       >
-        <Italic className="h-4 w-4" />
+        <Italic className="w-5 h-5 text-gray-700" />
       </Toggle>
-       <Toggle
+      <Toggle
         size="sm"
         pressed={editor.isActive('underline')}
         onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
       >
-        <Underline className="h-4 w-4" />
+        <Underline className="w-5 h-5 text-gray-700" />
       </Toggle>
       <Toggle
         size="sm"
         pressed={editor.isActive('strike')}
         onPressedChange={() => editor.chain().focus().toggleStrike().run()}
       >
-        <Strikethrough className="h-4 w-4" />
+        <Strikethrough className="w-5 h-5 text-gray-700" />
+      </Toggle>
+      <span className="border-l border-gray-300 h-5 mx-1" />
+      <Toggle
+        size="sm"
+        pressed={editor.isActive('orderedList')}
+        onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
+      >
+        <ListOrdered className="w-5 h-5 text-gray-700" />
       </Toggle>
       <Toggle
         size="sm"
         pressed={editor.isActive('bulletList')}
         onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
       >
-        <List className="h-4 w-4" />
+        <List className="w-5 h-5 text-gray-700" />
+      </Toggle>
+      <span className="border-l border-gray-300 h-5 mx-1" />
+      <Toggle
+        size="sm"
+        pressed={editor.isActive('heading', { level: 2 })}
+        onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+      >
+        <Heading2 className="w-5 h-5 text-gray-700" />
+      </Toggle>
+      <span className="border-l border-gray-300 h-5 mx-1" />
+      <Toggle
+        size="sm"
+        pressed={editor.isActive({ textAlign: 'left' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
+      >
+        <AlignLeft className="w-5 h-5 text-gray-700" />
       </Toggle>
       <Toggle
         size="sm"
-        pressed={editor.isActive('orderedList')}
-        onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
+        pressed={editor.isActive({ textAlign: 'center' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
       >
-        <ListOrdered className="h-4 w-4" />
+        <AlignCenter className="w-5 h-5 text-gray-700" />
       </Toggle>
-       <Toggle
+      <Toggle
         size="sm"
-        pressed={editor.isActive('blockquote')}
-        onPressedChange={() => editor.chain().focus().toggleBlockquote().run()}
+        pressed={editor.isActive({ textAlign: 'right' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
       >
-        <Quote className="h-4 w-4" />
+        <AlignRight className="w-5 h-5 text-gray-700" />
       </Toggle>
       <Toggle
         size="sm"
         onPressedChange={() => editor.chain().focus().undo().run()}
       >
-        <Undo className="h-4 w-4" />
+        <Undo className="w-5 h-5 text-gray-700" />
       </Toggle>
       <Toggle
         size="sm"
         onPressedChange={() => editor.chain().focus().redo().run()}
       >
-        <Redo className="h-4 w-4" />
+        <Redo className="w-5 h-5 text-gray-700" />
       </Toggle>
     </div>
   )
