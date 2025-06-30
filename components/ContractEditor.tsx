@@ -229,7 +229,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
   };
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`space-y-4 bg-slate-100 min-h-screen py-8 ${className}`.trim()}>
       {/* Editor Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -278,7 +278,7 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Main Editor */}
         <div className={showClauseLibrary ? 'lg:col-span-2' : 'lg:col-span-3'}>
-          <Card>
+          <Card className="max-w-[816px] w-full mx-auto bg-white shadow-xl my-12">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 Sözleşme İçeriği
@@ -295,13 +295,13 @@ const ContractEditor: React.FC<ContractEditorProps> = ({
                 }
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-24">
               <Textarea
                 value={content}
                 onChange={isEditable ? (e) => setContent(e.target.value) : undefined}
                 placeholder={isEditable ? "Sözleşme içeriğinizi buraya yazın..." : "Bu sözleşme imzalanmış olduğu için düzenlenemez"}
                 rows={20}
-                className={`min-h-[500px] font-mono text-sm ${!isEditable ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
+                className={`min-h-[500px] w-full font-serif leading-relaxed text-base resize-none outline-none ${!isEditable ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
                 readOnly={!isEditable}
                 disabled={!isEditable}
               />

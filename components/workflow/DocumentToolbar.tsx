@@ -24,7 +24,7 @@ export function DocumentToolbar({ editor }: Props) {
   if (!editor) return null;
 
   return (
-    <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center space-x-2 overflow-x-auto">
+    <div className="flex items-center space-x-1 overflow-x-auto">
       <Toggle
         size="sm"
         pressed={editor.isActive('bold')}

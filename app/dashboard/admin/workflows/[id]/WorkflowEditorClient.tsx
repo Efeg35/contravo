@@ -69,7 +69,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
         editorProps: {
             attributes: {
                 class:
-                    "prose max-w-none min-h-[400px] focus:outline-none",
+                    "prose font-serif leading-relaxed max-w-none min-h-[400px] focus:outline-none",
             },
         },
     });
@@ -334,35 +334,35 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                                 </div>
 
                                 {/* Araç Çubuğu ve Editör Alanı */}
-                                <div className="bg-white rounded-lg shadow-md border border-gray-200">
-                                    <div className="p-2 border-b border-gray-200 flex items-center justify-between flex-wrap gap-2">
-                                        <div className="flex items-center space-x-1">
-                                            <Button
-                                                variant={editorMode === 'tag' ? 'secondary' : 'ghost'}
-                                                size="sm"
+                                <div>
+                                    {/* Birleşik Toolbar */}
+                                    <div className="bg-white border border-gray-200 shadow-sm rounded-md flex items-center justify-between px-3 py-2 mb-4">
+                                        {/* Segmented Tag/Edit */}
+                                        <div className="inline-flex rounded-md overflow-hidden border border-gray-300">
+                                            <button
+                                                type="button"
                                                 onClick={() => setEditorMode('tag')}
-                                                className="px-3 py-1 text-sm h-8"
+                                                className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors ${editorMode === 'tag' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
                                             >
                                                 Tag
-                                            </Button>
-                                            <Button
-                                                variant={editorMode === 'edit' ? 'secondary' : 'ghost'}
-                                                size="sm"
+                                            </button>
+                                            <button
+                                                type="button"
                                                 onClick={() => setEditorMode('edit')}
-                                                className="px-3 py-1 text-sm h-8"
+                                                className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors border-l border-gray-300 ${editorMode === 'edit' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
                                             >
                                                 Edit
-                                            </Button>
+                                            </button>
                                         </div>
+
                                         <DocumentToolbar editor={editor} />
                                     </div>
-                                    <div className="p-4">
-                                        <DocumentEditor
-                                            editor={editor}
-                                            properties={propertyList}
-                                            templateId={currentTemplate.id}
-                                        />
-                                    </div>
+
+                                    <DocumentEditor
+                                        editor={editor}
+                                        properties={propertyList}
+                                        templateId={currentTemplate.id}
+                                    />
                                 </div>
                             </div>
                         ) : (

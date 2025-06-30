@@ -265,7 +265,8 @@ export default function DocumentEditor({
   }
 
   return (
-    <div className="w-full">
+    // Çalışma masası: açık gri zemin ve dikey boşluk
+    <div className="bg-gray-100 min-h-screen py-8">
       {editor && (
          <BubbleMenu editor={editor} tippyOptions={{ duration: 100, zIndex: 20 }}
            shouldShow={({ editor, from, to }) => {
@@ -440,7 +441,10 @@ export default function DocumentEditor({
          </BubbleMenu>
       )}
 
-      <EditorContent editor={editor} />
+      {/* Kağıt: merkezde, A4 genişliğine yakın, beyaz zemin ve gölge */}
+      <div className="mx-auto w-[816px] bg-white shadow-2xl border border-gray-200 rounded-md my-8 p-24">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 } 
