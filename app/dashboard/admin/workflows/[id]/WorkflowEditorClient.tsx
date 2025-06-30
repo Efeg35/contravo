@@ -230,7 +230,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
         
         return String(value);
     };
-
+    
     return (
         <div className="flex flex-col h-screen bg-gray-50">
             {/* Header */}
@@ -345,88 +345,6 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                     {activeStep === "Create" && (
                         <div className="w-full max-w-4xl mx-auto space-y-6">
                             <LaunchFormDesigner templateId={currentTemplate.id} />
-                            
-                            {/* Form Data Test Alanı */}
-                            <div className="bg-white rounded-lg border p-6">
-                                <h3 className="text-lg font-semibold mb-4">📝 Document Generation Test</h3>
-                                <p className="text-gray-600 mb-4">
-                                    Bu alanda test form data'sı girerek document generation'ı test edebilirsiniz.
-                                </p>
-                                
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Counterparty Name
-                                            </label>
-                                            <input
-                                                type="text"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                placeholder="ABC Şirketi Ltd."
-                                                onChange={(e) => setFormDataForGeneration(prev => ({ 
-                                                    ...prev, 
-                                                    'Counterparty Name': e.target.value,
-                                                    'counterparty-name': e.target.value
-                                                }))}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Contract Owner
-                                            </label>
-                                            <input
-                                                type="text"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                placeholder="Ali Veli"
-                                                onChange={(e) => setFormDataForGeneration(prev => ({ 
-                                                    ...prev, 
-                                                    'Contract Owner': e.target.value,
-                                                    'contract-owner': e.target.value
-                                                }))}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Effective Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                onChange={(e) => setFormDataForGeneration(prev => ({ 
-                                                    ...prev, 
-                                                    'Effective Date': e.target.value,
-                                                    'effective-date': e.target.value
-                                                }))}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Expiration Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                onChange={(e) => setFormDataForGeneration(prev => ({ 
-                                                    ...prev, 
-                                                    'Expiration Date': e.target.value,
-                                                    'expiration-date': e.target.value
-                                                }))}
-                                            />
-                                        </div>
-                                    </div>
-                                    
-                                    <Button 
-                                        onClick={() => {
-                                            const generatedHtml = generateDocumentFromFormData(editorHtml, formDataForGeneration);
-                                            setPreviewHtml(generatedHtml);
-                                            setShowPreview(true);
-                                        }}
-                                        className="w-full"
-                                    >
-                                        🚀 Test Document Generation
-                                    </Button>
-                                </div>
-                            </div>
                         </div>
                     )}
                 </section>

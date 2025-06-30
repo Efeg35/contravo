@@ -39,6 +39,7 @@ const PropertyTag = Node.create<PropertyTagOptions>({
       mergeAttributes(
         {
           'data-property-tag': 'true',
+          'id': HTMLAttributes.id,
           class:
             'inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold mr-1 property-tag',
         },
@@ -82,6 +83,7 @@ const PropertyTag = Node.create<PropertyTagOptions>({
       const dom = document.createElement('span');
       dom.className = 'inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold mr-1 property-tag relative group';
       dom.setAttribute('data-property-tag', 'true');
+      dom.setAttribute('id', node.attrs.id || '');
       dom.setAttribute('contenteditable', 'false');
 
       const label = document.createElement('span');
