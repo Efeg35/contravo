@@ -14,7 +14,7 @@ import {
   AlignRight,
   Code,
 } from 'lucide-react'
-import { Toggle } from '@/components/ui/toggle'
+import { Toggle } from '../ui/toggle'
 
 type Props = {
   editor: Editor | null
@@ -24,13 +24,14 @@ export function DocumentToolbar({ editor }: Props) {
   if (!editor) return null;
 
   return (
-    <div className="flex items-center space-x-1 overflow-x-auto">
+    <div className="flex items-center space-x-1 overflow-x-auto text-gray-600 [&>*:hover]:text-blue-600">
       <Toggle
         size="sm"
         pressed={editor.isActive('bold')}
         onPressedChange={() => editor.chain().focus().toggleBold().run()}
+        className="text-gray-600 hover:text-blue-600"
       >
-        <Bold className="w-5 h-5 text-gray-700" />
+        <Bold className="w-5 h-5" />
       </Toggle>
       <Toggle
         size="sm"

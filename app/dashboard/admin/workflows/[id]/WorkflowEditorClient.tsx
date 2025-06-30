@@ -320,23 +320,22 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                 />
 
                 {/* Right Panel */}
-                <section className="flex-1 flex flex-col items-start bg-gray-100 p-8 overflow-y-auto">
+                <section className="flex-1 flex flex-col items-start bg-gray-100 overflow-y-auto">
                     {activeStep === "Document" && (
                         currentTemplate.documentHtml ? (
-                            <div className="w-full max-w-4xl mx-auto space-y-4">
-                                {/* Belge Adı ve Generate Butonu */}
-                                <div className="flex justify-between items-center">
+                            <>
+                                {/* Başlık Barı: Tam genişlik, sticky, gri fon */}
+                                <div className="bg-gray-100 w-full px-8 pt-4 pb-2 flex justify-between items-center border-b border-gray-200">
                                     <h2 className="text-lg font-semibold text-gray-800">{currentTemplate.documentName}</h2>
                                     <Button variant="outline" size="sm" onClick={handleGeneratePreview}>
                                         <RefreshCw className="w-4 h-4 mr-2" />
                                         Generate document
                                     </Button>
                                 </div>
-
-                                {/* Araç Çubuğu ve Editör Alanı */}
-                                <div>
+                                {/* İçerik Barı: Padding ve spacing */}
+                                <div className="w-full p-8 pt-2 space-y-4">
                                     {/* Birleşik Toolbar */}
-                                    <div className="bg-white border border-gray-200 shadow-sm rounded-md flex items-center justify-between px-3 py-2 mb-4">
+                                    <div className="bg-white border border-gray-200 shadow-sm rounded-md flex items-center justify-between px-3 py-2">
                                         {/* Segmented Tag/Edit */}
                                         <div className="inline-flex rounded-md overflow-hidden border border-gray-300">
                                             <button
@@ -354,17 +353,15 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                                                 Edit
                                             </button>
                                         </div>
-
                                         <DocumentToolbar editor={editor} />
                                     </div>
-
                                     <DocumentEditor
                                         editor={editor}
                                         properties={propertyList}
                                         templateId={currentTemplate.id}
                                     />
                                 </div>
-                            </div>
+                            </>
                         ) : (
                             <div className="w-full max-w-2xl">
                               <PaperSourceSelector
