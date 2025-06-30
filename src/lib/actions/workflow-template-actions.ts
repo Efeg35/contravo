@@ -40,11 +40,35 @@ export async function saveTemplateFileUrl({
 // FormField type mapping function - Prisma enum değerlerine dönüştürür
 function mapToFormFieldType(type: string): FormFieldType {
     const normalized = type.toUpperCase().trim();
-    if (!(normalized in FormFieldType)) {
-        throw new Error(`Geçersiz FormFieldType: ${type}`);
+    
+    // Property tiplerini FormFieldType'a map et
+    const typeMapping: Record<string, FormFieldType> = {
+        'TEXT': FormFieldType.TEXT,
+        'EMAIL': FormFieldType.EMAIL,
+        'DATE': FormFieldType.DATE,
+        'DURATION': FormFieldType.TEXT, // duration -> TEXT olarak map ediyoruz
+        'NUMBER': FormFieldType.NUMBER,
+        'USER': FormFieldType.USER,
+        'SELECT': FormFieldType.SELECT,
+        'BOOLEAN': FormFieldType.CHECKBOX,
+        'TEXTAREA': FormFieldType.TEXTAREA,
+        'URL': FormFieldType.URL,
+        'PHONE': FormFieldType.PHONE,
+        'FILE_UPLOAD': FormFieldType.FILE_UPLOAD,
+        'USER_PICKER': FormFieldType.USER_PICKER,
+        'DATE_RANGE': FormFieldType.DATE_RANGE,
+        'TABLE': FormFieldType.TABLE,
+        'SINGLE_SELECT': FormFieldType.SINGLE_SELECT,
+        'MULTI_SELECT': FormFieldType.MULTI_SELECT,
+        'CHECKBOX': FormFieldType.CHECKBOX
+    };
+    
+    if (!(normalized in typeMapping)) {
+        console.warn(`Bilinmeyen property tipi: ${type}, TEXT olarak varsayılan atanıyor`);
+        return FormFieldType.TEXT;
     }
-    // Prisma enum'ları çalışma zamanında string döndürür, bu normaldir.
-    return (FormFieldType as Record<string, FormFieldType>)[normalized];
+    
+    return typeMapping[normalized];
 }
 
 export async function addFieldToLaunchForm({

@@ -20,6 +20,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PropertiesAndConditionsProps {
   schema: WorkflowSchema;
@@ -36,16 +43,17 @@ const PropertySelectorModal = ({
   onSelectExisting, 
   onCreateNew, 
   existingProperties,
-  groupId 
+  propertyGroups
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSelectExisting: (property: WorkflowProperty) => void;
   onCreateNew: (groupId: string) => void;
   existingProperties: WorkflowProperty[];
-  groupId: string;
+  propertyGroups: Array<{id: string, name: string}>;
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGroupId, setSelectedGroupId] = useState('');
   
   const filteredProperties = existingProperties.filter(prop => 
     prop.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -86,7 +94,6 @@ const PropertySelectorModal = ({
                     className="flex items-center justify-between p-3 hover:bg-white cursor-pointer border-b last:border-b-0 bg-white mx-1 my-1 rounded shadow-sm"
                     onClick={() => {
                       onSelectExisting(property);
-                      onClose();
                     }}
                   >
                     <div className="flex items-center gap-2">
@@ -134,13 +141,33 @@ const PropertySelectorModal = ({
           </div>
           
           {/* Create New Property */}
-          <div className="flex-shrink-0 pt-4 border-t">
+          <div className="flex-shrink-0 pt-4 border-t space-y-3">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Hangi gruba eklensin?
+              </label>
+              <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Grup seçin..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {propertyGroups.map(group => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button 
               onClick={() => {
-                onCreateNew(groupId);
-                onClose();
+                if (selectedGroupId) {
+                  onCreateNew(selectedGroupId);
+                  onClose();
+                }
               }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={!selectedGroupId}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
             >
               <Plus className="h-4 w-4 mr-2" />
               Yeni Özellik Oluştur
@@ -166,7 +193,6 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
   
   // Ironclad-style property selector state
   const [isPropertySelectorOpen, setIsPropertySelectorOpen] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
 
   if (!schema) return null;
 
@@ -181,15 +207,16 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
   };
 
   // Ironclad-style: Show property selector modal instead of directly opening editor
-  const addNewProperty = (groupId: string) => {
-    setSelectedGroupId(groupId);
+  const addNewProperty = () => {
     setIsPropertySelectorOpen(true);
   };
 
   // Handle selecting existing property from other groups
   const handleSelectExistingProperty = async (property: WorkflowProperty) => {
     try {
-      // Add existing property to form directly
+      // Önce modalı kapat
+      setIsPropertySelectorOpen(false);
+      // Sonra property'yi forma ekle
       await handleAddToForm(property);
     } catch (error) {
       console.error('Mevcut özellik eklenirken hata:', error);
@@ -362,6 +389,16 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
     <aside className="w-[380px] flex-shrink-0 bg-white border-r p-6 overflow-y-auto">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Properties and Conditions</h2>
+        {isEditable && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={addNewProperty}
+            className="p-1 rounded-full hover:bg-gray-200"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Lifecycle Preset */}
@@ -386,22 +423,7 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
         {schema.propertyGroups.map((group) => (
           <AccordionItem key={group.id} value={group.id}>
             <AccordionTrigger>
-              <div className="flex w-full items-center justify-between">
-                <span>{group.name} ({group.properties.length})</span>
-                {isEditable && (
-                  <div
-                    role="button"
-                    aria-label={`Add property to ${group.name}`}
-                    className="p-1 rounded-full hover:bg-gray-200"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addNewProperty(group.id);
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </div>
-                )}
-              </div>
+              <span>{group.name} ({group.properties.length})</span>
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-1">
@@ -414,22 +436,7 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
         {/* Conditions */}
         <AccordionItem value="conditions">
           <AccordionTrigger>
-            <div className="flex w-full items-center justify-between">
-              <span>CONDITIONS ({schema.conditions.length})</span>
-              {isEditable && (
-                 <div
-                  role="button"
-                  aria-label="Add new condition"
-                  className="p-1 rounded-full hover:bg-gray-200"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addNewCondition();
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                </div>
-              )}
-            </div>
+            <span>CONDITIONS ({schema.conditions.length})</span>
           </AccordionTrigger>
           <AccordionContent>
             <div className="space-y-1">
@@ -460,7 +467,7 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
         onSelectExisting={handleSelectExistingProperty}
         onCreateNew={handleCreateNewProperty}
         existingProperties={getAllProperties()}
-        groupId={selectedGroupId}
+        propertyGroups={schema.propertyGroups.map(g => ({id: g.id, name: g.name}))}
       />
     </aside>
   );
