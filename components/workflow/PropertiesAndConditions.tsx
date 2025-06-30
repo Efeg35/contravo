@@ -53,14 +53,14 @@ const PropertySelectorModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Özellik Ekle</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="space-y-4 flex flex-col h-full">
           {/* Search Existing Properties */}
-          <div>
+          <div className="flex-shrink-0">
             <label className="block text-sm font-medium mb-2">
               Mevcut Özellikleri Ara
             </label>
@@ -74,58 +74,67 @@ const PropertySelectorModal = ({
                 className="pl-10"
               />
             </div>
-            
-            {searchTerm && (
-              <div className="mt-2 max-h-40 overflow-y-auto border rounded-md">
-                {filteredProperties.length > 0 ? (
-                  filteredProperties.map(property => (
-                    <div
-                      key={property.id}
-                      className="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                      onClick={() => {
-                        onSelectExisting(property);
-                        onClose();
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-medium ${
-                          property.type === 'text' ? 'bg-blue-100 text-blue-800' :
-                          property.type === 'email' ? 'bg-green-100 text-green-800' :
-                          property.type === 'date' ? 'bg-purple-100 text-purple-800' :
-                          property.type === 'number' ? 'bg-orange-100 text-orange-800' :
-                          property.type === 'select' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {property.type === 'text' ? 'T' :
-                           property.type === 'email' ? '@' :
-                           property.type === 'date' ? '📅' :
-                           property.type === 'number' ? '#' :
-                           property.type === 'select' ? '▼' :
-                           property.type === 'user' ? '👤' :
-                           property.type === 'boolean' ? '☑' :
-                           'T'}
-                        </span>
-                        <div>
-                          <div className="font-medium text-sm">{property.name}</div>
-                          {property.description && (
-                            <div className="text-xs text-gray-500">{property.description}</div>
-                          )}
-                        </div>
+          </div>
+          
+          {/* Properties List - Always visible with scroll */}
+          <div className="flex-1 min-h-0">
+            <div className="h-64 overflow-y-auto border rounded-md bg-gray-50">
+              {filteredProperties.length > 0 ? (
+                filteredProperties.map(property => (
+                  <div
+                    key={property.id}
+                    className="flex items-center justify-between p-3 hover:bg-white cursor-pointer border-b last:border-b-0 bg-white mx-1 my-1 rounded shadow-sm"
+                    onClick={() => {
+                      onSelectExisting(property);
+                      onClose();
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-medium ${
+                        property.type === 'text' ? 'bg-blue-100 text-blue-800' :
+                        property.type === 'email' ? 'bg-green-100 text-green-800' :
+                        property.type === 'date' ? 'bg-purple-100 text-purple-800' :
+                        property.type === 'number' ? 'bg-orange-100 text-orange-800' :
+                        property.type === 'select' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {property.type === 'text' ? 'T' :
+                         property.type === 'email' ? '@' :
+                         property.type === 'date' ? '📅' :
+                         property.type === 'number' ? '#' :
+                         property.type === 'select' ? '▼' :
+                         property.type === 'user' ? '👤' :
+                         property.type === 'boolean' ? '☑' :
+                         'T'}
+                      </span>
+                      <div>
+                        <div className="font-medium text-sm">{property.name}</div>
+                        {property.description && (
+                          <div className="text-xs text-gray-500">{property.description}</div>
+                        )}
                       </div>
-                      <div className="text-xs text-gray-400 capitalize">{property.type}</div>
                     </div>
-                  ))
-                ) : (
-                  <div className="p-3 text-sm text-gray-500 text-center">
-                    "{searchTerm}" için özellik bulunamadı
+                    <div className="text-xs text-gray-400 capitalize">{property.type}</div>
                   </div>
-                )}
-              </div>
-            )}
+                ))
+              ) : existingProperties.length === 0 ? (
+                <div className="p-8 text-sm text-gray-500 text-center">
+                  <div className="mb-2">🔍</div>
+                  <div>Henüz hiç özellik yok</div>
+                  <div className="text-xs">İlk özelliğinizi oluşturun</div>
+                </div>
+              ) : (
+                <div className="p-8 text-sm text-gray-500 text-center">
+                  <div className="mb-2">🔍</div>
+                  <div>"{searchTerm}" için özellik bulunamadı</div>
+                  <div className="text-xs">Yeni özellik oluşturabilirsiniz</div>
+                </div>
+              )}
+            </div>
           </div>
           
           {/* Create New Property */}
-          <div className="pt-4 border-t">
+          <div className="flex-shrink-0 pt-4 border-t">
             <Button 
               onClick={() => {
                 onCreateNew(groupId);
