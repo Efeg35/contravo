@@ -3,6 +3,7 @@
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
+import { FormFieldType } from '@prisma/client';
 
 export async function saveTemplateFileUrl({ 
     templateId, 
@@ -37,42 +38,13 @@ export async function saveTemplateFileUrl({
 }
 
 // FormField type mapping function - Prisma enum değerlerine dönüştürür
-function mapToFormFieldType(type: string): string {
-    const typeMap: { [key: string]: string } = {
-        'TEXT': 'TEXT',
-        'EMAIL': 'EMAIL',
-        'URL': 'URL',
-        'PHONE': 'PHONE',
-        'TEXTAREA': 'TEXTAREA', 
-        'NUMBER': 'NUMBER',
-        'DATE': 'DATE',
-        'DATE_RANGE': 'DATE_RANGE',
-        'SELECT': 'SINGLE_SELECT',
-        'SINGLE_SELECT': 'SINGLE_SELECT',
-        'MULTI_SELECT': 'MULTI_SELECT',
-        'CHECKBOX': 'CHECKBOX',
-        'FILE_UPLOAD': 'FILE_UPLOAD',
-        'USER': 'USER_PICKER', // User picker
-        'USER_PICKER': 'USER_PICKER',
-        'TABLE': 'TABLE'
-    };
-    
-    const upperType = type.toUpperCase();
-    const mappedType = typeMap[upperType] || 'TEXT';
-    
-    // Prisma enum değerlerini kontrol et
-    const validTypes = [
-        'TEXT', 'TEXTAREA', 'NUMBER', 'DATE', 'EMAIL', 'URL', 'PHONE',
-        'SINGLE_SELECT', 'MULTI_SELECT', 'CHECKBOX', 'FILE_UPLOAD', 
-        'USER_PICKER', 'DATE_RANGE', 'TABLE'
-    ];
-    
-    if (!validTypes.includes(mappedType)) {
-        console.warn(`Geçersiz form field tipi: ${type}, varsayılan TEXT kullanılıyor`);
-        return 'TEXT';
+function mapToFormFieldType(type: string): FormFieldType {
+    const normalized = type.toUpperCase().trim();
+    if (!(normalized in FormFieldType)) {
+        throw new Error(`Geçersiz FormFieldType: ${type}`);
     }
-    
-    return mappedType;
+    // Prisma enum'ları çalışma zamanında string döndürür, bu normaldir.
+    return (FormFieldType as Record<string, FormFieldType>)[normalized];
 }
 
 export async function addFieldToLaunchForm({
@@ -95,12 +67,17 @@ export async function addFieldToLaunchForm({
     try {
         // 1. Önce FormField oluştur
         const count = await db.formField.count({ where: { templateId } });
+        
+        // Debug için type mapping sonucunu loglayalım
+        const mappedType = mapToFormFieldType(property.type);
+        console.log('[addFieldToLaunchForm] mapped type', mappedType);
+        
         const formField = await db.formField.create({
             data: {
                 templateId,
                 label: property.name,
                 apiKey: property.name.toLowerCase().replace(/\s+/g, '_'),
-                type: mapToFormFieldType(property.type) as any,
+                type: mappedType,
                 isRequired: property.required,
                 options: property.options && property.options.length > 0 ? property.options : undefined,
                 order: count + 1
@@ -149,14 +126,33 @@ export async function addDisplayConditionToField({
     field: string,
     operator: string,
     value: string,
-    stepId: string
+    stepId?: string
 }) {
-    if (!fieldId || !field || !operator || !stepId) {
-        throw new Error('Field ID, field, operator ve stepId zorunludur.');
+    console.log('addDisplayConditionToField params:', { fieldId, field, operator, value, stepId });
+
+    if (!fieldId || !field || !operator) {
+        throw new Error('Field ID, field ve operator zorunludur.');
     }
     try {
         // Önce aynı fieldId için varsa eski condition'ı sil
         await db.condition.deleteMany({ where: { displayConditionForFieldId: fieldId } });
+        // Eğer stepId boş veya undefined ise, alanın ait olduğu template'in ilk adımını kullan
+        let finalStepId = stepId;
+        if (!finalStepId) {
+            // fieldId'den templateId'yi bul
+            const field = await db.formField.findUnique({ where: { id: fieldId }, select: { templateId: true } });
+            if (!field) {
+                throw new Error('FormField bulunamadı, stepId çözümlenemedi.');
+            }
+            const firstStep = await db.workflowTemplateStep.findFirst({
+                where: { templateId: field.templateId },
+                orderBy: { order: 'asc' }
+            });
+            if (!firstStep) {
+                throw new Error('İlgili WorkflowTemplate için step bulunamadı.');
+            }
+            finalStepId = firstStep.id;
+        }
         // Yeni condition ekle
         await db.condition.create({
             data: {
@@ -164,7 +160,7 @@ export async function addDisplayConditionToField({
                 operator,
                 value,
                 displayConditionForFieldId: fieldId,
-                stepId
+                stepId: finalStepId
             }
         });
         return { success: true };
@@ -245,12 +241,16 @@ export async function addFormFieldToTemplate({
     try {
         // Mevcut alan sayısını bul
         const count = await db.formField.count({ where: { templateId } });
+        // Debug için type mapping sonucunu loglayalım
+        const mappedType = mapToFormFieldType(type);
+        console.log(`🔍 Debug addFormFieldToTemplate - Input type: "${type}", Mapped type: "${mappedType}"`);
+        
         await db.formField.create({
             data: {
                 templateId,
                 label: name,
                 apiKey: name.toLowerCase().replace(/\s+/g, '_'),
-                type: mapToFormFieldType(type) as any,
+                type: mappedType,
                 isRequired: required,
                 placeholder,
                 options: options && options.length > 0 ? options : undefined,
