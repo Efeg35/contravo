@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import mammoth from 'mammoth';
 
 export async function POST(
   req: Request,
@@ -40,9 +41,16 @@ export async function POST(
     // FormData ile gelen dosya upload'ı 
     const formData = await req.formData();
     const file = formData.get('file') as File;
+    const source = formData.get('source');
 
     if (!file) {
       return NextResponse.json({ error: 'Dosya bulunamadı.' }, { status: 400 });
+    }
+
+    // Sadece .docx dosyası kabul et
+    const isDocx = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.endsWith('.docx');
+    if (!isDocx) {
+      return NextResponse.json({ error: 'Sadece DOCX dosyası yükleyebilirsiniz.' }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -56,15 +64,46 @@ export async function POST(
 
     await writeFile(savePath, buffer);
 
-    const updatedTemplate = await db.workflowTemplate.update({
-      where: { id: templateId },
-      data: {
-        templateFileUrl: publicUrl,
-        documentName: file.name,
-      },
-    });
+    // Docx içeriğini HTML'e çevir
+    let documentHtml = '';
+    if (isDocx) {
+      try {
+        const result = await mammoth.convertToHtml({ buffer });
+        documentHtml = result.value; // The generated HTML
+      } catch (error) {
+        console.error("Error converting docx to html", error);
+      }
+    }
 
-    return NextResponse.json(updatedTemplate);
+    let updatedTemplate;
+    try {
+      updatedTemplate = await db.workflowTemplate.update({
+        where: { id: templateId },
+        data: {
+          templateFileUrl: publicUrl,
+          documentName: file.name,
+          documentHtml: documentHtml,
+        } as any,
+      });
+    } catch (dbError: any) {
+      // Eğer kayıt bulunamadıysa (P2025), yeni bir template oluştur
+      if (dbError.code === 'P2025' || dbError.message?.includes('Record to update not found')) {
+        const uniqueName = `Untitled workflow ${Date.now()}`;
+        updatedTemplate = await db.workflowTemplate.create({
+          data: {
+            name: uniqueName,
+            templateFileUrl: publicUrl,
+            documentName: file.name,
+            documentHtml: documentHtml,
+            status: 'UNPUBLISHED',
+          } as any,
+        });
+      } else {
+        throw dbError;
+      }
+    }
+
+    return NextResponse.json({ ...updatedTemplate, documentHtml });
 
   } catch (error) {
     console.error('File upload error:', error);
@@ -97,4 +136,106 @@ export async function DELETE(
     console.error('Error deleting document:', error);
     return NextResponse.json({ error: 'Doküman silinirken bir hata oluştu.' }, { status: 500 });
   }
+}
+
+export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const params = await context.params;
+    const templateId = params.id;
+    const { documentHtml, documentProperties, generateDocument, formData } = await req.json();
+    
+    // Eğer generateDocument flag'i varsa, form data'sını kullanarak document generate et
+    if (generateDocument && formData) {
+      const generatedHtml = await generateDocumentFromFormData(documentHtml, formData);
+      
+      // Generate edilmiş document'ı kaydet
+      const template = await db.workflowTemplate.update({
+        where: { id: templateId },
+        data: { 
+          documentHtml: generatedHtml,
+          documentProperties: JSON.stringify(documentProperties || [])
+        }
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        documentHtml: generatedHtml,
+        message: 'Document başarıyla generate edildi!' 
+      });
+    }
+    
+    // Normal document update
+    const template = await db.workflowTemplate.update({
+      where: { id: templateId },
+      data: { 
+        documentHtml,
+        documentProperties: JSON.stringify(documentProperties || [])
+      }
+    });
+    
+    return NextResponse.json({ success: true, documentHtml: template.documentHtml });
+  } catch (error) {
+    console.error('Document update error:', error);
+    return NextResponse.json({ success: false, message: 'Document güncellenirken hata oluştu' }, { status: 500 });
+  }
+}
+
+// Form data'sını kullanarak document generate eden function
+async function generateDocumentFromFormData(documentHtml: string, formData: Record<string, any>): Promise<string> {
+  if (!documentHtml) return '';
+  
+  let generatedHtml = documentHtml;
+  
+  // Property tag'leri bulup replace et
+  // Pattern: <span data-property-tag="true" id="propertyId">PropertyLabel</span>
+  const propertyTagRegex = /<span[^>]*data-property-tag="true"[^>]*id="([^"]*)"[^>]*>([^<]*)<\/span>/g;
+  
+  generatedHtml = generatedHtml.replace(propertyTagRegex, (match, propertyId, propertyLabel) => {
+    // Form data'da bu property'nin value'sunu ara
+    const value = formData[propertyId] || formData[propertyLabel];
+    
+    if (value !== undefined && value !== null && value !== '') {
+      // Value'yu uygun formatta döndür
+      let formattedValue = formatPropertyValue(value, propertyId);
+      
+      // Property tag'i gerçek value ile replace et
+      return `<span class="generated-property" data-original-property="${propertyId}" style="background: #e1f5fe; padding: 2px 6px; border-radius: 4px; font-weight: 500;">${formattedValue}</span>`;
+    } else {
+      // Value yoksa placeholder göster
+      return `<span class="missing-property" data-property="${propertyId}" style="background: #ffebee; padding: 2px 6px; border-radius: 4px; border: 1px dashed #f44336; color: #c62828;">[${propertyLabel} - Değer Girilmemiş]</span>`;
+    }
+  });
+  
+  return generatedHtml;
+}
+
+// Property value'sunu uygun formatta döndüren function
+function formatPropertyValue(value: any, propertyId: string): string {
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+  
+  if (typeof value === 'object' && value !== null) {
+    // Date object ise
+    if (value instanceof Date) {
+      return value.toLocaleDateString('tr-TR');
+    }
+    // Object ise JSON'a çevir
+    return JSON.stringify(value);
+  }
+  
+  // Boolean ise
+  if (typeof value === 'boolean') {
+    return value ? 'Evet' : 'Hayır';
+  }
+  
+  // Number ise ve para formatı gibiyse
+  if (typeof value === 'number' && propertyId.toLowerCase().includes('tutar')) {
+    return new Intl.NumberFormat('tr-TR', { 
+      style: 'currency', 
+      currency: 'TRY' 
+    }).format(value);
+  }
+  
+  return String(value);
 } 

@@ -705,7 +705,8 @@ model WorkflowTemplate {
   documentName    String?
   documentUrl     String?
   templateFileUrl String?
-
+  documentHtml    String?
+  documentProperties Json? // Dokümanda kullanılan property/tag id'leri (dizi olarak)
   formFields FormField[]
   validationRules FormValidationRule[]
   

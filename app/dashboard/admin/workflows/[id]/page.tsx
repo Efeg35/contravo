@@ -28,7 +28,10 @@ export default async function WorkflowEditorPage({ params }: WorkflowEditorPageP
     }
 
     const template = await db.workflowTemplate.findUnique({ 
-        where: { id: id } 
+        where: { id: id },
+        include: {
+            formFields: true
+        }
     });
 
     if (!template) {

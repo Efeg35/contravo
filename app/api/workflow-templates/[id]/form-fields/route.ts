@@ -1,5 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addFormFieldToTemplate, addFieldToLaunchForm } from '@/src/lib/actions/workflow-template-actions';
+import { db } from '@/lib/db';
+
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const params = await context.params;
+    const templateId = params.id;
+    
+    const template = await db.workflowTemplate.findUnique({
+      where: { id: templateId },
+      include: { formFields: true }
+    });
+    
+    if (!template) {
+      return NextResponse.json({ success: false, message: 'Template bulunamadı.' }, { status: 404 });
+    }
+    
+    return NextResponse.json({ 
+      success: true, 
+      data: template.formFields 
+    });
+  } catch (error) {
+    console.error('API form fields getirme hatası:', error);
+    return NextResponse.json({ success: false, message: 'Server error.' }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
