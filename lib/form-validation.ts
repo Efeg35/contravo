@@ -139,58 +139,9 @@ export class FormValidationEngine {
   }
 
   /**
-   * Koşullu kuralları değerlendirir
-   */
-  evaluateConditionalRules(
-    conditionalRules: ConditionalRule[],
-    formData: { [key: string]: any }
-  ): {
-    fieldsToShow: string[];
-    fieldsToHide: string[];
-    fieldsToRequire: string[];
-    fieldsToUnrequire: string[];
-    valuesToSet: { [fieldId: string]: any };
-    fieldsToValidate: string[];
-  } {
-    let fieldsToShow: string[] = [];
-    let fieldsToHide: string[] = [];
-    let fieldsToRequire: string[] = [];
-    let fieldsToUnrequire: string[] = [];
-    let valuesToSet: { [fieldId: string]: any } = {};
-    let fieldsToValidate: string[] = [];
-
-    // Öncelik sırasına göre kuralları sırala
-    const sortedRules = conditionalRules
-      .filter(rule => rule.isActive)
-      .sort((a, b) => b.priority - a.priority);
-
-    for (const rule of sortedRules) {
-      const conditionsMatch = this.evaluateConditions(rule.conditions, formData);
-      
-      if (conditionsMatch) {
-        if (rule.actions.show) fieldsToShow.push(...rule.actions.show);
-        if (rule.actions.hide) fieldsToHide.push(...rule.actions.hide);
-        if (rule.actions.require) fieldsToRequire.push(...rule.actions.require);
-        if (rule.actions.unrequire) fieldsToUnrequire.push(...rule.actions.unrequire);
-        if (rule.actions.setValues) valuesToSet = { ...valuesToSet, ...rule.actions.setValues };
-        if (rule.actions.validateFields) fieldsToValidate.push(...rule.actions.validateFields);
-      }
-    }
-
-    return {
-      fieldsToShow: [...new Set(fieldsToShow)],
-      fieldsToHide: [...new Set(fieldsToHide)],
-      fieldsToRequire: [...new Set(fieldsToRequire)],
-      fieldsToUnrequire: [...new Set(fieldsToUnrequire)],
-      valuesToSet,
-      fieldsToValidate: [...new Set(fieldsToValidate)]
-    };
-  }
-
-  /**
    * Koşulları değerlendirir
    */
-  private evaluateConditions(
+  public evaluateConditions(
     conditions: FieldCondition[],
     formData: { [key: string]: any }
   ): boolean {
@@ -351,6 +302,55 @@ export class FormValidationEngine {
 
   private isNotEmpty(value: any): boolean {
     return !this.isEmpty(value);
+  }
+
+  /**
+   * Koşullu kuralları değerlendirir
+   */
+  evaluateConditionalRules(
+    conditionalRules: ConditionalRule[],
+    formData: { [key: string]: any }
+  ): {
+    fieldsToShow: string[];
+    fieldsToHide: string[];
+    fieldsToRequire: string[];
+    fieldsToUnrequire: string[];
+    valuesToSet: { [fieldId: string]: any };
+    fieldsToValidate: string[];
+  } {
+    let fieldsToShow: string[] = [];
+    let fieldsToHide: string[] = [];
+    let fieldsToRequire: string[] = [];
+    let fieldsToUnrequire: string[] = [];
+    let valuesToSet: { [fieldId: string]: any } = {};
+    let fieldsToValidate: string[] = [];
+
+    // Öncelik sırasına göre kuralları sırala
+    const sortedRules = conditionalRules
+      .filter(rule => rule.isActive)
+      .sort((a, b) => b.priority - a.priority);
+
+    for (const rule of sortedRules) {
+      const conditionsMatch = this.evaluateConditions(rule.conditions, formData);
+      
+      if (conditionsMatch) {
+        if (rule.actions.show) fieldsToShow.push(...rule.actions.show);
+        if (rule.actions.hide) fieldsToHide.push(...rule.actions.hide);
+        if (rule.actions.require) fieldsToRequire.push(...rule.actions.require);
+        if (rule.actions.unrequire) fieldsToUnrequire.push(...rule.actions.unrequire);
+        if (rule.actions.setValues) valuesToSet = { ...valuesToSet, ...rule.actions.setValues };
+        if (rule.actions.validateFields) fieldsToValidate.push(...rule.actions.validateFields);
+      }
+    }
+
+    return {
+      fieldsToShow: [...new Set(fieldsToShow)],
+      fieldsToHide: [...new Set(fieldsToHide)],
+      fieldsToRequire: [...new Set(fieldsToRequire)],
+      fieldsToUnrequire: [...new Set(fieldsToUnrequire)],
+      valuesToSet,
+      fieldsToValidate: [...new Set(fieldsToValidate)]
+    };
   }
 }
 

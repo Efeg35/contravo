@@ -21,6 +21,11 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { 
+  FormSection, 
+  SectionDisplayMode, 
+  SectionVisibilityCondition 
+} from '../../types/workflow';
 
 interface AddFieldModalProps {
   templateId: string;
@@ -468,6 +473,211 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded 
   );
 };
 
+// Sprint 4: AddSectionModal Component
+interface AddSectionModalProps {
+  templateId: string;
+  onSectionAdded: () => void;
+}
+
+const AddSectionModal: React.FC<AddSectionModalProps> = ({ templateId, onSectionAdded }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [sectionData, setSectionData] = useState({
+    name: '',
+    description: '',
+    icon: '',
+    displayMode: 'EXPANDED' as SectionDisplayMode,
+    isCollapsible: true,
+    isExpanded: true,
+    visibilityCondition: 'ALWAYS' as SectionVisibilityCondition,
+    order: 0,
+    backgroundColor: '',
+    borderColor: '',
+    textColor: ''
+  });
+
+  const displayModes = [
+    { value: 'EXPANDED', label: 'Genişletilmiş' },
+    { value: 'COLLAPSED', label: 'Katlanmış' },
+    { value: 'TABS', label: 'Sekmeler' },
+    { value: 'ACCORDION', label: 'Akordeon' }
+  ];
+
+  const visibilityConditions = [
+    { value: 'ALWAYS', label: 'Her Zaman Göster' },
+    { value: 'CONDITIONAL', label: 'Koşullu Göster' },
+    { value: 'NEVER', label: 'Hiç Gösterme' }
+  ];
+
+  const iconOptions = [
+    '📋', '📄', '👤', '🏢', '💰', '📅', '⚖️', '📝', '🔒', '📊'
+  ];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch(`/api/workflow-templates/${templateId}/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sectionData)
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setIsOpen(false);
+        setSectionData({
+          name: '',
+          description: '',
+          icon: '',
+          displayMode: 'EXPANDED' as SectionDisplayMode,
+          isCollapsible: true,
+          isExpanded: true,
+          visibilityCondition: 'ALWAYS' as SectionVisibilityCondition,
+          order: 0,
+          backgroundColor: '',
+          borderColor: '',
+          textColor: ''
+        });
+        onSectionAdded();
+      } else {
+        alert(result.message || 'Section eklenirken hata oluştu');
+      }
+    } catch (error) {
+      console.error('Section ekleme hatası:', error);
+      alert('Sunucu hatası');
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">+ Add Section</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Yeni Section Ekle</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="sectionName">Section Adı *</Label>
+            <Input
+              id="sectionName"
+              value={sectionData.name}
+              onChange={(e) => setSectionData(prev => ({ ...prev, name: e.target.value }))}
+              required
+              placeholder="örn: Sözleşme Bilgileri"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="sectionDescription">Açıklama</Label>
+            <Textarea
+              id="sectionDescription"
+              value={sectionData.description}
+              onChange={(e) => setSectionData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Section açıklaması"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="sectionIcon">İkon</Label>
+            <div className="flex gap-2 mt-2">
+              {iconOptions.map(icon => (
+                <button
+                  key={icon}
+                  type="button"
+                  onClick={() => setSectionData(prev => ({ ...prev, icon }))}
+                  className={`w-10 h-10 border rounded text-lg ${
+                    sectionData.icon === icon ? 'bg-blue-100 border-blue-500' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  {icon}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="displayMode">Görüntüleme Modu</Label>
+            <Select value={sectionData.displayMode} onValueChange={(value: SectionDisplayMode) => setSectionData(prev => ({ ...prev, displayMode: value }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {displayModes.map(mode => (
+                  <SelectItem key={mode.value} value={mode.value}>
+                    {mode.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="visibilityCondition">Görünürlük</Label>
+            <Select value={sectionData.visibilityCondition} onValueChange={(value: SectionVisibilityCondition) => setSectionData(prev => ({ ...prev, visibilityCondition: value }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {visibilityConditions.map(condition => (
+                  <SelectItem key={condition.value} value={condition.value}>
+                    {condition.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isCollapsible"
+                checked={sectionData.isCollapsible}
+                onChange={(e) => setSectionData(prev => ({ ...prev, isCollapsible: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="isCollapsible">Katlanabilir</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isExpanded"
+                checked={sectionData.isExpanded}
+                onChange={(e) => setSectionData(prev => ({ ...prev, isExpanded: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="isExpanded">Başlangıçta Açık</Label>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="order">Sıralama</Label>
+            <Input
+              id="order"
+              type="number"
+              value={sectionData.order}
+              onChange={(e) => setSectionData(prev => ({ ...prev, order: parseInt(e.target.value) || 0 }))}
+              placeholder="0"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+              İptal
+            </Button>
+            <Button type="submit">
+              Section Ekle
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: () => void }> = ({ templateId, refreshForm }) => {
   const [formFields, setFormFields] = useState<any[]>([]);
   const [layout, setLayout] = useState<any>(null);
@@ -579,56 +789,13 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
               />
               {/* Section Modal */}
               {isAddSectionModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-                  <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-                    <h3 className="text-lg font-bold mb-4">Add Section</h3>
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium mb-1">Section Name</label>
-                      <input
-                        type="text"
-                        className="w-full border rounded px-3 py-2"
-                        value={sectionForm.name}
-                        onChange={e => setSectionForm(f => ({ ...f, name: e.target.value }))}
-                        placeholder="e.g. Counterparty Information"
-                        required
-                      />
-                    </div>
-                    <div className="mb-6">
-                      <label className="block text-sm font-medium mb-1">Section Description <span className="text-xs text-gray-400">(optional)</span></label>
-                      <textarea
-                        className="w-full border rounded px-3 py-2"
-                        value={sectionForm.description}
-                        onChange={e => setSectionForm(f => ({ ...f, description: e.target.value }))}
-                        placeholder="Describe this section..."
-                        rows={2}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
-                        onClick={() => setIsAddSectionModalOpen(false)}
-                        type="button"
-                      >Cancel</button>
-                      <button
-                        className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                        onClick={async () => {
-                          const result = await addSectionToLaunchForm({
-                            templateId,
-                            name: sectionForm.name,
-                            description: sectionForm.description
-                          });
-                          if (result.success) {
-                            setIsAddSectionModalOpen(false);
-                            setSectionForm({ name: '', description: '' });
-                            setTimeout(() => setFormFields([]), 100);
-                          }
-                        }}
-                        type="button"
-                        disabled={!sectionForm.name.trim()}
-                      >Add Section</button>
-                    </div>
-                  </div>
-                </div>
+                <AddSectionModal
+                  templateId={templateId}
+                  onSectionAdded={() => {
+                    setIsAddSectionModalOpen(false);
+                    setTimeout(() => setFormFields([]), 100);
+                  }}
+                />
               )}
               {/* Table Modal */}
               {isAddTableModalOpen && (

@@ -10,9 +10,16 @@ import {
 } from "@/components/ui/accordion";
 import { WorkflowSchema, WorkflowProperty, WorkflowCondition } from '@/types/workflow';
 import { PROPERTY_ICONS, PROPERTY_COLORS } from '@/types/workflow';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { PropertyEditorModal } from './PropertyEditorModal';
 import { ConditionEditorModal } from './ConditionEditorModal';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 interface PropertiesAndConditionsProps {
   schema: WorkflowSchema;
@@ -21,6 +28,120 @@ interface PropertiesAndConditionsProps {
   templateId: string;
   refreshForm?: () => void;
 }
+
+// Ironclad-style Property Selector Modal Component
+const PropertySelectorModal = ({ 
+  isOpen, 
+  onClose, 
+  onSelectExisting, 
+  onCreateNew, 
+  existingProperties,
+  groupId 
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectExisting: (property: WorkflowProperty) => void;
+  onCreateNew: (groupId: string) => void;
+  existingProperties: WorkflowProperty[];
+  groupId: string;
+}) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredProperties = existingProperties.filter(prop => 
+    prop.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Özellik Ekle</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Search Existing Properties */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Mevcut Özellikleri Ara
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Özellik adını yazın..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            {searchTerm && (
+              <div className="mt-2 max-h-40 overflow-y-auto border rounded-md">
+                {filteredProperties.length > 0 ? (
+                  filteredProperties.map(property => (
+                    <div
+                      key={property.id}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                      onClick={() => {
+                        onSelectExisting(property);
+                        onClose();
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-medium ${
+                          property.type === 'text' ? 'bg-blue-100 text-blue-800' :
+                          property.type === 'email' ? 'bg-green-100 text-green-800' :
+                          property.type === 'date' ? 'bg-purple-100 text-purple-800' :
+                          property.type === 'number' ? 'bg-orange-100 text-orange-800' :
+                          property.type === 'select' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {property.type === 'text' ? 'T' :
+                           property.type === 'email' ? '@' :
+                           property.type === 'date' ? '📅' :
+                           property.type === 'number' ? '#' :
+                           property.type === 'select' ? '▼' :
+                           property.type === 'user' ? '👤' :
+                           property.type === 'boolean' ? '☑' :
+                           'T'}
+                        </span>
+                        <div>
+                          <div className="font-medium text-sm">{property.name}</div>
+                          {property.description && (
+                            <div className="text-xs text-gray-500">{property.description}</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-400 capitalize">{property.type}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-3 text-sm text-gray-500 text-center">
+                    "{searchTerm}" için özellik bulunamadı
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Create New Property */}
+          <div className="pt-4 border-t">
+            <Button 
+              onClick={() => {
+                onCreateNew(groupId);
+                onClose();
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Yeni Özellik Oluştur
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = ({
   schema,
@@ -33,6 +154,10 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
   const [editingProperty, setEditingProperty] = useState<{ property: WorkflowProperty | null, groupId: string | null }>({ property: null, groupId: null });
   const [isConditionModalOpen, setIsConditionModalOpen] = useState(false);
   const [editingCondition, setEditingCondition] = useState<WorkflowCondition | null>(null);
+  
+  // Ironclad-style property selector state
+  const [isPropertySelectorOpen, setIsPropertySelectorOpen] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
 
   if (!schema) return null;
 
@@ -46,7 +171,24 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
     setIsConditionModalOpen(true);
   };
 
+  // Ironclad-style: Show property selector modal instead of directly opening editor
   const addNewProperty = (groupId: string) => {
+    setSelectedGroupId(groupId);
+    setIsPropertySelectorOpen(true);
+  };
+
+  // Handle selecting existing property from other groups
+  const handleSelectExistingProperty = async (property: WorkflowProperty) => {
+    try {
+      // Add existing property to form directly
+      await handleAddToForm(property);
+    } catch (error) {
+      console.error('Mevcut özellik eklenirken hata:', error);
+    }
+  };
+
+  // Handle creating new property
+  const handleCreateNewProperty = (groupId: string) => {
     setEditingProperty({ property: null, groupId });
     setIsModalOpen(true);
   };
@@ -54,6 +196,11 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
   const addNewCondition = () => {
     setEditingCondition(null);
     setIsConditionModalOpen(true);
+  };
+
+  // Get all existing properties from all groups for search
+  const getAllProperties = () => {
+    return schema.propertyGroups.flatMap(group => group.properties);
   };
 
   const handleSaveProperty = (savedProperty: WorkflowProperty) => {
@@ -296,6 +443,15 @@ export const PropertiesAndConditions: React.FC<PropertiesAndConditionsProps> = (
         onSave={handleSaveCondition}
         condition={editingCondition}
         properties={schema.propertyGroups.flatMap(g => g.properties)}
+      />
+
+      <PropertySelectorModal
+        isOpen={isPropertySelectorOpen}
+        onClose={() => setIsPropertySelectorOpen(false)}
+        onSelectExisting={handleSelectExistingProperty}
+        onCreateNew={handleCreateNewProperty}
+        existingProperties={getAllProperties()}
+        groupId={selectedGroupId}
       />
     </aside>
   );

@@ -9,7 +9,9 @@ import {
   ConditionalRule, 
   FieldValidationState, 
   FormValidationState,
-  FieldCondition 
+  FieldCondition,
+  FormSection,
+  SectionDisplayMode 
 } from '../../types/workflow';
 
 interface FormField {
@@ -43,9 +45,12 @@ interface FormField {
   errorMessage?: string;
   warningMessage?: string;
   successMessage?: string;
-  fieldGroup?: string;
+  fieldGroup?: string; // DEPRECATED: Use sectionId instead
   priority?: number;
   realTimeValidation?: boolean;
+  
+  // Sprint 4: Section/Grup support
+  sectionId?: string;
 }
 
 interface LaunchFormRendererProps {
@@ -59,6 +64,15 @@ interface LaunchFormRendererProps {
   validationMode?: 'SUBMIT' | 'BLUR' | 'CHANGE' | 'REAL_TIME';
   showValidationSummary?: boolean;
   onValidationChange?: (validation: FormValidationState) => void;
+  
+  // Sprint 4: Section/Grup support
+  sections?: FormSection[];
+  sectionLayout?: {
+    displayMode: 'SINGLE_COLUMN' | 'TWO_COLUMN' | 'THREE_COLUMN' | 'CUSTOM';
+    enableSectionNavigation: boolean;
+    enableProgressIndicator: boolean;
+    allowSectionCollapse: boolean;
+  };
 }
 
 const getSortedFields = (fields: FormField[], layout: any) => {
@@ -78,7 +92,11 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
   enableRealTimeValidation = false,
   validationMode = 'SUBMIT',
   showValidationSummary = true,
-  onValidationChange
+  onValidationChange,
+  
+  // Sprint 4: Section/Grup support
+  sections,
+  sectionLayout
 }) => {
   const sortedFields = getSortedFields(formFields, layout);
 
@@ -90,6 +108,14 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set(formFields.map(f => f.id)));
   const [requiredFields, setRequiredFields] = useState<Set<string>>(new Set(formFields.filter(f => f.isRequired).map(f => f.id)));
   const [readOnlyFields, setReadOnlyFields] = useState<Set<string>>(new Set(formFields.filter(f => f.isReadOnly).map(f => f.id)));
+
+  // Sprint 4: Section state
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    new Set(sections?.filter(s => !s.isExpanded).map(s => s.id) || [])
+  );
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(
+    sections && sections.length > 0 ? sections[0].id : null
+  );
 
   // Sprint 2: Field validation hook
   const validateField = useCallback((field: FormField, value: any) => {
@@ -195,6 +221,59 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
         setFieldValidations(prev => ({ ...prev, [field.id]: validation }));
       }
     }
+  };
+
+  // Sprint 4: Section helper functions
+  const toggleSection = (sectionId: string) => {
+    setCollapsedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sectionId)) {
+        newSet.delete(sectionId);
+      } else {
+        newSet.add(sectionId);
+      }
+      return newSet;
+    });
+  };
+
+  const getFieldsBySection = () => {
+    if (!sections || sections.length === 0) {
+      return { ungrouped: formFields };
+    }
+
+    const grouped: { [sectionId: string]: FormField[] } = {};
+    const ungrouped: FormField[] = [];
+
+    // Initialize sections
+    sections.forEach(section => {
+      grouped[section.id] = [];
+    });
+
+    // Group fields by section
+    formFields.forEach(field => {
+      if (field.sectionId && grouped[field.sectionId]) {
+        grouped[field.sectionId].push(field);
+      } else {
+        ungrouped.push(field);
+      }
+    });
+
+    return { ...grouped, ungrouped };
+  };
+
+  const isSectionVisible = (section: FormSection): boolean => {
+    if (section.visibilityCondition === 'NEVER') return false;
+    if (section.visibilityCondition === 'ALWAYS') return true;
+    
+    // Check conditional visibility
+    if (section.showWhen && section.showWhen.length > 0) {
+      return formValidationEngine.evaluateConditions(section.showWhen, formData);
+    }
+    if (section.hideWhen && section.hideWhen.length > 0) {
+      return !formValidationEngine.evaluateConditions(section.hideWhen, formData);
+    }
+    
+    return true;
   };
 
   const handleAddCondition = (field: FormField) => {
@@ -588,31 +667,169 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     }
   };
 
-  // Section ve alanları modern şekilde render et
-  const renderForm = () => {
-    if (!layout || !Array.isArray(layout.fieldOrder)) {
-      // Sadece alanları sırayla göster
-      return getSortedFields(formFields, layout).map(renderField);
-    }
-    // Section ve alanları ayır
-    const sectionFields: string[] = [];
-    const sections = layout.fieldOrder.filter((item: any) => item.type === 'section');
-    const sectionMap: Record<string, any> = {};
-    sections.forEach((section: any) => {
-      sectionMap[section.id] = section;
-      (section.fields || []).forEach((fid: string) => sectionFields.push(fid));
-    });
-    // Section dışında kalan fieldId'ler
-    const topLevelFields = layout.fieldOrder.filter((item: any) => typeof item === 'string' && !sectionFields.includes(item));
+  // Sprint 4: Modern section ve alanları render et
+  const renderSection = (section: FormSection) => {
+    if (!isSectionVisible(section)) return null;
+
+    const isCollapsed = collapsedSections.has(section.id);
+    const fieldsBySection = getFieldsBySection() as { [key: string]: FormField[] };
+    const sectionFields = fieldsBySection[section.id] || [];
+
     return (
-      <>
+      <div 
+        key={section.id} 
+        className={`mt-6 border rounded-lg ${section.style?.backgroundColor || 'bg-white'} shadow-sm`}
+        style={{
+          borderColor: section.style?.borderColor,
+          color: section.style?.textColor
+        }}
+      >
+        {/* Section Header */}
+        <div 
+          className={`px-6 py-4 border-b ${section.isCollapsible ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+          onClick={section.isCollapsible ? () => toggleSection(section.id) : undefined}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {section.icon && (
+                <span className="text-xl">{section.icon}</span>
+              )}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
+                {section.description && (
+                  <p className="text-sm text-gray-600 mt-1">{section.description}</p>
+                )}
+              </div>
+            </div>
+            {section.isCollapsible && (
+              <div className="text-gray-400">
+                {isCollapsed ? '▼' : '▲'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section Content */}
+        {!isCollapsed && (
+          <div className="p-6">
+            <div className={`space-y-4 ${
+              sectionLayout?.displayMode === 'TWO_COLUMN' ? 'grid grid-cols-2 gap-4' :
+              sectionLayout?.displayMode === 'THREE_COLUMN' ? 'grid grid-cols-3 gap-4' : ''
+            }`}>
+              {sectionFields
+                .filter((field: FormField) => visibleFields.has(field.id))
+                .sort((a: FormField, b: FormField) => (a.priority || 0) - (b.priority || 0))
+                .map(renderField)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderForm = () => {
+    const fieldsBySection = getFieldsBySection() as { [key: string]: FormField[] };
+    
+    // Eğer sections varsa, section-based rendering yap
+    if (sections && sections.length > 0) {
+      const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+      
+      return (
+        <div className="space-y-6">
+          {/* Section Navigation (eğer enabled ise) */}
+          {sectionLayout?.enableSectionNavigation && (
+            <div className="flex space-x-4 border-b border-gray-200 pb-4">
+              {sortedSections
+                .filter(isSectionVisible)
+                .map((section) => (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSectionId(section.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                      activeSectionId === section.id
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    {section.icon && <span className="mr-2">{section.icon}</span>}
+                    {section.name}
+                  </button>
+                ))}
+            </div>
+          )}
+
+          {/* Progress Indicator (eğer enabled ise) */}
+          {sectionLayout?.enableProgressIndicator && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                <span>İlerleme</span>
+                <span>{Math.round((sortedSections.findIndex(s => s.id === activeSectionId) + 1) / sortedSections.length * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${(sortedSections.findIndex(s => s.id === activeSectionId) + 1) / sortedSections.length * 100}%` 
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Sections */}
+          {sortedSections.map(renderSection)}
+
+          {/* Ungrouped Fields */}
+          {fieldsBySection.ungrouped && fieldsBySection.ungrouped.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Diğer Alanlar</h3>
+              <div className="space-y-4">
+                {fieldsBySection.ungrouped
+                  .filter((field: FormField) => visibleFields.has(field.id))
+                  .sort((a: FormField, b: FormField) => (a.priority || 0) - (b.priority || 0))
+                  .map(renderField)}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Legacy rendering (sections yoksa)
+    if (!layout || !Array.isArray(layout.fieldOrder)) {
+      return (
+        <div className="space-y-4">
+          {getSortedFields(formFields, layout)
+            .filter((field: FormField) => visibleFields.has(field.id))
+            .map(renderField)}
+        </div>
+      );
+    }
+
+    // Legacy section rendering
+    const legacySectionFields: string[] = [];
+    const legacySections = layout.fieldOrder.filter((item: any) => item.type === 'section');
+    const legacySectionMap: Record<string, any> = {};
+    legacySections.forEach((section: any) => {
+      legacySectionMap[section.id] = section;
+      (section.fields || []).forEach((fid: string) => legacySectionFields.push(fid));
+    });
+    const topLevelFields = layout.fieldOrder.filter((item: any) => typeof item === 'string' && !legacySectionFields.includes(item));
+    
+    return (
+      <div className="space-y-6">
         {/* Section olmayan alanlar */}
-        {topLevelFields.map((fid: string) => {
-          const field = formFields.find(f => f.id === fid);
-          return field ? renderField(field) : null;
-        })}
-        {/* Sectionlar */}
-        {sections.map((section: any) => (
+        {topLevelFields.length > 0 && (
+          <div className="space-y-4">
+            {topLevelFields.map((fid: string) => {
+              const field = formFields.find(f => f.id === fid);
+              return field && visibleFields.has(field.id) ? renderField(field) : null;
+            })}
+          </div>
+        )}
+        
+        {/* Legacy Sections */}
+        {legacySections.map((section: any) => (
           <div key={section.id} className="mt-8 mb-6 border rounded-lg bg-gray-50 p-6">
             <div className="mb-2">
               <div className="text-lg font-bold text-gray-800">{section.name}</div>
@@ -621,12 +838,12 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
             <div className="space-y-4">
               {(section.fields || []).map((fid: string) => {
                 const field = formFields.find(f => f.id === fid);
-                return field ? renderField(field) : null;
+                return field && visibleFields.has(field.id) ? renderField(field) : null;
               })}
             </div>
           </div>
         ))}
-      </>
+      </div>
     );
   };
 

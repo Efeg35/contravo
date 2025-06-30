@@ -13,6 +13,8 @@ export default [
       'dist/**',
       '*.config.js',
       '*.config.mjs',
+      '*.cjs',
+      'scripts/*.cjs',
     ],
   },
   {

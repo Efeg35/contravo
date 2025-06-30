@@ -1,6 +1,35 @@
 // Workflow Property Types
 export type PropertyType = 'text' | 'email' | 'url' | 'phone' | 'date' | 'date_range' | 'duration' | 'number' | 'user' | 'select' | 'multi_select' | 'boolean' | 'checkbox' | 'file_upload' | 'textarea';
 
+// Sprint 4: Section/Grup Types
+export type SectionDisplayMode = 'EXPANDED' | 'COLLAPSED' | 'TABS' | 'ACCORDION';
+export type SectionVisibilityCondition = 'ALWAYS' | 'CONDITIONAL' | 'NEVER';
+
+export interface FormSection {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  displayMode: SectionDisplayMode;
+  isCollapsible: boolean;
+  isExpanded: boolean;
+  visibilityCondition: SectionVisibilityCondition;
+  showWhen?: FieldCondition[];
+  hideWhen?: FieldCondition[];
+  order: number;
+  style?: {
+    backgroundColor?: string;
+    borderColor?: string;
+    textColor?: string;
+  };
+  permissions?: {
+    viewRoles?: string[];
+    editRoles?: string[];
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Sprint 2: Validation Rule Types
 export type ValidationRuleType = 'REQUIRED' | 'MIN_LENGTH' | 'MAX_LENGTH' | 'MIN_VALUE' | 'MAX_VALUE' | 'PATTERN' | 'EMAIL' | 'URL' | 'PHONE' | 'CUSTOM' | 'CROSS_FIELD' | 'CONDITIONAL' | 'BUSINESS_RULE';
 
@@ -83,9 +112,12 @@ export interface WorkflowProperty {
   errorMessage?: string;
   warningMessage?: string;
   successMessage?: string;
-  fieldGroup?: string;
+  fieldGroup?: string; // DEPRECATED: Use sectionId instead
   priority?: number;
   realTimeValidation?: boolean;
+  
+  // Sprint 4: Section/Grup support
+  sectionId?: string;
 }
 
 export interface WorkflowCondition {
@@ -108,7 +140,7 @@ export interface WorkflowSchema {
   id: string;
   name: string;
   description: string;
-  propertyGroups: PropertyGroup[];
+  propertyGroups: PropertyGroup[]; // DEPRECATED: Use sections instead
   conditions: WorkflowCondition[];
   lifecyclePreset?: {
     enabled: boolean;
@@ -122,6 +154,15 @@ export interface WorkflowSchema {
   allowPartialSave?: boolean;
   formRules?: FormValidationRule[];
   conditionalRules?: ConditionalRule[];
+  
+  // Sprint 4: Section/Grup support
+  sections?: FormSection[];
+  sectionLayout?: {
+    displayMode: 'SINGLE_COLUMN' | 'TWO_COLUMN' | 'THREE_COLUMN' | 'CUSTOM';
+    enableSectionNavigation: boolean;
+    enableProgressIndicator: boolean;
+    allowSectionCollapse: boolean;
+  };
 }
 
 // Validation State Types

@@ -24,11 +24,13 @@ enum FormFieldType {
   EMAIL
   URL
   PHONE
+  SELECT
   SINGLE_SELECT
   MULTI_SELECT
   CHECKBOX
   FILE_UPLOAD
   USER_PICKER
+  USER
   DATE_RANGE
   TABLE
 }
@@ -706,6 +708,9 @@ model WorkflowTemplate {
 
   formFields FormField[]
   validationRules FormValidationRule[]
+  
+  // Sprint 4: Section/Grup Desteği
+  sections FormSection[]
 
   launchFormLayout  Json?  // Formdaki alanların ID'lerini ve sıralarını tutan bir JSON objesi
   
@@ -790,9 +795,13 @@ model FormField {
   errorMessage       String?   // Genel hata mesajı
   warningMessage     String?   // Uyarı mesajı
   successMessage     String?   // Başarı mesajı
-  fieldGroup         String?   // Alan grubu (section/group için)
+  fieldGroup         String?   // Alan grubu (section/group için) - DEPRECATED, sectionId kullan
   priority           Int       @default(0)      // Validasyon önceliği
   realTimeValidation Boolean   @default(false)  // Gerçek zamanlı validasyon
+
+  // Sprint 4: Section/Grup İlişkisi
+  sectionId          String?   // Hangi section'a ait olduğu
+  section            FormSection? @relation("SectionFields", fields: [sectionId], references: [id], onDelete: SetNull)
 
   templateId  String
   template    WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
@@ -824,4 +833,52 @@ model FormValidationRule {
   @@index([ruleType])
   @@index([isActive])
   @@index([priority])
+}
+
+// Sprint 4: Form Section/Grup Desteği (Ironclad Seviyesinde)
+model FormSection {
+  id              String   @id @default(cuid())
+  name            String   // Section adı, örn: "Counterparty Information", "Contract Terms"
+  title           String   // Kullanıcının göreceği başlık
+  description     String?  // Section açıklaması
+  order           Int      // Section sırası
+  
+  // Ironclad Section Özellikleri
+  isCollapsible   Boolean  @default(true)   // Katlanabilir mi?
+  isCollapsed     Boolean  @default(false)  // Varsayılan olarak kapalı mı?
+  isRequired      Boolean  @default(false)  // Section'daki en az bir alan zorunlu mu?
+  isHidden        Boolean  @default(false)  // Section gizli mi?
+  
+  // Progressive Disclosure
+  showConditions  Json?    // Ne zaman gösterilecek (koşullar)
+  hideConditions  Json?    // Ne zaman gizlenecek (koşullar)
+  
+  // Section Permissions (Ironclad özelliği)
+  allowedRoles    Json?    // Hangi roller görebilir: ["ADMIN", "EDITOR"]
+  readOnlyRoles   Json?    // Hangi roller sadece okuyabilir: ["VIEWER"]
+  
+  // Section Validation
+  validationRules Json?    // Section seviyesinde validasyon kuralları
+  dependsOn       String?  // Bağımlı olduğu section ID'si
+  
+  // UI/UX Özellikleri
+  icon            String?  // Section ikonu
+  color           String?  // Section rengi (hex)
+  helpText        String?  // Section için yardım metni
+  
+  // Meta bilgiler
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // İlişkiler
+  templateId      String
+  template        WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  // Section'a ait alanlar (FormField'larda sectionId ile bağlanacak)
+  fields          FormField[] @relation("SectionFields")
+
+  @@index([templateId])
+  @@index([order])
+  @@index([isHidden])
+  @@index([isRequired])
 }
