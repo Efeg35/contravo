@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
-import { ChevronLeft, FileText, ClipboardCopy } from "lucide-react";
+import React, { useState, useEffect, useTransition, useCallback } from "react";
+import { ChevronLeft, FileText, ClipboardCopy, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TemplateUploader } from "@/components/upload/TemplateUploader";
@@ -16,6 +16,19 @@ import DocumentEditor from '@/components/workflow/DocumentEditor';
 import type { DocumentEditorProperty } from '@/components/workflow/DocumentEditor';
 import PaperSourceSelector from '@/components/workflow/PaperSourceSelector';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import TextAlign from "@tiptap/extension-text-align";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import Link from "@tiptap/extension-link";
+import Highlight from "@tiptap/extension-highlight";
+import Placeholder from "@tiptap/extension-placeholder";
+import PropertyTag from "@/components/workflow/PropertyTag";
+import { DocumentToolbar } from "@/components/workflow/DocumentToolbar";
 
 type WorkflowTemplateWithFields = PrismaWorkflowTemplate & { 
   formFields?: any[];
@@ -30,11 +43,36 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     const [workflowSchema, setWorkflowSchema] = useState<WorkflowSchema>(DEFAULT_WORKFLOW_SCHEMA);
     const router = useRouter();
     const [activeStep, setActiveStep] = useState("Document");
-    const [editorHtml, setEditorHtml] = useState<string>(currentTemplate.documentHtml || "");
+    const [editorHtml, setEditorHtml] = useState<string>(initialTemplate.documentHtml || "");
     const [showPreview, setShowPreview] = useState(false);
-    const [editorMode, setEditorMode] = useState<'tag' | 'edit'>('tag');
+    const [editorMode, setEditorMode] = useState<'tag' | 'edit'>('edit');
     const [previewHtml, setPreviewHtml] = useState<string>('');
     const [formDataForGeneration, setFormDataForGeneration] = useState<Record<string, any>>({});
+
+    const editor = useEditor({
+        extensions: [
+            StarterKit,
+            Underline,
+            TextAlign.configure({ types: ["heading", "paragraph"] }),
+            Table, TableRow, TableCell, TableHeader,
+            Link.configure({ openOnClick: false }),
+            Highlight,
+            Placeholder.configure({
+                placeholder: "Sözleşme metninizi buraya yazın veya property ekleyin...",
+            }),
+            PropertyTag,
+        ],
+        content: editorHtml,
+        onUpdate: ({ editor }) => {
+            setEditorHtml(editor.getHTML());
+        },
+        editorProps: {
+            attributes: {
+                class:
+                    "prose max-w-none min-h-[400px] focus:outline-none",
+            },
+        },
+    });
 
     useEffect(() => {
         if(currentTemplate.templateFileUrl) {
@@ -60,6 +98,12 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     useEffect(() => {
         setEditorHtml(currentTemplate.documentHtml || "");
     }, [currentTemplate.documentHtml]);
+
+    useEffect(() => {
+        if (editor) {
+            editor.setEditable(editorMode === 'edit');
+        }
+    }, [editorMode, editor]);
 
     const handleSave = async () => {
         startTransition(async () => {
@@ -276,41 +320,49 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                 />
 
                 {/* Right Panel */}
-                <section className="flex-1 flex flex-col items-center bg-gray-100 p-6 overflow-y-auto">
+                <section className="flex-1 flex flex-col items-start bg-gray-100 p-8 overflow-y-auto">
                     {activeStep === "Document" && (
                         currentTemplate.documentHtml ? (
-                            <div className="w-full max-w-4xl mx-auto">
-                                <div className="flex items-center justify-between bg-white p-3 rounded-t-lg border-b border-gray-200">
-                                  <h2 className="text-base font-medium text-gray-700">{currentTemplate.documentName}</h2>
-                                  <div className="flex items-center space-x-1 border border-gray-200 rounded-md p-0.5">
-                                       <Button
-                                          variant={editorMode === 'tag' ? 'secondary' : 'ghost'}
-                                          size="sm"
-                                          onClick={() => setEditorMode('tag')}
-                                          className="px-3 py-1 text-xs h-7"
-                                       >
-                                          Tag
-                                       </Button>
-                                       <Button
-                                           variant={editorMode === 'edit' ? 'secondary' : 'ghost'}
-                                           size="sm"
-                                           onClick={() => setEditorMode('edit')}
-                                           className="px-3 py-1 text-xs h-7"
-                                       >
-                                          Edit
-                                       </Button>
-                                  </div>
+                            <div className="w-full max-w-4xl mx-auto space-y-4">
+                                {/* Belge Adı ve Generate Butonu */}
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-lg font-semibold text-gray-800">{currentTemplate.documentName}</h2>
+                                    <Button variant="outline" size="sm" onClick={handleGeneratePreview}>
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        Generate document
+                                    </Button>
                                 </div>
-                                <div className="bg-white p-2">
-                                  <DocumentEditor
-                                    mode={editorMode}
-                                    properties={propertyList}
-                                    value={editorHtml}
-                                    onChange={setEditorHtml}
-                                    onSave={handleDocumentSave}
-                                    onPreview={handleGeneratePreview}
-                                    templateId={currentTemplate.id}
-                                  />
+
+                                {/* Araç Çubuğu ve Editör Alanı */}
+                                <div className="bg-white rounded-lg shadow-md border border-gray-200">
+                                    <div className="p-2 border-b border-gray-200 flex items-center justify-between flex-wrap gap-2">
+                                        <div className="flex items-center space-x-1">
+                                            <Button
+                                                variant={editorMode === 'tag' ? 'secondary' : 'ghost'}
+                                                size="sm"
+                                                onClick={() => setEditorMode('tag')}
+                                                className="px-3 py-1 text-sm h-8"
+                                            >
+                                                Tag
+                                            </Button>
+                                            <Button
+                                                variant={editorMode === 'edit' ? 'secondary' : 'ghost'}
+                                                size="sm"
+                                                onClick={() => setEditorMode('edit')}
+                                                className="px-3 py-1 text-sm h-8"
+                                            >
+                                                Edit
+                                            </Button>
+                                        </div>
+                                        <DocumentToolbar editor={editor} />
+                                    </div>
+                                    <div className="p-4">
+                                        <DocumentEditor
+                                            editor={editor}
+                                            properties={propertyList}
+                                            templateId={currentTemplate.id}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         ) : (

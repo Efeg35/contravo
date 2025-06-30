@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from "react";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
@@ -96,20 +96,12 @@ const DEFAULT_CONDITIONS: ConditionOption[] = [
 ];
 
 export default function DocumentEditor({
-  value,
-  onChange,
+  editor,
   properties = [],
-  onSave,
-  onPreview,
-  mode = 'edit',
   templateId,
 }: {
-  value?: string;
-  onChange?: (val: string) => void;
+  editor: Editor | null;
   properties?: DocumentEditorProperty[];
-  onSave?: () => void;
-  onPreview?: () => void;
-  mode?: 'tag' | 'edit';
   templateId?: string;
 }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -118,56 +110,10 @@ export default function DocumentEditor({
   const [customClause, setCustomClause] = useState({ title: '', content: '' });
   const [customCondition, setCustomCondition] = useState({ name: '', condition: '', trueValue: '', falseValue: '' });
 
-  // Debug için properties'leri logla
-  console.log('DocumentEditor properties:', properties);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Table,
-      TableRow,
-      TableCell,
-      TableHeader,
-      Link.configure({
-        openOnClick: false,
-      }),
-      Highlight,
-      Placeholder.configure({
-        placeholder: "Sözleşme metninizi buraya yazın veya property ekleyin...",
-      }),
-      PropertyTag,
-    ],
-    content: value || "",
-    onUpdate: ({ editor }) => {
-      onChange?.(editor.getHTML());
-    },
-    editorProps: {
-      attributes: {
-        class:
-          "prose max-w-none min-h-[400px] border border-gray-200 rounded-lg p-4 bg-white focus:outline-none",
-      },
-    },
-  });
-
-  useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value || '', false);
-    }
-  }, [value, editor]);
-
-  useEffect(() => {
-    if (editor) {
-      editor.setEditable(mode === 'edit');
-    }
-  }, [mode, editor]);
-
   const handleAddProperty = useCallback(
     async (property: DocumentEditorProperty) => {
       if (!editor) return;
       
-      // Property tag'i editöre ekle
       (editor as any).chain().focus().insertPropertyTag({
         id: property.id,
         label: property.label,
@@ -175,10 +121,9 @@ export default function DocumentEditor({
       }).run();
       setPopoverOpen(false);
       
-      // Property'yi launch form field olarak da kaydet
       await ensurePropertyInLaunchForm(property);
     },
-    [editor]
+    [editor, templateId]
   );
 
   // Property'nin launch form'da field olarak var olmasını sağla
@@ -314,205 +259,188 @@ export default function DocumentEditor({
     editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }, [editor])
 
+  // Bu kontrol hook'lardan sonra, JSX'ten önce olmalı
+  if (!editor) {
+    return null;
+  }
+
   return (
     <div className="w-full">
       {editor && (
          <BubbleMenu editor={editor} tippyOptions={{ duration: 100, zIndex: 20 }}
            shouldShow={({ editor, from, to }) => {
              if (from === to) return false;
-             if (mode === 'edit' || mode === 'tag') return true;
-             return false;
+             return true;
            }}
          >
-           {mode === 'tag' ? (
-             <div className="flex items-center gap-1 bg-white border border-gray-200 shadow-lg rounded-md p-1">
-               <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                 <PopoverTrigger asChild>
-                   <Button 
-                     size="sm" 
-                     variant="ghost"
-                     className="h-8 px-3 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-0"
-                   >
-                     Add Property
-                   </Button>
-                 </PopoverTrigger>
-                 <PopoverContent className="w-[300px] p-0" align="start">
-                   <div className="p-4">
-                     <h4 className="font-medium mb-3">Property Seç</h4>
-                     {properties.length === 0 ? (
-                       <p className="text-sm text-gray-500">
-                         Henüz property tanımlanmamış. Create sekmesinden launch form fields ekleyin.
-                       </p>
-                     ) : (
-                       <div className="space-y-1 max-h-64 overflow-y-auto">
-                         {properties.map((prop) => (
-                           <button
-                             key={prop.id}
-                             onClick={() => handleAddProperty(prop)}
-                             className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-colors"
-                           >
-                             <div className="flex flex-col">
-                               <span className="font-medium text-sm text-gray-900">{prop.label}</span>
-                               {prop.description && (
-                                 <span className="text-xs text-gray-500 mt-1">{prop.description}</span>
-                               )}
-                             </div>
-                           </button>
-                         ))}
-                       </div>
-                     )}
-                   </div>
-                 </PopoverContent>
-               </Popover>
-
-               <div className="w-px h-6 bg-gray-200"></div>
-
-               <Popover open={clauseOpen} onOpenChange={setClauseOpen}>
-                 <PopoverTrigger asChild>
-                   <Button 
-                     size="sm" 
-                     variant="ghost"
-                     className="h-8 px-3 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-0"
-                   >
-                     Add Clause
-                   </Button>
-                 </PopoverTrigger>
-                 <PopoverContent className="w-[400px] p-0" align="start">
-                   <div className="p-4">
-                     <h4 className="font-medium mb-3">Madde Ekle</h4>
-                     <div className="space-y-2 mb-4">
-                       {DEFAULT_CLAUSES.map((clause) => (
-                         <div 
-                           key={clause.id}
-                           className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                           onClick={() => handleAddClause(clause)}
+           <div className="flex items-center gap-1 bg-white border border-gray-200 shadow-lg rounded-md p-1">
+             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+               <PopoverTrigger asChild>
+                 <Button 
+                   size="sm" 
+                   variant="ghost"
+                   className="h-8 px-3 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-0"
+                 >
+                   Add Property
+                 </Button>
+               </PopoverTrigger>
+               <PopoverContent className="w-[300px] p-0" align="start">
+                 <div className="p-4">
+                   <h4 className="font-medium mb-3">Property Seç</h4>
+                   {properties.length === 0 ? (
+                     <p className="text-sm text-gray-500">
+                       Henüz property tanımlanmamış. Create sekmesinden launch form fields ekleyin.
+                     </p>
+                   ) : (
+                     <div className="space-y-1 max-h-64 overflow-y-auto">
+                       {properties.map((prop) => (
+                         <button
+                           key={prop.id}
+                           onClick={() => handleAddProperty(prop)}
+                           className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-colors"
                          >
-                           <div className="font-medium text-sm">{clause.title}</div>
-                           <div className="text-xs text-gray-500 mt-1 line-clamp-2">{clause.content}</div>
-                           <div className="text-xs text-blue-600 mt-1">{clause.category}</div>
-                         </div>
+                           <div className="flex flex-col">
+                             <span className="font-medium text-sm text-gray-900">{prop.label}</span>
+                             {prop.description && (
+                               <span className="text-xs text-gray-500 mt-1">{prop.description}</span>
+                             )}
+                           </div>
+                         </button>
                        ))}
                      </div>
-                     
-                     <div className="border-t pt-4">
-                       <h5 className="font-medium text-sm mb-2">Özel Madde Oluştur</h5>
-                       <div className="space-y-2">
-                         <Input
-                           placeholder="Madde başlığı..."
-                           value={customClause.title}
-                           onChange={(e) => setCustomClause(prev => ({ ...prev, title: e.target.value }))}
-                         />
-                         <Textarea
-                           placeholder="Madde içeriği..."
-                           value={customClause.content}
-                           onChange={(e) => setCustomClause(prev => ({ ...prev, content: e.target.value }))}
-                           rows={3}
-                         />
-                         <Button 
-                           size="sm" 
-                           onClick={handleAddCustomClause}
-                           disabled={!customClause.title || !customClause.content}
-                         >
-                           Ekle
-                         </Button>
+                   )}
+                 </div>
+               </PopoverContent>
+             </Popover>
+
+             <div className="w-px h-6 bg-gray-200"></div>
+
+             <Popover open={clauseOpen} onOpenChange={setClauseOpen}>
+               <PopoverTrigger asChild>
+                 <Button 
+                   size="sm" 
+                   variant="ghost"
+                   className="h-8 px-3 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-0"
+                 >
+                   Add Clause
+                 </Button>
+               </PopoverTrigger>
+               <PopoverContent className="w-[400px] p-0" align="start">
+                 <div className="p-4">
+                   <h4 className="font-medium mb-3">Madde Ekle</h4>
+                   <div className="space-y-2 mb-4">
+                     {DEFAULT_CLAUSES.map((clause) => (
+                       <div 
+                         key={clause.id}
+                         className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                         onClick={() => handleAddClause(clause)}
+                       >
+                         <div className="font-medium text-sm">{clause.title}</div>
+                         <div className="text-xs text-gray-500 mt-1 line-clamp-2">{clause.content}</div>
+                         <div className="text-xs text-blue-600 mt-1">{clause.category}</div>
                        </div>
+                     ))}
+                   </div>
+                   
+                   <div className="border-t pt-4">
+                     <h5 className="font-medium text-sm mb-2">Özel Madde Oluştur</h5>
+                     <div className="space-y-2">
+                       <Input
+                         placeholder="Madde başlığı..."
+                         value={customClause.title}
+                         onChange={(e) => setCustomClause(prev => ({ ...prev, title: e.target.value }))}
+                       />
+                       <Textarea
+                         placeholder="Madde içeriği..."
+                         value={customClause.content}
+                         onChange={(e) => setCustomClause(prev => ({ ...prev, content: e.target.value }))}
+                         rows={3}
+                       />
+                       <Button 
+                         size="sm" 
+                         onClick={handleAddCustomClause}
+                         disabled={!customClause.title || !customClause.content}
+                       >
+                         Ekle
+                       </Button>
                      </div>
                    </div>
-                 </PopoverContent>
-               </Popover>
+                 </div>
+               </PopoverContent>
+             </Popover>
 
-               <div className="w-px h-6 bg-gray-200"></div>
+             <div className="w-px h-6 bg-gray-200"></div>
 
-               <Popover open={conditionOpen} onOpenChange={setConditionOpen}>
-                 <PopoverTrigger asChild>
-                   <Button 
-                     size="sm" 
-                     variant="ghost"
-                     className="h-8 px-3 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-0"
-                   >
-                     Add Condition
-                   </Button>
-                 </PopoverTrigger>
-                 <PopoverContent className="w-[450px] p-0" align="start">
-                   <div className="p-4">
-                     <h4 className="font-medium mb-3">Koşul Ekle</h4>
-                     <div className="space-y-2 mb-4">
-                       {DEFAULT_CONDITIONS.map((condition) => (
-                         <div 
-                           key={condition.id}
-                           className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                           onClick={() => handleAddCondition(condition)}
-                         >
-                           <div className="font-medium text-sm">{condition.name}</div>
-                           <div className="text-xs text-gray-500 mt-1">{condition.condition}</div>
-                           <div className="text-xs text-green-600 mt-1">✓ {condition.trueValue}</div>
-                           <div className="text-xs text-red-600">✗ {condition.falseValue}</div>
-                         </div>
-                       ))}
-                     </div>
-                     
-                     <div className="border-t pt-4">
-                       <h5 className="font-medium text-sm mb-2">Özel Koşul Oluştur</h5>
-                       <div className="space-y-2">
-                         <Input
-                           placeholder="Koşul adı..."
-                           value={customCondition.name}
-                           onChange={(e) => setCustomCondition(prev => ({ ...prev, name: e.target.value }))}
-                         />
-                         <Input
-                           placeholder="Koşul tanımı (örn: Tutar 10.000 TL'den fazla ise)..."
-                           value={customCondition.condition}
-                           onChange={(e) => setCustomCondition(prev => ({ ...prev, condition: e.target.value }))}
-                         />
-                         <Textarea
-                           placeholder="Koşul doğru ise gösterilecek metin..."
-                           value={customCondition.trueValue}
-                           onChange={(e) => setCustomCondition(prev => ({ ...prev, trueValue: e.target.value }))}
-                           rows={2}
-                         />
-                         <Textarea
-                           placeholder="Koşul yanlış ise gösterilecek metin..."
-                           value={customCondition.falseValue}
-                           onChange={(e) => setCustomCondition(prev => ({ ...prev, falseValue: e.target.value }))}
-                           rows={2}
-                         />
-                         <Button 
-                           size="sm" 
-                           onClick={handleAddCustomCondition}
-                           disabled={!customCondition.name || !customCondition.condition}
-                         >
-                           Ekle
-                         </Button>
+             <Popover open={conditionOpen} onOpenChange={setConditionOpen}>
+               <PopoverTrigger asChild>
+                 <Button 
+                   size="sm" 
+                   variant="ghost"
+                   className="h-8 px-3 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-0"
+                 >
+                   Add Condition
+                 </Button>
+               </PopoverTrigger>
+               <PopoverContent className="w-[450px] p-0" align="start">
+                 <div className="p-4">
+                   <h4 className="font-medium mb-3">Koşul Ekle</h4>
+                   <div className="space-y-2 mb-4">
+                     {DEFAULT_CONDITIONS.map((condition) => (
+                       <div 
+                         key={condition.id}
+                         className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                         onClick={() => handleAddCondition(condition)}
+                       >
+                         <div className="font-medium text-sm">{condition.name}</div>
+                         <div className="text-xs text-gray-500 mt-1">{condition.condition}</div>
+                         <div className="text-xs text-green-600 mt-1">✓ {condition.trueValue}</div>
+                         <div className="text-xs text-red-600">✗ {condition.falseValue}</div>
                        </div>
+                     ))}
+                   </div>
+                   
+                   <div className="border-t pt-4">
+                     <h5 className="font-medium text-sm mb-2">Özel Koşul Oluştur</h5>
+                     <div className="space-y-2">
+                       <Input
+                         placeholder="Koşul adı..."
+                         value={customCondition.name}
+                         onChange={(e) => setCustomCondition(prev => ({ ...prev, name: e.target.value }))}
+                       />
+                       <Input
+                         placeholder="Koşul tanımı (örn: Tutar 10.000 TL'den fazla ise)..."
+                         value={customCondition.condition}
+                         onChange={(e) => setCustomCondition(prev => ({ ...prev, condition: e.target.value }))}
+                       />
+                       <Textarea
+                         placeholder="Koşul doğru ise gösterilecek metin..."
+                         value={customCondition.trueValue}
+                         onChange={(e) => setCustomCondition(prev => ({ ...prev, trueValue: e.target.value }))}
+                         rows={2}
+                       />
+                       <Textarea
+                         placeholder="Koşul yanlış ise gösterilecek metin..."
+                         value={customCondition.falseValue}
+                         onChange={(e) => setCustomCondition(prev => ({ ...prev, falseValue: e.target.value }))}
+                         rows={2}
+                       />
+                       <Button 
+                         size="sm" 
+                         onClick={handleAddCustomCondition}
+                         disabled={!customCondition.name || !customCondition.condition}
+                       >
+                         Ekle
+                       </Button>
                      </div>
                    </div>
-                 </PopoverContent>
-               </Popover>
-             </div>
-           ) : (
-             <div className="flex items-center gap-1 bg-white border border-gray-200 shadow-lg rounded-md p-1">
-                <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleBold().run()} className={editor.isActive('bold') ? 'is-active' : ''}>
-                  <Bold size={16}/>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleItalic().run()} className={editor.isActive('italic') ? 'is-active' : ''}>
-                  <Italic size={16}/>
-                </Button>
-                 <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleUnderline().run()} className={editor.isActive('underline') ? 'is-active' : ''}>
-                  <UnderlineIcon size={16}/>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={setLink} className={editor.isActive('link') ? 'is-active' : ''}>
-                  <LinkIcon size={16}/>
-                </Button>
-             </div>
-           )}
+                 </div>
+               </PopoverContent>
+             </Popover>
+           </div>
          </BubbleMenu>
       )}
 
       <EditorContent editor={editor} />
-      <div className="flex gap-2 justify-end mt-4">
-        <Button variant="outline" onClick={onPreview}>Preview</Button>
-        <Button variant="default" onClick={onSave}>Save</Button>
-      </div>
     </div>
   );
 } 
