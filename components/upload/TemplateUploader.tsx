@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { FileText, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { saveTemplateFileUrl } from "@/src/lib/actions/workflow-template-actions";
 import { Button } from "@/components/ui/button";
 
 interface TemplateUploaderProps {
@@ -57,18 +56,24 @@ export const TemplateUploader = ({ templateId, onUploadComplete }: TemplateUploa
       } else {
         // Normal template için direkt kaydet
         startTransition(async () => {
-          const result = await saveTemplateFileUrl({
-            templateId: templateId,
-            fileUrl: uploadedFile.url,
-            fileName: uploadedFile.name
+          const response = await fetch(`/api/workflow-templates/${templateId}/document`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              documentUrl: uploadedFile.url,
+              documentName: uploadedFile.name
+            })
           });
 
-          if (result.success) {
+          if (response.ok) {
             toast.success("Dosya başarıyla yüklendi! Sayfa yeniden yüklenecek.");
+            // İsteğe bağlı callback
             onUploadComplete?.();
+            // Sayfayı yenileyerek güncel veriyi göster
             window.location.reload();
           } else {
-            toast.error(result.message || "Dosya URL'si kaydedilirken hata oluştu.");
+            const errorData = await response.json().catch(() => ({}));
+            toast.error(errorData.error || "Dosya URL'si kaydedilirken hata oluştu.");
           }
         });
       }
