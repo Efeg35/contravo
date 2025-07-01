@@ -24,12 +24,12 @@ export function DocumentToolbar({ editor }: Props) {
   if (!editor) return null;
 
   return (
-    <div className="flex items-center space-x-1 overflow-x-auto text-gray-600 [&>*:hover]:text-blue-600">
+    <div className="flex items-center space-x-1 overflow-x-auto text-gray-600 toolbar-ironclad">
       <Toggle
         size="sm"
         pressed={editor.isActive('bold')}
         onPressedChange={() => editor.chain().focus().toggleBold().run()}
-        className="text-gray-600 hover:text-blue-600"
+        className={`text-gray-600 hover:text-[#0070e0] ${editor.isActive('bold') ? 'text-[#0070e0]' : ''}`}
       >
         <Bold className="w-5 h-5" />
       </Toggle>
@@ -37,22 +37,25 @@ export function DocumentToolbar({ editor }: Props) {
         size="sm"
         pressed={editor.isActive('italic')}
         onPressedChange={() => editor.chain().focus().toggleItalic().run()}
+        className={`text-gray-600 hover:text-[#0070e0] ${editor.isActive('italic') ? 'text-[#0070e0]' : ''}`}
       >
-        <Italic className="w-5 h-5 text-gray-700" />
+        <Italic className="w-5 h-5" />
       </Toggle>
       <Toggle
         size="sm"
         pressed={editor.isActive('underline')}
         onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
+        className={`text-gray-600 hover:text-[#0070e0] ${editor.isActive('underline') ? 'text-[#0070e0]' : ''}`}
       >
-        <Underline className="w-5 h-5 text-gray-700" />
+        <Underline className="w-5 h-5" />
       </Toggle>
       <Toggle
         size="sm"
         pressed={editor.isActive('strike')}
         onPressedChange={() => editor.chain().focus().toggleStrike().run()}
+        className={`text-gray-600 hover:text-[#0070e0] ${editor.isActive('strike') ? 'text-[#0070e0]' : ''}`}
       >
-        <Strikethrough className="w-5 h-5 text-gray-700" />
+        <Strikethrough className="w-5 h-5" />
       </Toggle>
       <span className="border-l border-gray-300 h-5 mx-1" />
       <Toggle

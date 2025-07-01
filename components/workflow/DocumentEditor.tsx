@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DocumentToolbar } from './DocumentToolbar';
 
 export interface DocumentEditorProperty {
   id: string;
@@ -265,8 +266,8 @@ export default function DocumentEditor({
   }
 
   return (
-    // Çalışma masası: açık gri zemin ve dikey boşluk
-    <div className="bg-gray-100 min-h-screen py-8">
+    // Çalışma masası: açık gri zemin, padding kaldırıldı
+    <div className="bg-gray-100 min-h-screen">
       {editor && (
          <BubbleMenu editor={editor} tippyOptions={{ duration: 100, zIndex: 20 }}
            shouldShow={({ editor, from, to }) => {
@@ -441,9 +442,9 @@ export default function DocumentEditor({
          </BubbleMenu>
       )}
 
-      {/* Kağıt: merkezde, A4 genişliğine yakın, beyaz zemin ve gölge */}
-      <div className="mx-auto w-[816px] bg-white shadow-2xl border border-gray-200 rounded-md my-8 p-24">
-        <EditorContent editor={editor} />
+      {/* Kağıt: Ironclad'e eşlenmiş sayfa tarzı */}
+      <div className="mx-auto w-[790px] bg-white shadow-[0_4px_24px_0_rgba(60,72,88,0.12)] mt-2 mb-8 py-[72px] px-[90px] font-serif font-[Source_Serif_Pro]" style={{ fontFamily: "'Source Serif Pro', Georgia, serif" }}>
+        <EditorContent editor={editor} style={{ fontFamily: "'Source Serif Pro', Georgia, serif" }} />
       </div>
     </div>
   );

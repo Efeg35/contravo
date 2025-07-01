@@ -274,7 +274,19 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
         
         return String(value);
     };
-    
+
+    const DROPDOWN_OPTIONS = [
+        "Always",
+        "Renewal Type is Auto-Renew",
+        "Renewal Type is Auto-Renew OR Optional Extension",
+        "Renewal Type is None",
+        "Renewal Type is not Evergreen",
+        "Renewal Type is Optional Extension",
+        "Renewal Type is Other"
+    ];
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [selectedDropdown, setSelectedDropdown] = useState(DROPDOWN_OPTIONS[0]);
+
     return (
         <div className="flex flex-col h-screen bg-gray-50">
             {/* Header */}
@@ -320,46 +332,77 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                 />
 
                 {/* Right Panel */}
-                <section className="flex-1 flex flex-col items-start bg-gray-100 overflow-y-auto">
+                <section className="flex-1 flex flex-col items-start bg-gray-100">
                     {activeStep === "Document" && (
                         currentTemplate.documentHtml ? (
                             <>
                                 {/* Başlık Barı: Tam genişlik, sticky, gri fon */}
                                 <div className="bg-gray-100 w-full px-8 pt-4 pb-2 flex justify-between items-center border-b border-gray-200">
                                     <h2 className="text-lg font-semibold text-gray-800">{currentTemplate.documentName}</h2>
-                                    <Button variant="outline" size="sm" onClick={handleGeneratePreview}>
-                                        <RefreshCw className="w-4 h-4 mr-2" />
-                                        Generate document
-                                    </Button>
-                                </div>
-                                {/* İçerik Barı: Padding ve spacing */}
-                                <div className="w-full p-8 pt-2 space-y-4">
-                                    {/* Birleşik Toolbar */}
-                                    <div className="bg-white border border-gray-200 shadow-sm rounded-md flex items-center justify-between px-3 py-2">
-                                        {/* Segmented Tag/Edit */}
-                                        <div className="inline-flex rounded-md overflow-hidden border border-gray-300">
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="outline" size="sm" onClick={handleGeneratePreview} className="h-9 px-4 text-sm font-medium">
+                                            <RefreshCw className="w-4 h-4 mr-2" />
+                                            Generate document
+                                        </Button>
+                                        <div className="relative">
                                             <button
+                                                className="h-9 px-3 text-sm font-medium border border-gray-300 bg-white text-gray-700 rounded-none focus:outline-none flex items-center hover:bg-gray-50 min-w-[180px] justify-between"
+                                                onClick={() => setDropdownOpen((v) => !v)}
                                                 type="button"
-                                                onClick={() => setEditorMode('tag')}
-                                                className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors ${editorMode === 'tag' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
                                             >
-                                                Tag
+                                                {selectedDropdown}
+                                                <svg className="ml-1 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setEditorMode('edit')}
-                                                className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors border-l border-gray-300 ${editorMode === 'edit' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-                                            >
-                                                Edit
-                                            </button>
+                                            {dropdownOpen && (
+                                                <div className="absolute right-0 mt-1 w-full bg-white border border-gray-200 shadow-lg z-10 rounded-none">
+                                                    {DROPDOWN_OPTIONS.map((option) => (
+                                                        <button
+                                                            key={option}
+                                                            className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 ${selectedDropdown === option ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-700'}`}
+                                                            onClick={() => {
+                                                                setSelectedDropdown(option);
+                                                                setDropdownOpen(false);
+                                                            }}
+                                                            type="button"
+                                                        >
+                                                            {option}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                        <DocumentToolbar editor={editor} />
                                     </div>
-                                    <DocumentEditor
-                                        editor={editor}
-                                        properties={propertyList}
-                                        templateId={currentTemplate.id}
-                                    />
+                                </div>
+                                {/* İçerik Container: Scroll edilebilir */}
+                                <div className="w-full overflow-y-auto flex-1">
+                                    <div className="p-8 pt-2">
+                                        {/* Birleşik Toolbar - Tam genişlik, sayfa ile scroll eder */}
+                                        <div className="w-full bg-white border border-gray-200 shadow-sm flex items-center justify-between px-3 py-2 mb-4">
+                                            {/* Segmented Tag/Edit */}
+                                            <div className="inline-flex rounded-md overflow-hidden border border-gray-300">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditorMode('tag')}
+                                                    className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors ${editorMode === 'tag' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                                                >
+                                                    Tag
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditorMode('edit')}
+                                                    className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors border-l border-gray-300 ${editorMode === 'edit' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                                                >
+                                                    Edit
+                                                </button>
+                                            </div>
+                                            <DocumentToolbar editor={editor} />
+                                        </div>
+                                        <DocumentEditor
+                                            editor={editor}
+                                            properties={propertyList}
+                                            templateId={currentTemplate.id}
+                                        />
+                                    </div>
                                 </div>
                             </>
                         ) : (
