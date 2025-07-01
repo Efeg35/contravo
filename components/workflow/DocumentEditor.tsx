@@ -100,10 +100,12 @@ export default function DocumentEditor({
   editor,
   properties = [],
   templateId,
+  zoomLevel,
 }: {
   editor: Editor | null;
   properties?: DocumentEditorProperty[];
   templateId?: string;
+  zoomLevel: number;
 }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [clauseOpen, setClauseOpen] = useState(false);
@@ -260,14 +262,12 @@ export default function DocumentEditor({
     editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }, [editor])
 
-  // Bu kontrol hook'lardan sonra, JSX'ten önce olmalı
   if (!editor) {
     return null;
   }
 
   return (
-    // Çalışma masası: açık gri zemin, padding kaldırıldı
-    <div className="bg-gray-100 min-h-screen">
+    <>
       {editor && (
          <BubbleMenu editor={editor} tippyOptions={{ duration: 100, zIndex: 20 }}
            shouldShow={({ editor, from, to }) => {
@@ -442,10 +442,19 @@ export default function DocumentEditor({
          </BubbleMenu>
       )}
 
-      {/* Kağıt: Ironclad'e eşlenmiş sayfa tarzı */}
-      <div className="mx-auto w-[790px] bg-white shadow-[0_4px_24px_0_rgba(60,72,88,0.12)] mt-2 mb-8 py-[72px] px-[90px] font-serif font-[Source_Serif_Pro]" style={{ fontFamily: "'Source Serif Pro', Georgia, serif" }}>
+      {/* Kağıt: Ironclad'e eşlenmiş sayfa tarzı.
+          `transform` ve `transform-origin` (veya `origin-top` class'ı) ile zoom uygulanıyor.
+          Wrapper div'i (bir sonraki adımda) ortalamayı sağlayacak.
+      */}
+      <div 
+        className="mx-auto bg-white shadow-[0_4px_24px_0_rgba(60,72,88,0.12)] mb-8 py-[72px] px-[90px] font-serif font-[Source_Serif_Pro] w-[790px] origin-top"
+        style={{ 
+          fontFamily: "'Source Serif Pro', Georgia, serif", 
+          transform: `scale(${zoomLevel / 100})`
+        }}
+      >
         <EditorContent editor={editor} style={{ fontFamily: "'Source Serif Pro', Georgia, serif" }} />
       </div>
-    </div>
+    </>
   );
 } 

@@ -51,6 +51,11 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     const [editorMode, setEditorMode] = useState<'tag' | 'edit'>('edit');
     const [previewHtml, setPreviewHtml] = useState<string>('');
     const [formDataForGeneration, setFormDataForGeneration] = useState<Record<string, any>>({});
+    const [zoomLevel, setZoomLevel] = useState(100);
+
+    const handleZoomChange = (value: string) => {
+      setZoomLevel(parseInt(value, 10));
+    };
 
     const editor = useEditor({
         extensions: [
@@ -400,32 +405,32 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                                 {/* İçerik Container: Scroll edilebilir */}
                                 <div className="w-full overflow-y-auto flex-1">
                                     <div className="p-8 pt-2">
-                                        {/* Birleşik Toolbar - Tam genişlik, sayfa ile scroll eder */}
-                                        <div className="w-full bg-white border border-gray-200 shadow-sm flex items-center justify-between px-3 py-2 mb-4">
-                                            {/* Segmented Tag/Edit */}
-                                            <div className="inline-flex rounded-md overflow-hidden border border-gray-300">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setEditorMode('tag')}
-                                                    className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors ${editorMode === 'tag' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-                                                >
-                                                    Tag
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setEditorMode('edit')}
-                                                    className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors border-l border-gray-300 ${editorMode === 'edit' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-                                                >
-                                                    Edit
-                                                </button>
+                                        {selectedPaperSource && (
+                                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
+                                                {/* Toolbar Alanı */}
+                                                <div className="p-2 border-b flex justify-center items-center sticky top-0 bg-white z-10">
+                                                    {editor && (
+                                                        <DocumentToolbar 
+                                                            editor={editor} 
+                                                            zoomLevel={zoomLevel} 
+                                                            onZoomChange={handleZoomChange}
+                                                            editorMode={editorMode}
+                                                            onEditorModeChange={setEditorMode}
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                {/* DocumentEditor'ı içeren container */}
+                                                <div className="p-4 md:p-8 flex justify-center bg-gray-50/50">
+                                                    <DocumentEditor
+                                                        editor={editor}
+                                                        properties={propertyList}
+                                                        templateId={currentTemplate.id}
+                                                        zoomLevel={zoomLevel}
+                                                    />
+                                                </div>
                                             </div>
-                                            <DocumentToolbar editor={editor} />
-                                        </div>
-                                        <DocumentEditor
-                                            editor={editor}
-                                            properties={propertyList}
-                                            templateId={currentTemplate.id}
-                                        />
+                                        )}
                                     </div>
                                 </div>
                             </>
