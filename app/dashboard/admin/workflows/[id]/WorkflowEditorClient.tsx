@@ -406,31 +406,31 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                                 </div>
                             </>
                         ) : (
-                            <div className="w-full max-w-2xl">
-                              <PaperSourceSelector
-                                onSave={async (source, file) => {
-                                  startTransition(async () => {
-                                    // Dosya upload işlemi
-                                    const formData = new FormData();
-                                    formData.append('file', file);
-                                    formData.append('source', source);
-                                    const res = await fetch(`/api/workflow-templates/${currentTemplate.id}/document`, {
-                                      method: 'POST',
-                                      body: formData
-                                    });
-                                    if (res.ok) {
-                                      const updated = await res.json();
-                                      if (currentTemplate.id === 'new') {
-                                        router.push(`/dashboard/admin/workflows/${updated.id}`);
-                                      } else {
-                                        setCurrentTemplate((prev) => ({ ...prev, ...updated }));
-                                      }
-                                    } else {
-                                      alert('Dosya yüklenirken hata oluştu!');
-                                    }
-                                  });
-                                }}
-                              />
+                            <div className="w-full flex justify-center items-center min-h-[500px]">
+                                <PaperSourceSelector
+                                    onSave={async (source, file) => {
+                                        startTransition(async () => {
+                                            // Dosya upload işlemi
+                                            const formData = new FormData();
+                                            formData.append('file', file);
+                                            formData.append('source', source);
+                                            const res = await fetch(`/api/workflow-templates/${currentTemplate.id}/document`, {
+                                                method: 'POST',
+                                                body: formData
+                                            });
+                                            if (res.ok) {
+                                                const updated = await res.json();
+                                                if (currentTemplate.id === 'new') {
+                                                    router.push(`/dashboard/admin/workflows/${updated.id}`);
+                                                } else {
+                                                    setCurrentTemplate((prev) => ({ ...prev, ...updated }));
+                                                }
+                                            } else {
+                                                alert('Dosya yüklenirken hata oluştu!');
+                                            }
+                                        });
+                                    }}
+                                />
                             </div>
                         )
                     )}
