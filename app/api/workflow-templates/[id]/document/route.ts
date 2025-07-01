@@ -68,8 +68,38 @@ export async function POST(
     let documentHtml = '';
     if (isDocx) {
       try {
-        const result = await mammoth.convertToHtml({ buffer });
+        const result = await mammoth.convertToHtml({ buffer }, {
+          styleMap: [
+            // Madde işaretleri için özel stil mapping
+            "p[style-name='List Paragraph'] => ul > li",
+            "p[style-name='ListParagraph'] => ul > li", 
+            "p[style-name='Bullet List'] => ul > li",
+            "p[style-name='BulletList'] => ul > li",
+            "p[style-name='Numbered List'] => ol > li",
+            "p[style-name='NumberedList'] => ol > li",
+            // Başlık stilleri
+            "p[style-name='Heading 1'] => h1",
+            "p[style-name='Heading 2'] => h2", 
+            "p[style-name='Heading 3'] => h3",
+            "p[style-name='Heading 4'] => h4",
+            // Kalın ve italik
+            "r[style-name='Strong'] => strong",
+            "r[style-name='Emphasis'] => em",
+          ],
+          includeDefaultStyleMap: true,
+          convertImage: mammoth.images.imgElement(function(image) {
+            return image.read("base64").then(function(imageBuffer) {
+              return {
+                src: "data:" + image.contentType + ";base64," + imageBuffer
+              };
+            });
+          })
+        });
         documentHtml = result.value; // The generated HTML
+        
+        // Ek post-processing: mammoth'un kaçırdığı formatlamaları düzelt
+        documentHtml = postProcessHTML(documentHtml);
+        
       } catch (error) {
         console.error("Error converting docx to html", error);
       }
@@ -238,4 +268,47 @@ function formatPropertyValue(value: any, propertyId: string): string {
   }
   
   return String(value);
+}
+
+// Post-processing function: mammoth'un kaçırdığı formatlamaları düzelt
+function postProcessHTML(html: string): string {
+  let processedHtml = html;
+  
+  // Ardışık madde işaretli paragrafları ul/li yapısına çevir
+  processedHtml = processedHtml.replace(
+    /(<p>•\s*(.+?)<\/p>(\s*<p>•\s*(.+?)<\/p>)*)/g,
+    (match) => {
+      const items = match.match(/<p>•\s*(.+?)<\/p>/g);
+      if (items) {
+        const listItems = items.map(item => 
+          item.replace(/<p>•\s*(.+?)<\/p>/, '<li>$1</li>')
+        ).join('');
+        return `<ul>${listItems}</ul>`;
+      }
+      return match;
+    }
+  );
+  
+  // Numaralı liste işaretlerini düzelt (1., 2., 3. vs.)
+  processedHtml = processedHtml.replace(
+    /(<p>\d+\.\s*(.+?)<\/p>(\s*<p>\d+\.\s*(.+?)<\/p>)*)/g,
+    (match) => {
+      const items = match.match(/<p>\d+\.\s*(.+?)<\/p>/g);
+      if (items) {
+        const listItems = items.map(item => 
+          item.replace(/<p>\d+\.\s*(.+?)<\/p>/, '<li>$1</li>')
+        ).join('');
+        return `<ol>${listItems}</ol>`;
+      }
+      return match;
+    }
+  );
+  
+  // Girintili paragrafları koruma
+  processedHtml = processedHtml.replace(
+    /<p style="margin-left:(\d+)px">/g,
+    '<p style="margin-left:$1px; padding-left:$1px;">'
+  );
+  
+  return processedHtml;
 } 

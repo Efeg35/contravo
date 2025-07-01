@@ -27,6 +27,9 @@ import TableHeader from "@tiptap/extension-table-header";
 import Link from "@tiptap/extension-link";
 import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
+import BulletList from "@tiptap/extension-bullet-list";
+import OrderedList from "@tiptap/extension-ordered-list";
+import ListItem from "@tiptap/extension-list-item";
 import PropertyTag from "@/components/workflow/PropertyTag";
 import { DocumentToolbar } from "@/components/workflow/DocumentToolbar";
 
@@ -51,7 +54,28 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
 
     const editor = useEditor({
         extensions: [
-            StarterKit,
+            StarterKit.configure({
+                // StarterKit'teki liste extensions'larını devre dışı bırak ki kendimiz kontrol edelim
+                bulletList: false,
+                orderedList: false,
+                listItem: false,
+            }),
+            // Liste extensions'larını manuel olarak yapılandır
+            BulletList.configure({
+                HTMLAttributes: {
+                    class: 'ironclad-bullet-list',
+                },
+            }),
+            OrderedList.configure({
+                HTMLAttributes: {
+                    class: 'ironclad-ordered-list',
+                },
+            }),
+            ListItem.configure({
+                HTMLAttributes: {
+                    class: 'ironclad-list-item',
+                },
+            }),
             Underline,
             TextAlign.configure({ types: ["heading", "paragraph"] }),
             Table, TableRow, TableCell, TableHeader,

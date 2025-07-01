@@ -3,9 +3,114 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap');
+
 /* Buraya kendi global CSS'lerinizi ekleyebilirsiniz */
 
+/* ProseMirror Editor Liste Stilleri - Ironclad Birebir */
+.ProseMirror {
+  outline: none;
+  font-family: 'Source Serif Pro', Georgia, serif;
+}
 
+.ProseMirror ul, .ProseMirror ul.ironclad-bullet-list {
+  padding-left: 24px;
+  margin: 16px 0;
+  list-style-type: disc;
+}
+
+.ProseMirror ol, .ProseMirror ol.ironclad-ordered-list {
+  padding-left: 24px;
+  margin: 16px 0;
+  list-style-type: decimal;
+}
+
+.ProseMirror ul ul {
+  list-style-type: circle;
+}
+
+.ProseMirror ul ul ul {
+  list-style-type: square;
+}
+
+.ProseMirror li, .ProseMirror li.ironclad-list-item {
+  margin: 8px 0;
+  padding-left: 8px;
+  display: list-item;
+  line-height: 1.6;
+}
+
+.ProseMirror li p {
+  margin: 0;
+}
+
+/* Nested liste girintileri */
+.ProseMirror ul ul, .ProseMirror ol ol, .ProseMirror ul ol, .ProseMirror ol ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+/* Paragraph spacing */
+.ProseMirror p {
+  margin: 12px 0;
+  line-height: 1.6;
+}
+
+/* Heading styling - Ironclad benzeri */
+.ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4 {
+  font-weight: 700;
+  color: #1a202c;
+  margin: 24px 0 16px 0;
+}
+
+.ProseMirror h1 {
+  font-size: 1.875rem;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5rem;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25rem;
+}
+
+.ProseMirror h4 {
+  font-size: 1.125rem;
+}
+
+/* Strong/Bold metinler */
+.ProseMirror strong, .ProseMirror b {
+  font-weight: 700;
+}
+
+/* Tablo stilleri */
+.ProseMirror table {
+  border-collapse: collapse;
+  margin: 16px 0;
+  width: 100%;
+}
+
+.ProseMirror table td, .ProseMirror table th {
+  border: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  vertical-align: top;
+}
+
+.ProseMirror table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+/* Placeholder styling */
+.ProseMirror .is-editor-empty:first-child::before {
+  color: #9ca3af;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
 
 @layer base {
   :root {
