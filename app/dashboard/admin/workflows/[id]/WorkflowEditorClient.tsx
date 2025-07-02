@@ -34,6 +34,7 @@ import PropertyTag from "@/components/workflow/PropertyTag";
 import { DocumentToolbar } from "@/components/workflow/DocumentToolbar";
 import { ConditionBuilder, Condition } from '@/components/workflow/ConditionBuilder';
 import { MultiUserAutocomplete } from '@/components/ui/MultiUserAutocomplete';
+import { ReviewSettings } from '@/components/workflow/ReviewSettings';
 import toast from 'react-hot-toast';
 
 type WorkflowTemplateWithFields = PrismaWorkflowTemplate & { 
@@ -56,6 +57,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     const [formDataForGeneration, setFormDataForGeneration] = useState<Record<string, any>>({});
     const [zoomLevel, setZoomLevel] = useState(100);
     const [reviewTab, setReviewTab] = useState('Approvers');
+    const [reviewSettings, setReviewSettings] = useState<any>(null);
     const [approversInOrder, setApproversInOrder] = useState(true);
     const [editingTitleId, setEditingTitleId] = useState<number | null>(null);
     const [showAdvancedModal, setShowAdvancedModal] = useState<number | null>(null);
@@ -184,6 +186,21 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                         key: Math.random(),
                     })));
                 }
+            });
+    }, [currentTemplate.id]);
+
+    // Backend'den review settings'i çek
+    useEffect(() => {
+        if (!currentTemplate.id || currentTemplate.id === 'new') return;
+        fetch(`/api/admin/workflow-templates/${currentTemplate.id}/review-settings`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data) {
+                    setReviewSettings(data.data);
+                }
+            })
+            .catch(err => {
+                console.log('Review settings yüklenemedi:', err);
             });
     }, [currentTemplate.id]);
 
@@ -611,7 +628,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                         <div className="w-full max-w-5xl mx-auto py-8">
                             {/* Ironclad sekme barı */}
                             <div className="flex border-b mb-6">
-                                {['Approvers', 'Settings', 'Create Custom Email'].map((tab) => (
+                                {['Approvers', 'Settings', 'Custom Emails'].map((tab) => (
                                     <button
                                         key={tab}
                                         className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none ${reviewTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
@@ -834,18 +851,39 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                                     </div>
                                 </div>
                             )}
-                            {/* Settings sekmesi placeholder */}
+                            {/* Settings sekmesi - ReviewSettings komponenti */}
                             {reviewTab === 'Settings' && (
-                                <div className="bg-white rounded-lg shadow-sm border p-8 min-h-[400px]">
-                                    <h2 className="text-xl font-semibold mb-4">Settings</h2>
-                                    <div className="text-gray-400 italic">(Settings sekmesi burada olacak)</div>
+                                <div className="bg-white rounded-lg shadow-sm border overflow-y-auto max-h-[calc(100vh-250px)]">
+                                    <ReviewSettings
+                                        templateId={currentTemplate.id}
+                                        initialData={reviewSettings}
+                                        onSave={(data) => {
+                                            setReviewSettings(data);
+                                            // Review settings'i backend'e kaydet
+                                            if (currentTemplate.id !== 'new') {
+                                                fetch(`/api/admin/workflow-templates/${currentTemplate.id}/review-settings`, {
+                                                    method: 'PUT',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify(data)
+                                                }).then(res => {
+                                                    if (res.ok) {
+                                                        toast.success('Review settings başarıyla kaydedildi!');
+                                                    } else {
+                                                        toast.error('Review settings kaydedilemedi!');
+                                                    }
+                                                }).catch(() => {
+                                                    toast.error('Sunucu hatası!');
+                                                });
+                                            }
+                                        }}
+                                    />
                                 </div>
                             )}
-                            {/* Create Custom Email sekmesi placeholder */}
-                            {reviewTab === 'Create Custom Email' && (
+                            {/* Custom Emails sekmesi placeholder */}
+                            {reviewTab === 'Custom Emails' && (
                                 <div className="bg-white rounded-lg shadow-sm border p-8 min-h-[400px]">
-                                    <h2 className="text-xl font-semibold mb-4">Create Custom Email</h2>
-                                    <div className="text-gray-400 italic">(Custom Email sekmesi burada olacak)</div>
+                                    <h2 className="text-xl font-semibold mb-4">Custom Emails</h2>
+                                    <div className="text-gray-400 italic">(Custom Emails sekmesi burada olacak)</div>
                                 </div>
                             )}
                         </div>
