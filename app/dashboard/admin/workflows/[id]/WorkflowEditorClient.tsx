@@ -204,9 +204,9 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                 assignmentType: a.assignmentType,
             }));
             const res = await fetch(`/api/admin/workflow-templates/${currentTemplate.id}/steps`, {
-                method: 'PUT',
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ steps: payload })
+                body: JSON.stringify({ approvers: payload })
             });
             if (res.ok) {
                 toast.success('Onaycılar başarıyla kaydedildi!');
@@ -624,7 +624,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                             </div>
                             {/* Approvers sekmesi ana iskeleti */}
                             {reviewTab === 'Approvers' && (
-                                <div className="bg-white rounded-lg shadow-sm border p-8 min-h-[400px]">
+                                <div className="bg-white rounded-lg shadow-sm border p-8 min-h-[400px] overflow-y-auto max-h-[calc(100vh-250px)]">
                                     <div className="flex items-center justify-between mb-6">
                                         <h2 className="text-xl font-semibold">Approvers</h2>
                                         <div className="flex items-center gap-2">
