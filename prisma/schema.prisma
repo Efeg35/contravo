@@ -695,6 +695,7 @@ model WorkflowTemplate {
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
   steps       WorkflowTemplateStep[]
+  approvers   WorkflowApprover[]     // Yeni approver sistemi
   contracts   Contract[]             @relation("ContractWorkflowTemplates")
   status      String                 @default("UNPUBLISHED")
   companyId   String?
@@ -882,4 +883,46 @@ model FormSection {
   @@index([order])
   @@index([isHidden])
   @@index([isRequired])
+}
+
+// Yeni Approver Sistemi
+model WorkflowApprover {
+  id             String               @id @default(cuid())
+  templateId     String
+  order          Int
+  title          String
+  instructions   String?
+  whenToApprove  String               @default("Always")
+  resetWhen      String               @default("Always")
+  assignmentType String?
+  approverType   String               // 'USER', 'GROUP', 'ROLE'
+  approverId     String?              // Actual user/group/role ID
+  approverName   String?              // Display name
+  approverEmail  String?              // For users
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  
+  template       WorkflowTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  conditions     ApproverCondition[]
+
+  @@unique([templateId, order])
+  @@index([templateId])
+  @@index([order])
+  @@index([approverType])
+}
+
+model ApproverCondition {
+  id              String           @id @default(cuid())
+  approverId      String
+  type            String           // 'WHEN_TO_APPROVE', 'RESET_WHEN', 'ADVANCED'
+  field           String
+  operator        String
+  value           String
+  logicalOperator String           @default("AND") // 'AND', 'OR'
+  createdAt       DateTime         @default(now())
+  
+  approver        WorkflowApprover @relation(fields: [approverId], references: [id], onDelete: Cascade)
+
+  @@index([approverId])
+  @@index([type])
 }

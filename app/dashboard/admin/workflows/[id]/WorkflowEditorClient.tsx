@@ -32,6 +32,9 @@ import OrderedList from "@tiptap/extension-ordered-list";
 import ListItem from "@tiptap/extension-list-item";
 import PropertyTag from "@/components/workflow/PropertyTag";
 import { DocumentToolbar } from "@/components/workflow/DocumentToolbar";
+import { ConditionBuilder, Condition } from '@/components/workflow/ConditionBuilder';
+import { MultiUserAutocomplete } from '@/components/ui/MultiUserAutocomplete';
+import toast from 'react-hot-toast';
 
 type WorkflowTemplateWithFields = PrismaWorkflowTemplate & { 
   formFields?: any[];
@@ -52,6 +55,31 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     const [previewHtml, setPreviewHtml] = useState<string>('');
     const [formDataForGeneration, setFormDataForGeneration] = useState<Record<string, any>>({});
     const [zoomLevel, setZoomLevel] = useState(100);
+    const [reviewTab, setReviewTab] = useState('Approvers');
+    const [approversInOrder, setApproversInOrder] = useState(true);
+    const [editingTitleId, setEditingTitleId] = useState<number | null>(null);
+    const [showAdvancedModal, setShowAdvancedModal] = useState<number | null>(null);
+    const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+
+    // Approvers sekmesi için state
+    type UserType = { id: string; name: string; email: string; type?: 'user' | 'role' | 'group' };
+    type ApproverType = {
+        id: number;
+        title: string;
+        instructions: string;
+        showInstructions: boolean;
+        whenToApprove: string;
+        whenToApproveConditions: Condition[];
+        resetWhen: string;
+        resetWhenConditions: Condition[];
+        whoCanApprove: UserType[];
+        advancedConditions: Condition[];
+        assignmentType: string;
+        key: number;
+    };
+    const [approvers, setApprovers] = useState<ApproverType[]>([
+        { id: 1, title: 'Legal', instructions: '', showInstructions: false, whenToApprove: 'Always', whenToApproveConditions: [], resetWhen: 'Always', resetWhenConditions: [], whoCanApprove: [], advancedConditions: [], assignmentType: '', key: Math.random() },
+    ]);
 
     const handleZoomChange = (value: string) => {
       setZoomLevel(parseInt(value, 10));
@@ -133,6 +161,62 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
             editor.setEditable(editorMode === 'edit');
         }
     }, [editorMode, editor]);
+
+    // Backend'den adımları çek
+    useEffect(() => {
+        if (!currentTemplate.id || currentTemplate.id === 'new') return;
+        fetch(`/api/admin/workflow-templates/${currentTemplate.id}/steps`)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setApprovers(data.map((step: any, idx: number) => ({
+                        id: idx + 1,
+                        title: step.title || step.approverRole || step.team?.name || `Approver ${idx + 1}`,
+                        instructions: step.instructions || '',
+                        showInstructions: !!step.instructions,
+                        whenToApprove: step.whenToApprove || 'Always',
+                        whenToApproveConditions: step.whenToApproveConditions || [],
+                        resetWhen: step.resetWhen || 'Always',
+                        resetWhenConditions: step.resetWhenConditions || [],
+                        whoCanApprove: step.whoCanApprove || [],
+                        advancedConditions: step.advancedConditions || [],
+                        assignmentType: step.assignmentType || '',
+                        key: Math.random(),
+                    })));
+                }
+            });
+    }, [currentTemplate.id]);
+
+    // Approvers'ı backend'e kaydet
+    const handleSaveApprovers = async () => {
+        if (!currentTemplate.id || currentTemplate.id === 'new') return;
+        try {
+            const payload = approvers.map((a, idx) => ({
+                order: idx + 1,
+                title: a.title,
+                instructions: a.instructions,
+                whenToApprove: a.whenToApprove,
+                whenToApproveConditions: a.whenToApproveConditions,
+                resetWhen: a.resetWhen,
+                resetWhenConditions: a.resetWhenConditions,
+                whoCanApprove: a.whoCanApprove,
+                advancedConditions: a.advancedConditions,
+                assignmentType: a.assignmentType,
+            }));
+            const res = await fetch(`/api/admin/workflow-templates/${currentTemplate.id}/steps`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ steps: payload })
+            });
+            if (res.ok) {
+                toast.success('Onaycılar başarıyla kaydedildi!');
+            } else {
+                toast.error('Onaycılar kaydedilemedi!');
+            }
+        } catch (e) {
+            toast.error('Sunucu hatası!');
+        }
+    };
 
     const handleSave = async () => {
         startTransition(async () => {
@@ -316,6 +400,61 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [selectedDropdown, setSelectedDropdown] = useState(DROPDOWN_OPTIONS[0]);
 
+    // Onaycı silme fonksiyonu
+    const removeApprover = (id: number) => {
+        setApprovers(prev => prev.filter(a => a.id !== id));
+    };
+    // Onaycı kopyalama
+    const copyApprover = (idx: number) => {
+        setApprovers(prev => {
+            const copy = { ...prev[idx], id: Date.now(), key: Math.random() };
+            return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+        });
+    };
+    // Onaycıyı yukarı/ aşağı taşıma
+    const moveApprover = (from: number, to: number) => {
+        setApprovers(prev => {
+            const arr = [...prev];
+            const [moved] = arr.splice(from, 1);
+            arr.splice(to, 0, moved);
+            return arr;
+        });
+    };
+    // Başlık güncelleme
+    const updateTitle = (id: number, value: string) => {
+        setApprovers(prev => prev.map(a => a.id === id ? { ...a, title: value } : a));
+    };
+    // Instructions toggle
+    const toggleInstructions = (id: number) => {
+        setApprovers(prev => prev.map(a => a.id === id ? { ...a, showInstructions: !a.showInstructions } : a));
+    };
+    // Instructions güncelleme
+    const updateInstructions = (id: number, value: string) => {
+        setApprovers(prev => prev.map(a => a.id === id ? { ...a, instructions: value } : a));
+    };
+    // When to approve/reset güncelleme
+    const updateWhen = (id: number, field: 'whenToApprove' | 'resetWhen', value: string) => {
+        setApprovers(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a));
+    };
+    // Who can approve güncelleme
+    const updateWho = (id: number, users: UserType[]) => {
+        setApprovers(prev => prev.map(a => a.id === id ? { ...a, whoCanApprove: users } : a));
+    };
+    // Assignment type güncelleme
+    const updateAssignment = (id: number, value: string) => {
+        setApprovers(prev => prev.map(a => a.id === id ? { ...a, assignmentType: value } : a));
+    };
+    // Condition güncelleyiciler
+    const updateWhenToApproveConditions = (id: number, conds: Condition[]) => {
+        setApprovers(prev => prev.map(a => a.id === id ? { ...a, whenToApproveConditions: conds } : a));
+    };
+    const updateResetWhenConditions = (id: number, conds: Condition[]) => {
+        setApprovers(prev => prev.map(a => a.id === id ? { ...a, resetWhenConditions: conds } : a));
+    };
+    const updateAdvancedConditions = (id: number, conds: Condition[]) => {
+        setApprovers(prev => prev.map(a => a.id === id ? { ...a, advancedConditions: conds } : a));
+    };
+
     return (
         <div className="flex flex-col h-screen bg-gray-50">
             {/* Header */}
@@ -329,7 +468,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={handleGeneratePreview}>Generate Document</Button>
-                    <Button variant="outline" disabled={isPending} onClick={handleSave}>
+                    <Button variant="outline" disabled={isPending} onClick={handleSaveApprovers}>
                         {isPending ? "Kaydediliyor..." : "Save"}
                     </Button>
                     <Button disabled={isPending}>Publish</Button>
@@ -466,6 +605,249 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                     {activeStep === "Create" && (
                         <div className="w-full max-w-4xl mx-auto space-y-6">
                             <LaunchFormDesigner templateId={currentTemplate.id} />
+                        </div>
+                    )}
+                    {activeStep === "Review" && (
+                        <div className="w-full max-w-5xl mx-auto py-8">
+                            {/* Ironclad sekme barı */}
+                            <div className="flex border-b mb-6">
+                                {['Approvers', 'Settings', 'Create Custom Email'].map((tab) => (
+                                    <button
+                                        key={tab}
+                                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none ${reviewTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                        onClick={() => setReviewTab(tab)}
+                                        type="button"
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                            {/* Approvers sekmesi ana iskeleti */}
+                            {reviewTab === 'Approvers' && (
+                                <div className="bg-white rounded-lg shadow-sm border p-8 min-h-[400px]">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h2 className="text-xl font-semibold">Approvers</h2>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-gray-700">Collect approvals in order</span>
+                                            <button
+                                                type="button"
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${approversInOrder ? 'bg-blue-600' : 'bg-gray-300'}`}
+                                                onClick={() => setApproversInOrder(v => !v)}
+                                            >
+                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${approversInOrder ? 'translate-x-6' : 'translate-x-1'}`}></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-6">
+                                        {approvers.map((approver, idx) => (
+                                            <div key={approver.key} className="border rounded-xl p-6 shadow-sm mb-4 bg-white hover:shadow-md transition-shadow relative group">
+                                                {/* Sıra ve başlık */}
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xs text-gray-400 font-mono">
+                                                            {approversInOrder ? 
+                                                                (idx === 0 ? '1ST' : 
+                                                                 idx === 1 ? '2ND' : 
+                                                                 idx === 2 ? '3RD' : 
+                                                                 `${idx + 1}TH`) : '•'
+                                                            }
+                                                        </span>
+                                                        {editingTitleId === approver.id ? (
+                                                            <input
+                                                                className="text-lg font-semibold border-b border-blue-300 focus:outline-none focus:border-blue-600 bg-transparent"
+                                                                value={approver.title}
+                                                                onChange={e => updateTitle(approver.id, e.target.value)}
+                                                                onBlur={() => setEditingTitleId(null)}
+                                                                autoFocus
+                                                            />
+                                                        ) : (
+                                                            <span className="text-lg font-semibold cursor-pointer hover:underline" onClick={() => setEditingTitleId(approver.id)}>{approver.title}</span>
+                                                        )}
+                                                    </div>
+                                                    {/* Sağ üst ikonlar */}
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button disabled={idx === 0} onClick={() => moveApprover(idx, idx - 1)} className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-30" title="Yukarı taşı">
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3l7 7-1.41 1.41L10 5.83l-5.59 5.58L3 10l7-7z"/></svg>
+                                                        </button>
+                                                        <button disabled={idx === approvers.length - 1} onClick={() => moveApprover(idx, idx + 1)} className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-30" title="Aşağı taşı">
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 17l-7-7 1.41-1.41L10 14.17l5.59-5.58L17 10l-7 7z"/></svg>
+                                                        </button>
+                                                        <button onClick={() => copyApprover(idx)} className="p-1 text-gray-400 hover:text-blue-600" title="Kopyala">
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8zM3 5a2 2 0 012-2 3 3 0 003 3h6a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L14.586 13H19v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11.586V9a1 1 0 00-1-1H9.414l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 11H15z"/></svg>
+                                                        </button>
+                                                        <button onClick={() => removeApprover(approver.id)} className="p-1 text-gray-400 hover:text-red-600" title="Sil">
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                                                        </button>
+                                                        <button className="p-1 text-gray-400 hover:text-gray-600" title="Daha fazla seçenek">
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {/* Instructions toggle ve alanı */}
+                                                <div className="mb-2 flex items-center gap-2">
+                                                    <button onClick={() => toggleInstructions(approver.id)} className="text-xs text-blue-600 hover:underline">{approver.showInstructions ? 'Hide instructions' : 'Add instructions'}</button>
+                                                    {approver.showInstructions && (
+                                                        <input
+                                                            className="ml-2 flex-1 border-b border-gray-300 focus:outline-none focus:border-blue-600 bg-transparent text-sm"
+                                                            placeholder="Instructions..."
+                                                            value={approver.instructions}
+                                                            onChange={e => updateInstructions(approver.id, e.target.value)}
+                                                        />
+                                                    )}
+                                                </div>
+                                                {/* When to approve ve reset alanları */}
+                                                <div className="flex gap-8 mb-2">
+                                                    <div className="flex-1">
+                                                        <label className="block text-xs text-gray-500 mb-1">When is initial approval required?</label>
+                                                        <select value={approver.whenToApprove} onChange={e => updateWhen(approver.id, 'whenToApprove', e.target.value)} className="border rounded px-2 py-1 text-sm w-full">
+                                                            <option>Always</option>
+                                                            <option>Renewal Type is Auto-Renew</option>
+                                                            <option>Renewal Type is Auto-Renew OR Optional Extension</option>
+                                                            <option>Renewal Type is None</option>
+                                                            <option>Renewal Type is not Evergreen</option>
+                                                            <option>Renewal Type is Optional Extension</option>
+                                                            <option>Renewal Type is Other</option>
+                                                        </select>
+                                                        {approver.whenToApprove === 'Condition...' && (
+                                                            <div className="mt-2">
+                                                                <ConditionBuilder
+                                                                    conditions={approver.whenToApproveConditions || []}
+                                                                    onChange={conds => updateWhenToApproveConditions(approver.id, conds)}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="block text-xs text-gray-500 mb-1">When should approval be reset?</label>
+                                                        <select value={approver.resetWhen} onChange={e => updateWhen(approver.id, 'resetWhen', e.target.value)} className="border rounded px-2 py-1 text-sm w-full">
+                                                            <option>Always</option>
+                                                            <optgroup label="WORKFLOW PROCESS UPDATES">
+                                                                <option>Draft documents update</option>
+                                                                <option>Workflow reverts to Review</option>
+                                                            </optgroup>
+                                                            <optgroup label="FIELD CHANGES">
+                                                                <option>Counterparty Name</option>
+                                                                <option>Effective Date</option>
+                                                                <option>Expiration Date</option>
+                                                                <option>Termination Notice Period</option>
+                                                                <option>Initial Term Length</option>
+                                                            </optgroup>
+                                                        </select>
+                                                        {approver.resetWhen === 'Condition...' && (
+                                                            <div className="mt-2">
+                                                                <ConditionBuilder
+                                                                    conditions={approver.resetWhenConditions || []}
+                                                                    onChange={conds => updateResetWhenConditions(approver.id, conds)}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {/* Who can approve autocomplete */}
+                                                <div className="mb-4">
+                                                    <label className="block text-xs text-gray-500 mb-1">Who can approve</label>
+                                                    <MultiUserAutocomplete
+                                                        value={approver.whoCanApprove}
+                                                        onChange={users => updateWho(approver.id, users)}
+                                                        placeholder="Select by user, group, or role name"
+                                                    />
+                                                    {approver.whoCanApprove.some(u => u.type === 'user') && (
+                                                        <div className="mt-2 flex items-center text-xs text-gray-500">
+                                                            <span className="inline-block w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
+                                                            Yeni kullanıcıları Contravo'ya davet et
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {/* Atama şekli dropdown */}
+                                                <div className="mb-4">
+                                                    <div className="flex gap-2 mb-1">
+                                                        <label className="block text-xs text-gray-500">How will the approver be assigned?</label>
+                                                        {approver.whoCanApprove.length > 0 && (
+                                                            <span className="text-xs text-gray-400">
+                                                                Assigned to {approver.whoCanApprove[0]?.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <select value={approver.assignmentType} onChange={e => updateAssignment(approver.id, e.target.value)} className="border rounded px-2 py-1 text-sm w-64">
+                                                        <option value="">Select</option>
+                                                        <option value={`Assigned to ${approver.whoCanApprove[0]?.name || 'user'}`}>
+                                                            Assigned to {approver.whoCanApprove[0]?.name || 'user'}
+                                                        </option>
+                                                        <option value="Self-select">Self-select</option>
+                                                        <option value="Round robin">Round robin</option>
+                                                    </select>
+                                                    {approver.assignmentType && (
+                                                        <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                                                            {approver.assignmentType === 'Self-select' && "Users in the selected group/role can self-assign this approval task."}
+                                                            {approver.assignmentType === 'Round robin' && "Approval tasks will be automatically distributed among selected users in rotation."}
+                                                            {approver.assignmentType.startsWith('Assigned to') && `This approval will be specifically assigned to ${approver.whoCanApprove[0]?.name || 'the selected user'}.`}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {/* Advanced conditions butonu */}
+                                                <div className="mb-2">
+                                                    <button onClick={() => setShowAdvancedModal(approver.id)} className="text-xs text-blue-600 hover:underline">Add advanced conditions</button>
+                                                    {showAdvancedModal === approver.id && (
+                                                        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
+                                                            <div className="bg-white border rounded shadow-lg p-6 min-w-[350px] relative">
+                                                                <div className="mb-2 font-semibold">Advanced Conditions</div>
+                                                                <ConditionBuilder
+                                                                    conditions={approver.advancedConditions || []}
+                                                                    onChange={conds => updateAdvancedConditions(approver.id, conds)}
+                                                                />
+                                                                <div className="flex gap-2 justify-end mt-4">
+                                                                    <button onClick={() => setShowAdvancedModal(null)} className="px-3 py-1 bg-gray-200 rounded">Kapat</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Yeni onaycı ekleme butonu */}
+                                    <div className="mt-8 flex gap-4 items-center">
+                                        <button
+                                            type="button"
+                                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                                            onClick={() => setApprovers(prev => [...prev, { id: Date.now(), title: 'Approver', instructions: '', showInstructions: false, whenToApprove: 'Always', whenToApproveConditions: [], resetWhen: 'Always', resetWhenConditions: [], whoCanApprove: [], advancedConditions: [], assignmentType: '', key: Math.random() }])}
+                                        >
+                                            Add approver
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
+                                            onClick={() => setApprovers(prev => [...prev, { id: Date.now(), title: 'Approver', instructions: '', showInstructions: false, whenToApprove: 'Always', whenToApproveConditions: [], resetWhen: 'Always', resetWhenConditions: [], whoCanApprove: [], advancedConditions: [], assignmentType: '', key: Math.random() }])}
+                                        >
+                                            Add next approver
+                                        </button>
+                                        <div className="ml-auto">
+                                            <button
+                                                type="button"
+                                                className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                                                onClick={handleSaveApprovers}
+                                                disabled={isPending}
+                                            >
+                                                {isPending ? 'Saving...' : 'Save Approvers'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {/* Settings sekmesi placeholder */}
+                            {reviewTab === 'Settings' && (
+                                <div className="bg-white rounded-lg shadow-sm border p-8 min-h-[400px]">
+                                    <h2 className="text-xl font-semibold mb-4">Settings</h2>
+                                    <div className="text-gray-400 italic">(Settings sekmesi burada olacak)</div>
+                                </div>
+                            )}
+                            {/* Create Custom Email sekmesi placeholder */}
+                            {reviewTab === 'Create Custom Email' && (
+                                <div className="bg-white rounded-lg shadow-sm border p-8 min-h-[400px]">
+                                    <h2 className="text-xl font-semibold mb-4">Create Custom Email</h2>
+                                    <div className="text-gray-400 italic">(Custom Email sekmesi burada olacak)</div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </section>

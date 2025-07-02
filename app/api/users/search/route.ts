@@ -19,13 +19,17 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
+    const includeGroups = searchParams.get('includeGroups') === 'true';
 
-    const whereClause: any = {
+    const results = [];
+
+    // 1. Kullanıcıları ara
+    const userWhereClause: any = {
       department: (currentUser as any).department,
     };
 
-    if (query) {
-      whereClause.OR = [
+    if (query && query.trim().length > 0) {
+      userWhereClause.OR = [
         { name: { contains: query, mode: 'insensitive' } },
         { email: { contains: query, mode: 'insensitive' } },
       ];
@@ -33,11 +37,11 @@ export async function GET(request: Request) {
     
     // Eğer admin ise tüm departmanlarda arama yapabilsin
     if(currentUser.role === 'ADMIN'){
-      delete whereClause.department;
+      delete userWhereClause.department;
     }
 
     const users = await db.user.findMany({
-      where: whereClause,
+      where: userWhereClause,
       select: {
         id: true,
         name: true,
@@ -45,14 +49,57 @@ export async function GET(request: Request) {
         department: true,
         departmentRole: true,
       },
-      take: 10,
+      take: 15,
     });
 
+    // Kullanıcıları results'a ekle
+    results.push(...users.map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      department: user.department,
+      type: 'user'
+    })));
+
+    // 2. Eğer isteniyorsa grupları (teams) da ara
+    if (includeGroups) {
+      const teamWhereClause: any = {};
+      
+      if (query && query.trim().length > 0) {
+        teamWhereClause.name = { contains: query, mode: 'insensitive' };
+      }
+
+      const teams = await db.team.findMany({
+        where: teamWhereClause,
+        select: {
+          id: true,
+          name: true,
+          _count: {
+            select: {
+              members: true
+            }
+          }
+        },
+        take: 10,
+      });
+
+      // Grupları results'a ekle
+      results.push(...teams.map(team => ({
+        id: team.id,
+        name: team.name,
+        email: `${team._count.members} üye`, // Grup için email yerine üye sayısı
+        department: 'Grup',
+        type: 'group',
+        memberCount: team._count.members
+      })));
+    }
+
     return NextResponse.json({ 
-      users,
+      users: results,
       departmentInfo: {
         currentUserDepartment: (currentUser as any).department,
-        filteredResults: users.length
+        filteredResults: results.length,
+        includesGroups: includeGroups
       }
     });
   } catch (error) {
