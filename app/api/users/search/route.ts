@@ -30,8 +30,8 @@ export async function GET(request: Request) {
 
     if (query && query.trim().length > 0) {
       userWhereClause.OR = [
-        { name: { contains: query, mode: 'insensitive' } },
-        { email: { contains: query, mode: 'insensitive' } },
+        { name: { contains: query } },
+        { email: { contains: query } },
       ];
     }
     
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
       const teamWhereClause: any = {};
       
       if (query && query.trim().length > 0) {
-        teamWhereClause.name = { contains: query, mode: 'insensitive' };
+        teamWhereClause.name = { contains: query };
       }
 
       const teams = await db.team.findMany({

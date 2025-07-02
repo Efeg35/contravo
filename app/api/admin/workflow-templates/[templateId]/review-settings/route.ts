@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { templateId } = params;
+    const { templateId } = await params;
 
     // Workflow template'in sahibinin bu kullanıcı olduğunu kontrol et
     const template = await db.workflowTemplate.findFirst({
@@ -54,7 +54,7 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -62,7 +62,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { templateId } = params;
+    const { templateId } = await params;
 
     // Workflow template'in review settings'ini getir
     const template = await db.workflowTemplate.findFirst({

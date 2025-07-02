@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Info, Plus, Edit2, Trash2 } from "lucide-react";
 import { MultiUserAutocomplete } from "@/components/ui/MultiUserAutocomplete";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface ReviewSettingsData {
   // Turn Tracking
@@ -136,6 +137,14 @@ Emailer User Name`,
     }
   });
 
+  const [showDownloadEditModal, setShowDownloadEditModal] = useState(false);
+  const [downloadPermissionDraft, setDownloadPermissionDraft] = useState(settings.downloadPermissions.basicSettings.description);
+
+  // Advanced download permission modal state
+  const [showAddAdvancedDownloadModal, setShowAddAdvancedDownloadModal] = useState(false);
+  const [advancedDownloadUsers, setAdvancedDownloadUsers] = useState<any[]>([]);
+  const [advancedDownloadWhen, setAdvancedDownloadWhen] = useState('Always');
+
   // Initialize with provided data
   useEffect(() => {
     if (initialData) {
@@ -178,21 +187,32 @@ Emailer User Name`,
   };
 
   const addDownloadPermission = () => {
-    const newPermission = {
-      id: Date.now().toString(),
-      description: 'New permission',
-      canModify: true
-    };
-    
+    setAdvancedDownloadUsers([]);
+    setAdvancedDownloadWhen('Always');
+    setShowAddAdvancedDownloadModal(true);
+  };
+
+  const handleAddAdvancedDownloadPermission = () => {
+    if (advancedDownloadUsers.length === 0) return;
     setSettings(prev => ({
       ...prev,
       downloadPermissions: {
         ...prev.downloadPermissions,
         advancedSettings: {
-          permissions: [...prev.downloadPermissions.advancedSettings.permissions, newPermission]
+          permissions: [
+            ...prev.downloadPermissions.advancedSettings.permissions,
+            {
+              id: Date.now().toString(),
+              description: `${advancedDownloadUsers.map(u => u.name || u.label).join(', ')} can download (${advancedDownloadWhen})`,
+              canModify: true,
+              users: advancedDownloadUsers,
+              when: advancedDownloadWhen
+            }
+          ]
         }
       }
     }));
+    setShowAddAdvancedDownloadModal(false);
   };
 
   const addSharePermission = () => {
@@ -379,15 +399,16 @@ Emailer User Name`,
                     Basic download permissions
                   </Label>
                   {settings.downloadPermissions.type === 'BASIC' && (
-                    <div className="mt-3 p-3 border rounded-lg bg-gray-50">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">
-                          {settings.downloadPermissions.basicSettings.description}
-                        </span>
-                        <Button variant="ghost" size="sm" className="p-1">
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                    <div className="mt-3 p-3 border rounded-lg bg-gray-50 flex items-center justify-between">
+                      <span className="text-sm">
+                        {settings.downloadPermissions.basicSettings.description}
+                      </span>
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => {
+                        setDownloadPermissionDraft(settings.downloadPermissions.basicSettings.description);
+                        setShowDownloadEditModal(true);
+                      }} title="Edit Permissions">
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -416,32 +437,27 @@ Emailer User Name`,
                   {settings.downloadPermissions.type === 'ADVANCED' && (
                     <div className="mt-3 space-y-3">
                       {settings.downloadPermissions.advancedSettings.permissions.map((permission) => (
-                        <div key={permission.id} className="p-3 border rounded-lg bg-gray-50">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm">{permission.description}</span>
-                            <div className="flex items-center gap-2">
-                              {!permission.canModify && (
-                                <Badge variant="secondary" className="text-xs">
-                                  This cannot be modified
-                                </Badge>
-                              )}
-                              {permission.canModify && (
-                                <Button variant="ghost" size="sm" className="p-1">
-                                  <Edit2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
+                        <div key={permission.id} className="p-3 border rounded-lg bg-gray-50 flex items-center justify-between">
+                          <span className="text-sm">{permission.description}</span>
+                          <div className="flex items-center gap-2">
+                            {!permission.canModify && (
+                              <span className="text-xs text-gray-400">This cannot be modified</span>
+                            )}
+                            {permission.canModify && (
+                              <Button variant="ghost" size="sm" className="p-1">
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={addDownloadPermission}
                         className="text-blue-600 hover:text-blue-700"
                       >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add download permission
+                        + Add download permission
                       </Button>
                     </div>
                   )}
@@ -474,6 +490,82 @@ Emailer User Name`,
           </div>
         </CardContent>
       </Card>
+
+      {/* Download Permission Edit Modal */}
+      <Dialog open={showDownloadEditModal} onOpenChange={setShowDownloadEditModal}>
+        <DialogContent className="max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle>Edit download documents permission</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <select
+              className="w-full border rounded px-3 py-2 text-sm"
+              value={downloadPermissionDraft}
+              onChange={e => setDownloadPermissionDraft(e.target.value)}
+            >
+              <option value="Everyone can always download documents">Everyone can always download documents</option>
+              <option value="Users with Workflow Management permissions can download documents">Users with Workflow Management permissions can download documents</option>
+            </select>
+          </div>
+          <DialogFooter className="mt-6 flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setShowDownloadEditModal(false)}>Cancel</Button>
+            <Button onClick={() => {
+              setSettings(prev => ({
+                ...prev,
+                downloadPermissions: {
+                  ...prev.downloadPermissions,
+                  basicSettings: {
+                    ...prev.downloadPermissions.basicSettings,
+                    description: downloadPermissionDraft
+                  }
+                }
+              }));
+              setShowDownloadEditModal(false);
+            }}>Save Permission</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Advanced Download Permission Modal */}
+      <Dialog open={showAddAdvancedDownloadModal} onOpenChange={setShowAddAdvancedDownloadModal}>
+        <DialogContent className="max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle>Add download permission</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <div>
+              <Label className="block mb-1 text-sm">Who can download?</Label>
+              <MultiUserAutocomplete
+                value={advancedDownloadUsers}
+                onChange={setAdvancedDownloadUsers}
+                placeholder="Select groups or users"
+              />
+            </div>
+            <div>
+              <Label className="block mb-1 text-sm">When can they download?</Label>
+              <select
+                className="w-full border rounded px-3 py-2 text-sm"
+                value={advancedDownloadWhen}
+                onChange={e => setAdvancedDownloadWhen(e.target.value)}
+              >
+                <option value="Always">Always</option>
+                <option value="Never">Never</option>
+                <option value="Only if certain approvals are completed">Only if certain approvals are completed</option>
+                <option value="If a certain condition is met">If a certain condition is met</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="mt-6 flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setShowAddAdvancedDownloadModal(false)}>Cancel</Button>
+            <Button
+              onClick={handleAddAdvancedDownloadPermission}
+              disabled={advancedDownloadUsers.length === 0}
+            >
+              Add Permission
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Share Documents */}
       <Card>
