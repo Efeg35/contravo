@@ -145,6 +145,24 @@ Emailer User Name`,
   const [advancedDownloadUsers, setAdvancedDownloadUsers] = useState<any[]>([]);
   const [advancedDownloadWhen, setAdvancedDownloadWhen] = useState('Always');
 
+  // PDF Download Permissions State
+  const [pdfPermissionsType, setPdfPermissionsType] = useState<'BASIC' | 'ADVANCED'>('BASIC');
+  const [showPdfDownloadEditModal, setShowPdfDownloadEditModal] = useState(false);
+  const [pdfDownloadPermissionDraft, setPdfDownloadPermissionDraft] = useState('Everyone can always download PDF documents');
+  const [pdfAdvancedPermissions, setPdfAdvancedPermissions] = useState<any[]>([]);
+  const [showAddPdfAdvancedDownloadModal, setShowAddPdfAdvancedDownloadModal] = useState(false);
+  const [pdfAdvancedDownloadUsers, setPdfAdvancedDownloadUsers] = useState<any[]>([]);
+  const [pdfAdvancedDownloadWhen, setPdfAdvancedDownloadWhen] = useState('Always');
+
+  // Share Permissions State
+  const [sharePermissionsType, setSharePermissionsType] = useState<'BASIC' | 'ADVANCED'>('BASIC');
+  const [showShareEditModal, setShowShareEditModal] = useState(false);
+  const [sharePermissionDraft, setSharePermissionDraft] = useState('Everyone can always share documents');
+  const [advancedSharePermissions, setAdvancedSharePermissions] = useState<any[]>([]);
+  const [showAddAdvancedShareModal, setShowAddAdvancedShareModal] = useState(false);
+  const [advancedShareUsers, setAdvancedShareUsers] = useState<any[]>([]);
+  const [advancedShareWhen, setAdvancedShareWhen] = useState('Always');
+
   // Initialize with provided data
   useEffect(() => {
     if (initialData) {
@@ -475,12 +493,14 @@ Emailer User Name`,
                 type="checkbox"
                 id="separate-pdf-download"
                 checked={settings.downloadPermissions.separatePdfPermissions}
-                onChange={(e) =>
+                onChange={e => {
                   setSettings(prev => ({
                     ...prev,
                     downloadPermissions: { ...prev.downloadPermissions, separatePdfPermissions: e.target.checked }
-                  }))
-                }
+                  }));
+                  // Checkbox işaretlenirse varsayılan olarak BASIC seçili olsun
+                  if (e.target.checked) setPdfPermissionsType('BASIC');
+                }}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <Label htmlFor="separate-pdf-download" className="text-sm">
@@ -488,6 +508,83 @@ Emailer User Name`,
               </Label>
             </div>
           </div>
+
+          {settings.downloadPermissions.separatePdfPermissions && (
+            <div className="mt-4 space-y-4 ml-6">
+              <div className="flex items-start space-x-3">
+                <input
+                  type="radio"
+                  value="BASIC"
+                  id="pdf-download-basic"
+                  name="pdf-download-permissions"
+                  checked={pdfPermissionsType === 'BASIC'}
+                  onChange={() => setPdfPermissionsType('BASIC')}
+                  className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="pdf-download-basic" className="font-medium">
+                    Basic download permissions
+                  </Label>
+                  {pdfPermissionsType === 'BASIC' && (
+                    <div className="mt-3 p-3 border rounded-lg bg-gray-50 flex items-center justify-between">
+                      <span className="text-sm">
+                        {pdfDownloadPermissionDraft}
+                      </span>
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => setShowPdfDownloadEditModal(true)} title="Edit Permissions">
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <input
+                  type="radio"
+                  value="ADVANCED"
+                  id="pdf-download-advanced"
+                  name="pdf-download-permissions"
+                  checked={pdfPermissionsType === 'ADVANCED'}
+                  onChange={() => setPdfPermissionsType('ADVANCED')}
+                  className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="pdf-download-advanced" className="font-medium">
+                    Advanced download permissions
+                  </Label>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Users who are not included in any permission will not be able to download PDF. To change this default, add a new group permission and select "All other groups and users".
+                  </p>
+                  {pdfPermissionsType === 'ADVANCED' && (
+                    <div className="mt-3 space-y-3">
+                      {pdfAdvancedPermissions.map((permission) => (
+                        <div key={permission.id} className="p-3 border rounded-lg bg-gray-50 flex items-center justify-between">
+                          <span className="text-sm">{permission.description}</span>
+                          <div className="flex items-center gap-2">
+                            {!permission.canModify && (
+                              <span className="text-xs text-gray-400">This cannot be modified</span>
+                            )}
+                            {permission.canModify && (
+                              <Button variant="ghost" size="sm" className="p-1">
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAddPdfAdvancedDownloadModal(true)}
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        + Add download permission
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -522,6 +619,29 @@ Emailer User Name`,
               }));
               setShowDownloadEditModal(false);
             }}>Save Permission</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Download Permission Edit Modal */}
+      <Dialog open={showPdfDownloadEditModal} onOpenChange={setShowPdfDownloadEditModal}>
+        <DialogContent className="max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle>Edit download PDF documents permission</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <select
+              className="w-full border rounded px-3 py-2 text-sm"
+              value={pdfDownloadPermissionDraft}
+              onChange={e => setPdfDownloadPermissionDraft(e.target.value)}
+            >
+              <option value="Everyone can always download PDF documents">Everyone can always download PDF documents</option>
+              <option value="Users with Workflow Management permissions can download PDF documents">Users with Workflow Management permissions can download PDF documents</option>
+            </select>
+          </div>
+          <DialogFooter className="mt-6 flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setShowPdfDownloadEditModal(false)}>Cancel</Button>
+            <Button onClick={() => setShowPdfDownloadEditModal(false)}>Save Permission</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -567,6 +687,60 @@ Emailer User Name`,
         </DialogContent>
       </Dialog>
 
+      {/* Add Advanced PDF Download Permission Modal */}
+      <Dialog open={showAddPdfAdvancedDownloadModal} onOpenChange={setShowAddPdfAdvancedDownloadModal}>
+        <DialogContent className="max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle>Add download PDF permission</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <div>
+              <Label className="block mb-1 text-sm">Who can download PDF?</Label>
+              <MultiUserAutocomplete
+                value={pdfAdvancedDownloadUsers}
+                onChange={setPdfAdvancedDownloadUsers}
+                placeholder="Select groups or users"
+              />
+            </div>
+            <div>
+              <Label className="block mb-1 text-sm">When can they download PDF?</Label>
+              <select
+                className="w-full border rounded px-3 py-2 text-sm"
+                value={pdfAdvancedDownloadWhen}
+                onChange={e => setPdfAdvancedDownloadWhen(e.target.value)}
+              >
+                <option value="Always">Always</option>
+                <option value="Never">Never</option>
+                <option value="Only if certain approvals are completed">Only if certain approvals are completed</option>
+                <option value="If a certain condition is met">If a certain condition is met</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="mt-6 flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setShowAddPdfAdvancedDownloadModal(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (pdfAdvancedDownloadUsers.length === 0) return;
+                setPdfAdvancedPermissions(prev => ([
+                  ...prev,
+                  {
+                    id: Date.now().toString(),
+                    description: `${pdfAdvancedDownloadUsers.map(u => u.name || u.label).join(', ')} can download PDF (${pdfAdvancedDownloadWhen})`,
+                    canModify: true,
+                    users: pdfAdvancedDownloadUsers,
+                    when: pdfAdvancedDownloadWhen
+                  }
+                ]));
+                setShowAddPdfAdvancedDownloadModal(false);
+              }}
+              disabled={pdfAdvancedDownloadUsers.length === 0}
+            >
+              Add Permission
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Share Documents */}
       <Card>
         <CardHeader>
@@ -582,43 +756,34 @@ Emailer User Name`,
                   value="BASIC"
                   id="share-basic"
                   name="share-permissions"
-                  checked={settings.sharePermissions.type === 'BASIC'}
-                  onChange={(e) => setSettings(prev => ({
-                    ...prev,
-                    sharePermissions: { ...prev.sharePermissions, type: e.target.value as 'BASIC' | 'ADVANCED' }
-                  }))}
+                  checked={sharePermissionsType === 'BASIC'}
+                  onChange={() => setSharePermissionsType('BASIC')}
                   className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                 />
                 <div className="flex-1">
                   <Label htmlFor="share-basic" className="font-medium">
                     Basic share permissions
                   </Label>
-                  {settings.sharePermissions.type === 'BASIC' && (
-                    <div className="mt-3 p-3 border rounded-lg bg-gray-50">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">
-                          {settings.sharePermissions.basicSettings.description}
-                        </span>
-                        <Button variant="ghost" size="sm" className="p-1">
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                  {sharePermissionsType === 'BASIC' && (
+                    <div className="mt-3 p-3 border rounded-lg bg-gray-50 flex items-center justify-between">
+                      <span className="text-sm">
+                        {sharePermissionDraft}
+                      </span>
+                      <Button variant="ghost" size="icon" className="p-1" onClick={() => setShowShareEditModal(true)} title="Edit Permissions">
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   )}
                 </div>
               </div>
-
               <div className="flex items-start space-x-3">
                 <input
                   type="radio"
                   value="ADVANCED"
                   id="share-advanced"
                   name="share-permissions"
-                  checked={settings.sharePermissions.type === 'ADVANCED'}
-                  onChange={(e) => setSettings(prev => ({
-                    ...prev,
-                    sharePermissions: { ...prev.sharePermissions, type: e.target.value as 'BASIC' | 'ADVANCED' }
-                  }))}
+                  checked={sharePermissionsType === 'ADVANCED'}
+                  onChange={() => setSharePermissionsType('ADVANCED')}
                   className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                 />
                 <div className="flex-1">
@@ -628,35 +793,30 @@ Emailer User Name`,
                   <p className="text-sm text-gray-600 mt-1">
                     Users who are not included in any permission will not be able to share. To change this default, add a new group permission and select "All other groups and users".
                   </p>
-                  {settings.sharePermissions.type === 'ADVANCED' && (
+                  {sharePermissionsType === 'ADVANCED' && (
                     <div className="mt-3 space-y-3">
-                      {settings.sharePermissions.advancedSettings.permissions.map((permission) => (
-                        <div key={permission.id} className="p-3 border rounded-lg bg-gray-50">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm">{permission.description}</span>
-                            <div className="flex items-center gap-2">
-                              {!permission.canModify && (
-                                <Badge variant="secondary" className="text-xs">
-                                  This cannot be modified
-                                </Badge>
-                              )}
-                              {permission.canModify && (
-                                <Button variant="ghost" size="sm" className="p-1">
-                                  <Edit2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
+                      {advancedSharePermissions.map((permission) => (
+                        <div key={permission.id} className="p-3 border rounded-lg bg-gray-50 flex items-center justify-between">
+                          <span className="text-sm">{permission.description}</span>
+                          <div className="flex items-center gap-2">
+                            {!permission.canModify && (
+                              <span className="text-xs text-gray-400">This cannot be modified</span>
+                            )}
+                            {permission.canModify && (
+                              <Button variant="ghost" size="sm" className="p-1">
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        onClick={addSharePermission}
+                        onClick={() => setShowAddAdvancedShareModal(true)}
                         className="text-blue-600 hover:text-blue-700"
                       >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add share permission
+                        + Add share permission
                       </Button>
                     </div>
                   )}
@@ -664,9 +824,7 @@ Emailer User Name`,
               </div>
             </div>
           </div>
-
           <div className="h-[1px] w-full bg-gray-200"></div>
-
           <div>
             <Label className="text-sm font-medium text-gray-700">Share PDF Document Permissions</Label>
             <div className="flex items-center space-x-2 mt-3">
@@ -674,7 +832,7 @@ Emailer User Name`,
                 type="checkbox"
                 id="separate-pdf-share"
                 checked={settings.sharePermissions.separatePdfPermissions}
-                onChange={(e) =>
+                onChange={e =>
                   setSettings(prev => ({
                     ...prev,
                     sharePermissions: { ...prev.sharePermissions, separatePdfPermissions: e.target.checked }
@@ -689,6 +847,83 @@ Emailer User Name`,
           </div>
         </CardContent>
       </Card>
+
+      {/* Share Permission Edit Modal */}
+      <Dialog open={showShareEditModal} onOpenChange={setShowShareEditModal}>
+        <DialogContent className="max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle>Edit share documents permission</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <select
+              className="w-full border rounded px-3 py-2 text-sm"
+              value={sharePermissionDraft}
+              onChange={e => setSharePermissionDraft(e.target.value)}
+            >
+              <option value="Everyone can always share documents">Everyone can always share documents</option>
+              <option value="Users with Workflow Management permissions can share documents">Users with Workflow Management permissions can share documents</option>
+            </select>
+          </div>
+          <DialogFooter className="mt-6 flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setShowShareEditModal(false)}>Cancel</Button>
+            <Button onClick={() => setShowShareEditModal(false)}>Save Permission</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Advanced Share Permission Modal */}
+      <Dialog open={showAddAdvancedShareModal} onOpenChange={setShowAddAdvancedShareModal}>
+        <DialogContent className="max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle>Add share permission</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <div>
+              <Label className="block mb-1 text-sm">Who can share?</Label>
+              <MultiUserAutocomplete
+                value={advancedShareUsers}
+                onChange={setAdvancedShareUsers}
+                placeholder="Select groups or users"
+              />
+            </div>
+            <div>
+              <Label className="block mb-1 text-sm">When can they share?</Label>
+              <select
+                className="w-full border rounded px-3 py-2 text-sm"
+                value={advancedShareWhen}
+                onChange={e => setAdvancedShareWhen(e.target.value)}
+              >
+                <option value="Always">Always</option>
+                <option value="Never">Never</option>
+                <option value="Only if certain approvals are completed">Only if certain approvals are completed</option>
+                <option value="If a certain condition is met">If a certain condition is met</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="mt-6 flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setShowAddAdvancedShareModal(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (advancedShareUsers.length === 0) return;
+                setAdvancedSharePermissions(prev => ([
+                  ...prev,
+                  {
+                    id: Date.now().toString(),
+                    description: `${advancedShareUsers.map(u => u.name || u.label).join(', ')} can share (${advancedShareWhen})`,
+                    canModify: true,
+                    users: advancedShareUsers,
+                    when: advancedShareWhen
+                  }
+                ]));
+                setShowAddAdvancedShareModal(false);
+              }}
+              disabled={advancedShareUsers.length === 0}
+            >
+              Add Permission
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Default Email Template */}
       <Card>
