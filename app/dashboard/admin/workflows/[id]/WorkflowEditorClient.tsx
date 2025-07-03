@@ -507,7 +507,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
             </nav>
 
             {/* Main Content */}
-            <main className="flex-1 flex overflow-hidden">
+            <main className="flex-1 flex overflow-auto min-h-screen">
                 {/* Left Attributes Panel */}
                 <PropertiesAndConditions 
                     schema={workflowSchema}
@@ -517,7 +517,7 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                 />
 
                 {/* Right Panel */}
-                <section className="flex-1 flex flex-col items-start bg-gray-100">
+                <section className="flex-1 flex flex-col items-start bg-gray-100 overflow-y-auto min-h-screen">
                     {activeStep === "Document" && (
                         currentTemplate.documentHtml ? (
                             <>
