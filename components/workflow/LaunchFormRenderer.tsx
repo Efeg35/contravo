@@ -55,6 +55,15 @@ interface FormField {
   
   // Sprint 4: Section/Grup support
   sectionId?: string;
+  
+  // Alan tipine özel özellikler
+  accept?: string;
+  maxFileSize?: string;
+  multiple?: boolean;
+  defaultChecked?: boolean;
+  step?: string;
+  minDate?: string;
+  maxDate?: string;
 }
 
 interface LaunchFormRendererProps {
@@ -140,7 +149,24 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
   );
   
   // Düzenleme modu için state
-  const [editData, setEditData] = useState<{ [fieldId: string]: { label: string; helpText: string } }>({});
+  const [editData, setEditData] = useState<{ [fieldId: string]: { 
+    label: string; 
+    helpText: string;
+    placeholder?: string;
+    options?: string[];
+    minValue?: number;
+    maxValue?: number;
+    minLength?: number;
+    maxLength?: number;
+    pattern?: string;
+    accept?: string;
+    maxFileSize?: string;
+    multiple?: boolean;
+    defaultChecked?: boolean;
+    step?: string;
+    minDate?: string;
+    maxDate?: string;
+  } }>({});
 
   // Sprint 2: Field validation hook
   const validateField = useCallback((field: FormField, value: any) => {
@@ -402,10 +428,56 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     // Düzenleme modunda kaydetme
     const handleSave = () => {
       if (onSaveField) {
-        onSaveField(field.id, {
+        const updatedData: any = {
           label: editData[field.id]?.label || field.label,
           helpText: editData[field.id]?.helpText || field.helpText || ''
-        });
+        };
+
+        // Alan tipine göre özel alanları ekle
+        if (editData[field.id]?.placeholder !== undefined) {
+          updatedData.placeholder = editData[field.id].placeholder;
+        }
+        if (editData[field.id]?.options !== undefined) {
+          updatedData.options = editData[field.id].options;
+        }
+        if (editData[field.id]?.minValue !== undefined) {
+          updatedData.minValue = editData[field.id].minValue;
+        }
+        if (editData[field.id]?.maxValue !== undefined) {
+          updatedData.maxValue = editData[field.id].maxValue;
+        }
+        if (editData[field.id]?.minLength !== undefined) {
+          updatedData.minLength = editData[field.id].minLength;
+        }
+        if (editData[field.id]?.maxLength !== undefined) {
+          updatedData.maxLength = editData[field.id].maxLength;
+        }
+        if (editData[field.id]?.pattern !== undefined) {
+          updatedData.pattern = editData[field.id].pattern;
+        }
+        if (editData[field.id]?.accept !== undefined) {
+          updatedData.accept = editData[field.id].accept;
+        }
+        if (editData[field.id]?.maxFileSize !== undefined) {
+          updatedData.maxFileSize = editData[field.id].maxFileSize;
+        }
+        if (editData[field.id]?.multiple !== undefined) {
+          updatedData.multiple = editData[field.id].multiple;
+        }
+        if (editData[field.id]?.defaultChecked !== undefined) {
+          updatedData.defaultChecked = editData[field.id].defaultChecked;
+        }
+        if (editData[field.id]?.step !== undefined) {
+          updatedData.step = editData[field.id].step;
+        }
+        if (editData[field.id]?.minDate !== undefined) {
+          updatedData.minDate = editData[field.id].minDate;
+        }
+        if (editData[field.id]?.maxDate !== undefined) {
+          updatedData.maxDate = editData[field.id].maxDate;
+        }
+
+        onSaveField(field.id, updatedData);
       }
     };
     
@@ -415,7 +487,21 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
         ...prev,
         [field.id]: {
           label: field.label,
-          helpText: field.helpText || ''
+          helpText: field.helpText || '',
+          placeholder: field.placeholder,
+          options: Array.isArray(field.options) ? field.options : [],
+          minValue: field.minValue,
+          maxValue: field.maxValue,
+          minLength: field.minLength,
+          maxLength: field.maxLength,
+          pattern: field.pattern,
+          accept: field.accept,
+          maxFileSize: field.maxFileSize,
+          multiple: field.multiple,
+          defaultChecked: field.defaultChecked,
+          step: field.step,
+          minDate: field.minDate,
+          maxDate: field.maxDate
         }
       }));
       if (onCancelEditing) {
@@ -430,13 +516,13 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
         className={`mb-2 border-gray-200 shadow-xs hover:shadow-sm transition-shadow group bg-white/95 rounded-lg ${
           isEditing ? 'ring-2 ring-blue-500' : 'cursor-pointer'
         }`}
-        onClick={!isEditing && onStartEditing ? () => onStartEditing(field.id) : undefined}
+        onClick={isEditing ? () => onCancelEditing?.() : (onStartEditing ? () => onStartEditing(field.id) : undefined)}
       >
         <CardHeader className="flex flex-row items-center justify-between p-2 pb-1 min-h-0">
           <div className="flex flex-col gap-0.5 flex-1">
             {isEditing ? (
               // Düzenleme modu
-              <div className="space-y-2">
+              <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                 <Input
                   value={editData[field.id]?.label || field.label}
                   onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], label: e.target.value } }))}
@@ -450,10 +536,121 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                   className="text-xs"
                   rows={2}
                 />
+                
+                {/* Alan tipine göre özel düzenleme alanları */}
+                {field.type === 'TEXT' || field.type === 'EMAIL' || field.type === 'TEXTAREA' ? (
+                  <Input
+                    value={editData[field.id]?.placeholder || field.placeholder || ''}
+                    onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], placeholder: e.target.value } }))}
+                    placeholder="Placeholder metni"
+                    className="text-xs"
+                  />
+                ) : null}
+                
+                {field.type === 'NUMBER' && (
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={editData[field.id]?.minValue || field.minValue || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], minValue: e.target.value ? Number(e.target.value) : undefined } }))}
+                      placeholder="Min değer"
+                      className="text-xs"
+                    />
+                    <Input
+                      type="number"
+                      value={editData[field.id]?.maxValue || field.maxValue || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], maxValue: e.target.value ? Number(e.target.value) : undefined } }))}
+                      placeholder="Max değer"
+                      className="text-xs"
+                    />
+                  </div>
+                )}
+                
+                {(field.type === 'SINGLE_SELECT' || field.type === 'MULTI_SELECT') && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium text-gray-600">Seçenekler:</div>
+                    {(editData[field.id]?.options || field.options || []).map((option: string, index: number) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          value={option}
+                          onChange={(e) => {
+                            const newOptions = [...(editData[field.id]?.options || field.options || [])];
+                            newOptions[index] = e.target.value;
+                            setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], options: newOptions } }));
+                          }}
+                          placeholder={`Seçenek ${index + 1}`}
+                          className="text-xs"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const newOptions = (editData[field.id]?.options || field.options || []).filter((_: string, i: number) => i !== index);
+                            setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], options: newOptions } }));
+                          }}
+                          className="text-xs px-2 py-1"
+                        >
+                          Sil
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const newOptions = [...(editData[field.id]?.options || field.options || []), ''];
+                        setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], options: newOptions } }));
+                      }}
+                      className="text-xs px-2 py-1"
+                    >
+                      + Seçenek Ekle
+                    </Button>
+                  </div>
+                )}
+                
+                {field.type === 'FILE_UPLOAD' && (
+                  <div className="space-y-2">
+                    <Input
+                      value={editData[field.id]?.accept || field.accept || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], accept: e.target.value } }))}
+                      placeholder="Kabul edilen dosya türleri (örn: .pdf,.doc,.docx)"
+                      className="text-xs"
+                    />
+                    <Input
+                      value={editData[field.id]?.maxFileSize || field.maxFileSize || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], maxFileSize: e.target.value } }))}
+                      placeholder="Maksimum dosya boyutu (örn: 5MB)"
+                      className="text-xs"
+                    />
+                  </div>
+                )}
+                
+                {field.type === 'DATE' && (
+                  <div className="flex gap-2">
+                    <Input
+                      type="date"
+                      value={editData[field.id]?.minDate || field.minDate || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], minDate: e.target.value } }))}
+                      placeholder="Min tarih"
+                      className="text-xs"
+                    />
+                    <Input
+                      type="date"
+                      value={editData[field.id]?.maxDate || field.maxDate || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], maxDate: e.target.value } }))}
+                      placeholder="Max tarih"
+                      className="text-xs"
+                    />
+                  </div>
+                )}
+                
                 <div className="flex gap-2 mt-2">
                   <Button
                     size="sm"
-                    onClick={handleSave}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSave();
+                    }}
                     className="text-xs px-3 py-1"
                   >
                     Kaydet
@@ -461,7 +658,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={handleCancel}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancel();
+                    }}
                     className="text-xs px-3 py-1"
                   >
                     İptal
