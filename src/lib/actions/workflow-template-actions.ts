@@ -39,28 +39,28 @@ export async function saveTemplateFileUrl({
 
 // FormField type mapping function - Prisma enum değerlerine dönüştürür
 function mapToFormFieldType(type: string): FormFieldType {
-    const normalized = type.toUpperCase().trim();
+    const normalized = type.toLowerCase().trim();
     
     // Property tiplerini FormFieldType'a map et
     const typeMapping: Record<string, FormFieldType> = {
-        'TEXT': FormFieldType.TEXT,
-        'EMAIL': FormFieldType.EMAIL,
-        'DATE': FormFieldType.DATE,
-        'DURATION': FormFieldType.TEXT, // duration -> TEXT olarak map ediyoruz
-        'NUMBER': FormFieldType.NUMBER,
-        'USER': FormFieldType.USER,
-        'SELECT': FormFieldType.SELECT,
-        'BOOLEAN': FormFieldType.CHECKBOX,
-        'TEXTAREA': FormFieldType.TEXTAREA,
-        'URL': FormFieldType.URL,
-        'PHONE': FormFieldType.PHONE,
-        'FILE_UPLOAD': FormFieldType.FILE_UPLOAD,
-        'USER_PICKER': FormFieldType.USER_PICKER,
-        'DATE_RANGE': FormFieldType.DATE_RANGE,
-        'TABLE': FormFieldType.TABLE,
-        'SINGLE_SELECT': FormFieldType.SINGLE_SELECT,
-        'MULTI_SELECT': FormFieldType.MULTI_SELECT,
-        'CHECKBOX': FormFieldType.CHECKBOX
+        'text': FormFieldType.TEXT,
+        'textarea': FormFieldType.TEXTAREA,
+        'email': FormFieldType.EMAIL,
+        'url': FormFieldType.URL,
+        'phone': FormFieldType.PHONE,
+        'date': FormFieldType.DATE,
+        'date_range': FormFieldType.DATE_RANGE,
+        'duration': FormFieldType.TEXT, // duration -> TEXT olarak map ediyoruz
+        'number': FormFieldType.NUMBER,
+        'user': FormFieldType.USER,
+        'select': FormFieldType.SELECT,
+        'single_select': FormFieldType.SINGLE_SELECT,
+        'multi_select': FormFieldType.MULTI_SELECT,
+        'boolean': FormFieldType.CHECKBOX,
+        'checkbox': FormFieldType.CHECKBOX,
+        'file_upload': FormFieldType.FILE_UPLOAD,
+        'user_picker': FormFieldType.USER_PICKER,
+        'table': FormFieldType.TABLE
     };
     
     if (!(normalized in typeMapping)) {
@@ -73,7 +73,8 @@ function mapToFormFieldType(type: string): FormFieldType {
 
 export async function addFieldToLaunchForm({
     templateId,
-    property
+    property,
+    sectionId
 }: {
     templateId: string,
     property: {
@@ -83,7 +84,8 @@ export async function addFieldToLaunchForm({
         required: boolean,
         description?: string,
         options?: any[]
-    }
+    },
+    sectionId?: string
 }) {
     if (!templateId || !property || !property.name || !property.type) {
         throw new Error('Template ID ve property bilgileri gereklidir.');
@@ -96,16 +98,15 @@ export async function addFieldToLaunchForm({
         const mappedType = mapToFormFieldType(property.type);
         console.log('[addFieldToLaunchForm] mapped type', mappedType);
         
-        const formField = await db.formField.create({
-            data: {
-                templateId,
-                label: property.name,
-                apiKey: property.name.toLowerCase().replace(/\s+/g, '_'),
-                type: mappedType,
-                isRequired: property.required,
-                options: property.options && property.options.length > 0 ? property.options : undefined,
-                order: count + 1
-            }
+        const result = await addFormFieldToTemplate({
+            templateId,
+            name: property.name,
+            type: property.type,
+            required: property.required,
+            description: property.description,
+            options: property.options,
+            sectionId,
+            priority: 0
         });
 
         // 2. Ardından layout'a ekle
@@ -122,8 +123,8 @@ export async function addFieldToLaunchForm({
         if (!Array.isArray(layout.fieldOrder)) layout.fieldOrder = [];
         
         // FormField'in ID'sini layout'a ekle
-        if (!layout.fieldOrder.includes(formField.id)) {
-            layout.fieldOrder.push(formField.id);
+        if (!layout.fieldOrder.includes(result.formFieldId)) {
+            layout.fieldOrder.push(result.formFieldId);
         }
         
         await db.workflowTemplate.update({
@@ -225,7 +226,8 @@ export async function addFormFieldToTemplate({
     successMessage,
     fieldGroup,
     priority,
-    realTimeValidation
+    realTimeValidation,
+    sectionId
 }: {
     templateId: string,
     name: string,
@@ -257,7 +259,8 @@ export async function addFormFieldToTemplate({
     successMessage?: string,
     fieldGroup?: string,
     priority?: number,
-    realTimeValidation?: boolean
+    realTimeValidation?: boolean,
+    sectionId?: string
 }) {
     if (!templateId || !name || !type) {
         throw new Error('Template ID, name ve type zorunludur.');
@@ -269,7 +272,7 @@ export async function addFormFieldToTemplate({
         const mappedType = mapToFormFieldType(type);
         console.log(`🔍 Debug addFormFieldToTemplate - Input type: "${type}", Mapped type: "${mappedType}"`);
         
-        await db.formField.create({
+        const formField = await db.formField.create({
             data: {
                 templateId,
                 label: name,
@@ -302,10 +305,11 @@ export async function addFormFieldToTemplate({
                 successMessage,
                 fieldGroup,
                 priority: priority || 0,
-                realTimeValidation: realTimeValidation || false
+                realTimeValidation: realTimeValidation || false,
+                sectionId: sectionId || undefined
             }
         });
-        return { success: true };
+        return { success: true, formFieldId: formField.id };
     } catch (error) {
         console.error('FormField eklenirken hata:', error);
         return { success: false, message: 'Server Error: FormField eklenemedi.', error: error instanceof Error ? error.message + '\n' + error.stack : String(error) };

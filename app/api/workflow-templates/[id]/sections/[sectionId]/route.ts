@@ -36,19 +36,13 @@ export async function DELETE(
       );
     }
 
-    // Remove section from launchFormLayout
-    const currentLayout = template.launchFormLayout as any || {};
-    const sections = (currentLayout.sections || []).filter((s: any) => s.id !== sectionId);
-
-    await db.workflowTemplate.update({
-      where: { id: templateId },
-      data: {
-        launchFormLayout: {
-          ...currentLayout,
-          sections
-        }
-      }
+    // Remove section and set sectionId to null on fields
+    await db.formField.updateMany({
+      where: { sectionId },
+      data: { sectionId: null }
     });
+
+    await db.formSection.delete({ where: { id: sectionId } });
 
     return NextResponse.json({
       success: true,

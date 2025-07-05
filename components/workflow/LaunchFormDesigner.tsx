@@ -563,6 +563,9 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
   const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
   const [tableForm, setTableForm] = useState({ name: '', description: '', columns: [{ name: '', type: 'text', required: false }] });
   const [workflowSchema, setWorkflowSchema] = useState<any>(null);
+  
+  // Düzenleme modu için state
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
 
   const doRefreshForm = () => {
     setLoading(true);
@@ -683,6 +686,35 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
     setIsAddFieldModalOpen(true);
   };
 
+  // Düzenleme modu fonksiyonları
+  const handleStartEditing = (fieldId: string) => {
+    setEditingFieldId(fieldId);
+  };
+  
+  const handleSaveField = async (fieldId: string, updatedData: any) => {
+    try {
+      const response = await fetch(`/api/workflow-templates/${templateId}/form-fields/${fieldId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData)
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setEditingFieldId(null);
+        doRefreshForm();
+      } else {
+        alert(result.message || 'Alan güncellenirken hata oluştu');
+      }
+    } catch (error) {
+      alert('Sunucu hatası');
+    }
+  };
+  
+  const handleCancelEditing = () => {
+    setEditingFieldId(null);
+  };
+
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen py-12">
       <div className="w-full max-w-2xl mx-auto">
@@ -715,6 +747,10 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
                 onDeleteSection={handleDeleteSection}
                 sections={sections}
                 onAddQuestionToSection={openAddQuestionModalForSection}
+                editingFieldId={editingFieldId}
+                onStartEditing={handleStartEditing}
+                onSaveField={handleSaveField}
+                onCancelEditing={handleCancelEditing}
               />
               <div className="flex gap-4 justify-center mt-12">
                 <button

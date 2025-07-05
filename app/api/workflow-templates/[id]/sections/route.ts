@@ -33,40 +33,23 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       );
     }
 
-    // Create new section using generic JSON approach since FormSection model may not exist yet
-    const sectionData = {
-      id: `section_${Date.now()}`,
-      workflowTemplateId: templateId,
-      name: body.name || 'New Section',
-      description: body.description || '',
-      icon: body.icon || '📋',
-      displayMode: body.displayMode || 'EXPANDED',
-      isCollapsible: body.isCollapsible !== undefined ? body.isCollapsible : true,
-      isExpanded: body.isExpanded !== undefined ? body.isExpanded : true,
-      visibilityCondition: body.visibilityCondition || 'ALWAYS',
-      order: body.order || 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    // Store in template's launchFormLayout as sections array
-    const currentLayout = template.launchFormLayout as any || {};
-    const sections = currentLayout.sections || [];
-    sections.push(sectionData);
-
-    await db.workflowTemplate.update({
-      where: { id: templateId },
+    // Create new section using FormSection model instead of JSON
+    const created = await db.formSection.create({
       data: {
-        launchFormLayout: {
-          ...currentLayout,
-          sections
-        }
+        name: body.name || 'New Section',
+        title: body.title || (body.name || 'New Section'),
+        description: body.description || '',
+        icon: body.icon || '📋',
+        order: body.order || 0,
+        isCollapsible: body.isCollapsible !== undefined ? body.isCollapsible : true,
+        isCollapsed: body.isCollapsed !== undefined ? body.isCollapsed : false,
+        templateId: templateId
       }
     });
 
     return NextResponse.json({
       success: true,
-      section: sectionData
+      section: created
     }, { status: 201 });
   } catch (error) {
     console.error('Error creating section:', error);
@@ -98,19 +81,10 @@ export async function GET(
     }
 
     // Get template with sections
-    const template = await db.workflowTemplate.findUnique({
-      where: { id: templateId }
+    const sections = await db.formSection.findMany({
+      where: { templateId },
+      orderBy: { order: 'asc' }
     });
-
-    if (!template) {
-      return NextResponse.json(
-        { success: false, message: 'Template not found' },
-        { status: 404 }
-      );
-    }
-
-    const layout = template.launchFormLayout as any || {};
-    const sections = layout.sections || [];
 
     return NextResponse.json({
       success: true,

@@ -14,6 +14,9 @@ import {
   SectionDisplayMode 
 } from '../../types/workflow';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../ui/card";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { Button } from "../ui/button";
 
 interface FormField {
   id: string;
@@ -77,6 +80,12 @@ interface LaunchFormRendererProps {
     enableProgressIndicator: boolean;
     allowSectionCollapse: boolean;
   };
+  
+  // Düzenleme modu için prop'lar
+  editingFieldId?: string | null;
+  onStartEditing?: (fieldId: string) => void;
+  onSaveField?: (fieldId: string, updatedData: Partial<FormField>) => void;
+  onCancelEditing?: () => void;
 }
 
 const getSortedFields = (fields: FormField[], layout: any) => {
@@ -103,7 +112,13 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
   
   // Sprint 4: Section/Grup support
   sections,
-  sectionLayout
+  sectionLayout,
+  
+  // Düzenleme modu için prop'lar
+  editingFieldId,
+  onStartEditing,
+  onSaveField,
+  onCancelEditing
 }) => {
   const sortedFields = getSortedFields(formFields, layout);
 
@@ -123,6 +138,9 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
   const [activeSectionId, setActiveSectionId] = useState<string | null>(
     sections && sections.length > 0 ? sections[0].id : null
   );
+  
+  // Düzenleme modu için state
+  const [editData, setEditData] = useState<{ [fieldId: string]: { label: string; helpText: string } }>({});
 
   // Sprint 2: Field validation hook
   const validateField = useCallback((field: FormField, value: any) => {
@@ -202,7 +220,23 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
         onValidationChange(formValidation);
       }
     }
-  }, [formData, enableRealTimeValidation, validationMode, visibleFields, formFields, validateField, evaluateConditionalRules, onValidationChange]);
+  }, [formData, enableRealTimeValidation, validationMode, evaluateConditionalRules, onValidationChange]);
+
+  // Düzenleme modu başladığında editData'yı initialize et
+  useEffect(() => {
+    if (editingFieldId) {
+      const field = formFields.find(f => f.id === editingFieldId);
+      if (field && !editData[editingFieldId]) {
+        setEditData(prev => ({
+          ...prev,
+          [editingFieldId]: {
+            label: field.label,
+            helpText: field.helpText || ''
+          }
+        }));
+      }
+    }
+  }, [editingFieldId, formFields, editData]);
 
   const handleChange = (apiKey: string, value: any) => {
     if (setFormData) {
@@ -356,6 +390,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     const isFieldRequired = requiredFields.has(field.id) || field.isRequired;
     const isFieldReadOnly = readOnlyFields.has(field.id) || field.isReadOnly;
     const validationClasses = getValidationClasses(field.id);
+    const isEditing = editingFieldId === field.id;
     
     const dc = displayConditions && displayConditions[field.id];
     const conditionSummary = dc ? (
@@ -364,239 +399,275 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       </span>
     ) : null;
     
+    // Düzenleme modunda kaydetme
+    const handleSave = () => {
+      if (onSaveField) {
+        onSaveField(field.id, {
+          label: editData[field.id]?.label || field.label,
+          helpText: editData[field.id]?.helpText || field.helpText || ''
+        });
+      }
+    };
+    
+    // Düzenleme modunda iptal
+    const handleCancel = () => {
+      setEditData(prev => ({
+        ...prev,
+        [field.id]: {
+          label: field.label,
+          helpText: field.helpText || ''
+        }
+      }));
+      if (onCancelEditing) {
+        onCancelEditing();
+      }
+    };
+    
     // Küçük, kurumsal ve modern Card UI
     return (
       <Card
         key={field.id}
-        className="mb-2 border-gray-200 shadow-xs hover:shadow-sm transition-shadow group bg-white/95 rounded-lg"
+        className={`mb-2 border-gray-200 shadow-xs hover:shadow-sm transition-shadow group bg-white/95 rounded-lg ${
+          isEditing ? 'ring-2 ring-blue-500' : 'cursor-pointer'
+        }`}
+        onClick={!isEditing && onStartEditing ? () => onStartEditing(field.id) : undefined}
       >
         <CardHeader className="flex flex-row items-center justify-between p-2 pb-1 min-h-0">
-          <div className="flex flex-col gap-0.5">
-            <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-1 leading-tight">
-              {field.label}
-              {isFieldRequired && <span className="text-red-500">*</span>}
-            </CardTitle>
-            {field.helpText && (
-              <CardDescription className="text-xs text-gray-400 mt-0.5 leading-tight">
-                {field.helpText}
-              </CardDescription>
+          <div className="flex flex-col gap-0.5 flex-1">
+            {isEditing ? (
+              // Düzenleme modu
+              <div className="space-y-2">
+                <Input
+                  value={editData[field.id]?.label || field.label}
+                  onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], label: e.target.value } }))}
+                  placeholder="Alan başlığı"
+                  className="text-sm font-medium"
+                />
+                <Textarea
+                  value={editData[field.id]?.helpText || field.helpText || ''}
+                  onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], helpText: e.target.value } }))}
+                  placeholder="Alan açıklaması (opsiyonel)"
+                  className="text-xs"
+                  rows={2}
+                />
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    className="text-xs px-3 py-1"
+                  >
+                    Kaydet
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCancel}
+                    className="text-xs px-3 py-1"
+                  >
+                    İptal
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              // Görüntüleme modu
+              <>
+                <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-1 leading-tight">
+                  {field.label}
+                  {isFieldRequired && <span className="text-red-500">*</span>}
+                </CardTitle>
+                {field.helpText && (
+                  <CardDescription className="text-xs text-gray-400 mt-0.5 leading-tight">
+                    {field.helpText}
+                  </CardDescription>
+                )}
+              </>
             )}
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="text-blue-500 hover:text-blue-700 text-xs underline px-1"
-              onClick={() => handleAddCondition(field)}
-            >
-              Koşul
-            </button>
-            {onDeleteField && (
+          {!isEditing && (
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                className="text-gray-400 hover:text-red-600 text-base ml-1 p-0.5"
-                onClick={() => onDeleteField(field.id)}
-                title="Soruyu sil"
+                className="text-blue-500 hover:text-blue-700 text-xs underline px-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddCondition(field);
+                }}
               >
-                <span className="sr-only">Sil</span>
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" d="M6 6l12 12M6 18L18 6"/></svg>
+                Koşul
               </button>
-            )}
-          </div>
+              {onDeleteField && (
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-red-600 text-base ml-1 p-0.5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteField(field.id);
+                  }}
+                  title="Soruyu sil"
+                >
+                  <span className="sr-only">Sil</span>
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" d="M6 6l12 12M6 18L18 6"/></svg>
+                </button>
+              )}
+            </div>
+          )}
         </CardHeader>
-        <CardContent className="p-2 pt-0">
-          {/* Alan tipi bazlı inputlar */}
-          {(() => {
-            switch (field.type) {
-              case "TEXT":
-                return (
-                  <input
-                    type="text"
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
-                    placeholder={field.placeholder || "Yanıtınızı girin"}
-                    required={isFieldRequired}
-                    readOnly={isFieldReadOnly}
-                    value={value}
-                    onChange={e => handleChange(field.apiKey, e.target.value)}
-                    onBlur={() => handleBlur(field.apiKey)}
-                    minLength={field.minLength}
-                    maxLength={field.maxLength}
-                    pattern={field.pattern}
-                  />
-                );
-              case "EMAIL":
-                return (
-                  <input
-                    type="email"
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
-                    placeholder={field.placeholder || "ornek@email.com"}
-                    required={isFieldRequired}
-                    readOnly={isFieldReadOnly}
-                    value={value}
-                    onChange={e => handleChange(field.apiKey, e.target.value)}
-                    onBlur={() => handleBlur(field.apiKey)}
-                    pattern={field.pattern}
-                  />
-                );
-              case "TEXTAREA":
-                return (
-                  <textarea
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
-                    placeholder={field.placeholder || "Yanıtınızı girin"}
-                    required={isFieldRequired}
-                    readOnly={isFieldReadOnly}
-                    value={value}
-                    onChange={e => handleChange(field.apiKey, e.target.value)}
-                    onBlur={() => handleBlur(field.apiKey)}
-                    rows={3}
-                    minLength={field.minLength}
-                    maxLength={field.maxLength}
-                  />
-                );
-              case "NUMBER":
-                return (
-                  <input
-                    type="number"
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
-                    placeholder={field.placeholder || ""}
-                    required={isFieldRequired}
-                    readOnly={isFieldReadOnly}
-                    value={value}
-                    onChange={e => handleChange(field.apiKey, e.target.value === "" ? "" : Number(e.target.value))}
-                    onBlur={() => handleBlur(field.apiKey)}
-                    min={field.minValue}
-                    max={field.maxValue}
-                  />
-                );
-              case "DATE":
-                return (
-                  <input
-                    type="date"
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
-                    required={isFieldRequired}
-                    readOnly={isFieldReadOnly}
-                    value={value}
-                    onChange={e => handleChange(field.apiKey, e.target.value)}
-                    onBlur={() => handleBlur(field.apiKey)}
-                  />
-                );
-              case "SINGLE_SELECT":
-                return (
-                  <select
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
-                    required={isFieldRequired}
-                    value={value}
-                    onChange={e => handleChange(field.apiKey, e.target.value)}
-                    onBlur={() => handleBlur(field.apiKey)}
-                  >
-                    <option value="">Seçiniz</option>
-                    {(Array.isArray(field.options) ? field.options : [])
-                      .map((opt: any, i: number) => (
-                        <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
-                      ))}
-                  </select>
-                );
-              case "MULTI_SELECT":
-                return (
-                  <select
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
-                    required={isFieldRequired}
-                    multiple
-                    value={Array.isArray(value) ? value : []}
-                    onChange={e => {
-                      const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
-                      handleChange(field.apiKey, selected);
-                    }}
-                    onBlur={() => handleBlur(field.apiKey)}
-                  >
-                    {(Array.isArray(field.options) ? field.options : [])
-                      .map((opt: any, i: number) => (
-                        <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
-                      ))}
-                  </select>
-                );
-              case "CHECKBOX":
-                return (
-                  <label className="flex items-center gap-2 text-sm">
+        {!isEditing && (
+          <CardContent className="p-2 pt-0">
+            {/* Alan tipi bazlı inputlar */}
+            {(() => {
+              switch (field.type) {
+                case "TEXT":
+                  return (
                     <input
-                      type="checkbox"
-                      className="rounded border-gray-300 focus:ring-blue-200"
+                      type="text"
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
+                      placeholder={field.placeholder || "Yanıtınızı girin"}
                       required={isFieldRequired}
-                      disabled={isFieldReadOnly}
-                      checked={!!value}
-                      onChange={e => handleChange(field.apiKey, e.target.checked)}
+                      readOnly={isFieldReadOnly}
+                      value={value}
+                      onChange={e => handleChange(field.apiKey, e.target.value)}
                       onBlur={() => handleBlur(field.apiKey)}
+                      minLength={field.minLength}
+                      maxLength={field.maxLength}
+                      pattern={field.pattern}
                     />
-                    {field.label}
-                  </label>
-                );
-              case "FILE_UPLOAD":
-                return (
-                  <input
-                    type="file"
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
-                    required={isFieldRequired}
-                    disabled={isFieldReadOnly}
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      handleChange(field.apiKey, file);
-                    }}
-                    onBlur={() => handleBlur(field.apiKey)}
-                  />
-                );
-              case "USER_PICKER":
-                return (
-                  <select
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
-                    required={isFieldRequired}
-                    disabled={isFieldReadOnly}
-                    value={value}
-                    onChange={e => handleChange(field.apiKey, e.target.value)}
-                    onBlur={() => handleBlur(field.apiKey)}
-                  >
-                    <option value="">Kullanıcı Seçiniz</option>
-                    {(Array.isArray(field.options) ? field.options : [])
-                      .map((user: any, i: number) => (
-                        <option key={i} value={user.id || user.value}>{user.name || user.label}</option>
-                      ))}
-                  </select>
-                );
-              case "DATE_RANGE":
-                return (
-                  <div className="grid grid-cols-2 gap-2">
+                  );
+                case "EMAIL":
+                  return (
+                    <input
+                      type="email"
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
+                      placeholder={field.placeholder || "ornek@email.com"}
+                      required={isFieldRequired}
+                      readOnly={isFieldReadOnly}
+                      value={value}
+                      onChange={e => handleChange(field.apiKey, e.target.value)}
+                      onBlur={() => handleBlur(field.apiKey)}
+                      pattern={field.pattern}
+                    />
+                  );
+                case "TEXTAREA":
+                  return (
+                    <textarea
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
+                      placeholder={field.placeholder || "Yanıtınızı girin"}
+                      required={isFieldRequired}
+                      readOnly={isFieldReadOnly}
+                      value={value}
+                      onChange={e => handleChange(field.apiKey, e.target.value)}
+                      onBlur={() => handleBlur(field.apiKey)}
+                      rows={3}
+                      minLength={field.minLength}
+                      maxLength={field.maxLength}
+                    />
+                  );
+                case "NUMBER":
+                  return (
+                    <input
+                      type="number"
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
+                      placeholder={field.placeholder || ""}
+                      required={isFieldRequired}
+                      readOnly={isFieldReadOnly}
+                      value={value}
+                      onChange={e => handleChange(field.apiKey, e.target.value === "" ? "" : Number(e.target.value))}
+                      onBlur={() => handleBlur(field.apiKey)}
+                      min={field.minValue}
+                      max={field.maxValue}
+                    />
+                  );
+                case "DATE":
+                  return (
                     <input
                       type="date"
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
-                      placeholder="Başlangıç"
                       required={isFieldRequired}
-                      disabled={isFieldReadOnly}
-                      value={value?.start || ""}
-                      onChange={e => handleChange(field.apiKey, { ...value, start: e.target.value })}
+                      readOnly={isFieldReadOnly}
+                      value={value}
+                      onChange={e => handleChange(field.apiKey, e.target.value)}
                       onBlur={() => handleBlur(field.apiKey)}
                     />
-                    <input
-                      type="date"
+                  );
+                case "SINGLE_SELECT":
+                  return (
+                    <select
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
-                      placeholder="Bitiş"
+                      required={isFieldRequired}
+                      value={value}
+                      onChange={e => handleChange(field.apiKey, e.target.value)}
+                      onBlur={() => handleBlur(field.apiKey)}
+                    >
+                      <option value="">Seçiniz</option>
+                      {(Array.isArray(field.options) ? field.options : [])
+                        .map((opt: any, i: number) => (
+                          <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
+                        ))}
+                    </select>
+                  );
+                case "MULTI_SELECT":
+                  return (
+                    <select
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
+                      required={isFieldRequired}
+                      multiple
+                      value={Array.isArray(value) ? value : []}
+                      onChange={e => {
+                        const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
+                        handleChange(field.apiKey, selected);
+                      }}
+                      onBlur={() => handleBlur(field.apiKey)}
+                    >
+                      {(Array.isArray(field.options) ? field.options : [])
+                        .map((opt: any, i: number) => (
+                          <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
+                        ))}
+                    </select>
+                  );
+                case "CHECKBOX":
+                  return (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 focus:ring-blue-200"
+                        required={isFieldRequired}
+                        disabled={isFieldReadOnly}
+                        checked={!!value}
+                        onChange={e => handleChange(field.apiKey, e.target.checked)}
+                        onBlur={() => handleBlur(field.apiKey)}
+                      />
+                      {field.label}
+                    </label>
+                  );
+                case "FILE_UPLOAD":
+                  return (
+                    <input
+                      type="file"
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
                       required={isFieldRequired}
                       disabled={isFieldReadOnly}
-                      value={value?.end || ""}
-                      onChange={e => handleChange(field.apiKey, { ...value, end: e.target.value })}
+                      onChange={e => handleChange(field.apiKey, e.target.files?.[0])}
+                      onBlur={() => handleBlur(field.apiKey)}
                     />
-                  </div>
-                );
-              default:
-                return (
-                  <div className="text-red-500 text-xs">
-                    (Bilinmeyen alan tipi: {field.type})
-                  </div>
-                );
-            }
-          })()}
-        </CardContent>
-        <CardFooter className="flex flex-col items-start gap-1 px-2 pb-2 pt-0 min-h-0">
-          {conditionSummary}
-          {renderValidationMessages(field.id)}
-        </CardFooter>
+                  );
+                default:
+                  return (
+                    <input
+                      type="text"
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
+                      placeholder={field.placeholder || "Yanıtınızı girin"}
+                      required={isFieldRequired}
+                      readOnly={isFieldReadOnly}
+                      value={value}
+                      onChange={e => handleChange(field.apiKey, e.target.value)}
+                      onBlur={() => handleBlur(field.apiKey)}
+                    />
+                  );
+              }
+            })()}
+            {renderValidationMessages(field.id)}
+          </CardContent>
+        )}
       </Card>
     );
   };
@@ -663,7 +734,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                   </div>
                 ))}
             </div>
-            {/* Buttons Row */}
+            {/* Section altındaki Add section to form butonu kaldırıldı */}
             <div className="flex gap-4 mt-6">
               {onAddQuestionToSection && (
                 <button
