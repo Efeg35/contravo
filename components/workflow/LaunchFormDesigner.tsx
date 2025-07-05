@@ -39,27 +39,20 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
   const [fieldData, setFieldData] = useState({
     name: '',
     type: 'TEXT',
-    required: false,
-    placeholder: '',
-    helpText: '',
-    minLength: '',
-    maxLength: '',
-    minValue: '',
-    maxValue: '',
-    pattern: '',
-    customError: '',
+    description: '',
     options: [] as string[],
-    // Sprint 2: Enhanced validation and rules
-    defaultValue: '',
-    isReadOnly: false,
-    isHidden: false,
-    errorMessage: '',
-    warningMessage: '',
-    successMessage: '',
-    fieldGroup: '',
-    priority: 0,
-    realTimeValidation: false,
-    isConditional: false
+    // Alan tipine özel property'ler
+    minSelect: '',
+    maxSelect: '',
+    accept: '',
+    maxFileSize: '',
+    multiple: false,
+    defaultChecked: false,
+    multiUser: false,
+    userFilter: '',
+    step: '',
+    minDate: '',
+    maxDate: ''
   });
   const [optionInput, setOptionInput] = useState('');
 
@@ -81,7 +74,6 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       const response = await fetch(`/api/workflow-templates/${templateId}/form-fields`, {
         method: 'POST',
@@ -89,65 +81,48 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
         body: JSON.stringify({
           name: fieldData.name,
           type: fieldData.type,
-          required: fieldData.required,
-          placeholder: fieldData.placeholder || undefined,
-          helpText: fieldData.helpText || undefined,
-          minLength: fieldData.minLength ? parseInt(fieldData.minLength) : undefined,
-          maxLength: fieldData.maxLength ? parseInt(fieldData.maxLength) : undefined,
-          minValue: fieldData.minValue ? parseFloat(fieldData.minValue) : undefined,
-          maxValue: fieldData.maxValue ? parseFloat(fieldData.maxValue) : undefined,
-          pattern: fieldData.pattern || undefined,
-          customError: fieldData.customError || undefined,
+          description: fieldData.description,
           options: fieldData.options.length > 0 ? fieldData.options : undefined,
-          // Sprint 2: Enhanced validation and rules
-          defaultValue: fieldData.defaultValue || undefined,
-          isReadOnly: fieldData.isReadOnly || false,
-          isHidden: fieldData.isHidden || false,
-          errorMessage: fieldData.errorMessage || undefined,
-          warningMessage: fieldData.warningMessage || undefined,
-          successMessage: fieldData.successMessage || undefined,
-          fieldGroup: fieldData.fieldGroup || undefined,
-          priority: fieldData.priority ? parseInt(fieldData.priority.toString()) : 0,
-          realTimeValidation: fieldData.realTimeValidation || false,
-          isConditional: fieldData.isConditional || false,
+          // Alan tipine özel property'ler
+          minSelect: fieldData.minSelect,
+          maxSelect: fieldData.maxSelect,
+          accept: fieldData.accept,
+          maxFileSize: fieldData.maxFileSize,
+          multiple: fieldData.multiple,
+          defaultChecked: fieldData.defaultChecked,
+          multiUser: fieldData.multiUser,
+          userFilter: fieldData.userFilter,
+          step: fieldData.step,
+          minDate: fieldData.minDate,
+          maxDate: fieldData.maxDate,
           sectionId: sectionId || undefined
         })
       });
-      
       const result = await response.json();
       if (result.success) {
         setIsOpen(false);
         setFieldData({
           name: '',
           type: 'TEXT',
-          required: false,
-          placeholder: '',
-          helpText: '',
-          minLength: '',
-          maxLength: '',
-          minValue: '',
-          maxValue: '',
-          pattern: '',
-          customError: '',
+          description: '',
           options: [],
-          // Sprint 2: Enhanced validation and rules
-          defaultValue: '',
-          isReadOnly: false,
-          isHidden: false,
-          errorMessage: '',
-          warningMessage: '',
-          successMessage: '',
-          fieldGroup: '',
-          priority: 0,
-          realTimeValidation: false,
-          isConditional: false
+          minSelect: '',
+          maxSelect: '',
+          accept: '',
+          maxFileSize: '',
+          multiple: false,
+          defaultChecked: false,
+          multiUser: false,
+          userFilter: '',
+          step: '',
+          minDate: '',
+          maxDate: ''
         });
         onFieldAdded();
       } else {
         alert(result.message || 'Alan eklenirken hata oluştu');
       }
     } catch (error) {
-      console.error('Alan ekleme hatası:', error);
       alert('Sunucu hatası');
     }
   };
@@ -169,15 +144,12 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
     }));
   };
 
+  // Alan tipine göre ek inputlar
   const needsOptions = ['SINGLE_SELECT', 'MULTI_SELECT', 'USER_PICKER'].includes(fieldData.type);
-  const needsValidation = ['TEXT', 'TEXTAREA', 'EMAIL', 'URL', 'PHONE', 'NUMBER'].includes(fieldData.type);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {/* <Button variant="outline" size="sm">+ Add question to form</Button> */}
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Yeni Form Alanı Ekle</DialogTitle>
         </DialogHeader>
@@ -192,7 +164,6 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
               placeholder="örn: Sözleşme Değeri"
             />
           </div>
-
           <div>
             <Label htmlFor="type">Alan Tipi *</Label>
             <Select value={fieldData.type} onValueChange={(value) => setFieldData(prev => ({ ...prev, type: value }))}>
@@ -208,39 +179,18 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
               </SelectContent>
             </Select>
           </div>
-
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="required"
-              checked={fieldData.required}
-              onChange={(e) => setFieldData(prev => ({ ...prev, required: e.target.checked }))}
-              className="rounded"
-            />
-            <Label htmlFor="required">Zorunlu alan</Label>
-          </div>
-
           <div>
-            <Label htmlFor="placeholder">Placeholder Metni</Label>
-            <Input
-              id="placeholder"
-              value={fieldData.placeholder}
-              onChange={(e) => setFieldData(prev => ({ ...prev, placeholder: e.target.value }))}
-              placeholder="Kullanıcının göreceği yardımcı metin"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="helpText">Yardım Metni</Label>
+            <Label htmlFor="description">Açıklama</Label>
             <Textarea
-              id="helpText"
-              value={fieldData.helpText}
-              onChange={(e) => setFieldData(prev => ({ ...prev, helpText: e.target.value }))}
-              placeholder="Bu alan hakkında açıklama"
+              id="description"
+              value={fieldData.description}
+              onChange={(e) => setFieldData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Bu alan hakkında açıklama (opsiyonel)"
               rows={2}
             />
           </div>
 
+          {/* Alan tipine özel inputlar */}
           {needsOptions && (
             <div>
               <Label>Seçenekler</Label>
@@ -272,195 +222,115 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
             </div>
           )}
 
-          {needsValidation && (
+          {fieldData.type === 'FILE_UPLOAD' && (
             <div className="grid grid-cols-2 gap-4">
-              {['TEXT', 'TEXTAREA', 'EMAIL', 'URL', 'PHONE'].includes(fieldData.type) && (
-                <>
-                  <div>
-                    <Label htmlFor="minLength">Min. Karakter</Label>
-                    <Input
-                      id="minLength"
-                      type="number"
-                      value={fieldData.minLength}
-                      onChange={(e) => setFieldData(prev => ({ ...prev, minLength: e.target.value }))}
-                      min="0"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="maxLength">Max. Karakter</Label>
-                    <Input
-                      id="maxLength"
-                      type="number"
-                      value={fieldData.maxLength}
-                      onChange={(e) => setFieldData(prev => ({ ...prev, maxLength: e.target.value }))}
-                      min="0"
-                    />
-                  </div>
-                </>
-              )}
-              
-              {fieldData.type === 'NUMBER' && (
-                <>
-                  <div>
-                    <Label htmlFor="minValue">Min. Değer</Label>
-                    <Input
-                      id="minValue"
-                      type="number"
-                      step="any"
-                      value={fieldData.minValue}
-                      onChange={(e) => setFieldData(prev => ({ ...prev, minValue: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="maxValue">Max. Değer</Label>
-                    <Input
-                      id="maxValue"
-                      type="number"
-                      step="any"
-                      value={fieldData.maxValue}
-                      onChange={(e) => setFieldData(prev => ({ ...prev, maxValue: e.target.value }))}
-                    />
-                  </div>
-                </>
-              )}
+              <div>
+                <Label htmlFor="accept">Dosya Tipi (accept)</Label>
+                <Input
+                  id="accept"
+                  value={fieldData.accept || ''}
+                  onChange={e => setFieldData(prev => ({ ...prev, accept: e.target.value }))}
+                  placeholder="örn: .pdf,.docx,image/*"
+                />
+              </div>
+              <div>
+                <Label htmlFor="maxFileSize">Maksimum Boyut (MB)</Label>
+                <Input
+                  id="maxFileSize"
+                  type="number"
+                  value={fieldData.maxFileSize || ''}
+                  onChange={e => setFieldData(prev => ({ ...prev, maxFileSize: e.target.value }))}
+                  min="1"
+                  placeholder="10"
+                />
+              </div>
+              <div className="col-span-2 flex items-center space-x-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="multiple"
+                  checked={fieldData.multiple || false}
+                  onChange={e => setFieldData(prev => ({ ...prev, multiple: e.target.checked }))}
+                  className="rounded"
+                />
+                <Label htmlFor="multiple">Çoklu Dosya Yükleme</Label>
+              </div>
             </div>
           )}
 
-          <div>
-            <Label htmlFor="pattern">Regex Pattern (İsteğe bağlı)</Label>
-            <Input
-              id="pattern"
-              value={fieldData.pattern}
-              onChange={(e) => setFieldData(prev => ({ ...prev, pattern: e.target.value }))}
-              placeholder="örn: ^[A-Z]{2}[0-9]{6}$ (kimlik numarası formatı)"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="customError">Özel Hata Mesajı</Label>
-            <Input
-              id="customError"
-              value={fieldData.customError}
-              onChange={(e) => setFieldData(prev => ({ ...prev, customError: e.target.value }))}
-              placeholder="Geçersiz giriş durumunda gösterilecek mesaj"
-            />
-          </div>
-
-          {/* Sprint 2: Enhanced Validation and Rules */}
-          <div className="border-t pt-4 space-y-4">
-            <h4 className="text-sm font-medium text-gray-700">Gelişmiş Validasyon Ayarları</h4>
-            
-            <div>
-              <Label htmlFor="defaultValue">Varsayılan Değer</Label>
-              <Input
-                id="defaultValue"
-                value={fieldData.defaultValue}
-                onChange={(e) => setFieldData(prev => ({ ...prev, defaultValue: e.target.value }))}
-                placeholder="Bu alanın varsayılan değeri"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="isReadOnly"
-                  checked={fieldData.isReadOnly}
-                  onChange={(e) => setFieldData(prev => ({ ...prev, isReadOnly: e.target.checked }))}
-                  className="rounded"
-                />
-                <Label htmlFor="isReadOnly" className="text-sm">Salt Okunur</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="isHidden"
-                  checked={fieldData.isHidden}
-                  onChange={(e) => setFieldData(prev => ({ ...prev, isHidden: e.target.checked }))}
-                  className="rounded"
-                />
-                <Label htmlFor="isHidden" className="text-sm">Gizli</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="realTimeValidation"
-                  checked={fieldData.realTimeValidation}
-                  onChange={(e) => setFieldData(prev => ({ ...prev, realTimeValidation: e.target.checked }))}
-                  className="rounded"
-                />
-                <Label htmlFor="realTimeValidation" className="text-sm">Anlık Validasyon</Label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="fieldGroup">Alan Grubu</Label>
-                <Input
-                  id="fieldGroup"
-                  value={fieldData.fieldGroup}
-                  onChange={(e) => setFieldData(prev => ({ ...prev, fieldGroup: e.target.value }))}
-                  placeholder="Grup adı (örn: Sözleşme Bilgileri)"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="priority">Öncelik Seviyesi</Label>
-                <Input
-                  id="priority"
-                  type="number"
-                  value={fieldData.priority}
-                  onChange={(e) => setFieldData(prev => ({ ...prev, priority: parseInt(e.target.value) || 0 }))}
-                  placeholder="0-100 arası"
-                  min="0"
-                  max="100"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="errorMessage">Hata Mesajı</Label>
-              <Input
-                id="errorMessage"
-                value={fieldData.errorMessage}
-                onChange={(e) => setFieldData(prev => ({ ...prev, errorMessage: e.target.value }))}
-                placeholder="Validasyon başarısız olduğunda gösterilecek mesaj"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="warningMessage">Uyarı Mesajı</Label>
-              <Input
-                id="warningMessage"
-                value={fieldData.warningMessage}
-                onChange={(e) => setFieldData(prev => ({ ...prev, warningMessage: e.target.value }))}
-                placeholder="Uyarı durumunda gösterilecek mesaj"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="successMessage">Başarı Mesajı</Label>
-              <Input
-                id="successMessage"
-                value={fieldData.successMessage}
-                onChange={(e) => setFieldData(prev => ({ ...prev, successMessage: e.target.value }))}
-                placeholder="Validasyon başarılı olduğunda gösterilecek mesaj"
-              />
-            </div>
-
+          {fieldData.type === 'CHECKBOX' && (
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
-                id="isConditional"
-                checked={fieldData.isConditional}
-                onChange={(e) => setFieldData(prev => ({ ...prev, isConditional: e.target.checked }))}
+                id="defaultChecked"
+                checked={fieldData.defaultChecked || false}
+                onChange={e => setFieldData(prev => ({ ...prev, defaultChecked: e.target.checked }))}
                 className="rounded"
               />
-              <Label htmlFor="isConditional">Koşullu Alan (Diğer alanlara bağlı gösterim)</Label>
+              <Label htmlFor="defaultChecked">Varsayılan Olarak Seçili</Label>
             </div>
-          </div>
+          )}
+
+          {fieldData.type === 'USER_PICKER' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="multiUser"
+                  checked={fieldData.multiUser || false}
+                  onChange={e => setFieldData(prev => ({ ...prev, multiUser: e.target.checked }))}
+                  className="rounded"
+                />
+                <Label htmlFor="multiUser">Çoklu Seçim</Label>
+              </div>
+              <div>
+                <Label htmlFor="userFilter">Kullanıcı Filtreleri</Label>
+                <Input
+                  id="userFilter"
+                  value={fieldData.userFilter || ''}
+                  onChange={e => setFieldData(prev => ({ ...prev, userFilter: e.target.value }))}
+                  placeholder="örn: Rol=Satınalma, Departman=Finans"
+                />
+              </div>
+            </div>
+          )}
+
+          {fieldData.type === 'NUMBER' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="step">Adım (Step)</Label>
+                <Input
+                  id="step"
+                  type="number"
+                  value={fieldData.step || ''}
+                  onChange={e => setFieldData(prev => ({ ...prev, step: e.target.value }))}
+                  placeholder="örn: 1, 0.01"
+                />
+              </div>
+            </div>
+          )}
+
+          {fieldData.type === 'DATE' || fieldData.type === 'DATE_RANGE' ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="minDate">Min. Tarih</Label>
+                <Input
+                  id="minDate"
+                  type="date"
+                  value={fieldData.minDate || ''}
+                  onChange={e => setFieldData(prev => ({ ...prev, minDate: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="maxDate">Max. Tarih</Label>
+                <Input
+                  id="maxDate"
+                  type="date"
+                  value={fieldData.maxDate || ''}
+                  onChange={e => setFieldData(prev => ({ ...prev, maxDate: e.target.value }))}
+                />
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
