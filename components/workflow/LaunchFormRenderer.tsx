@@ -10,7 +10,7 @@ import {
   FieldValidationState, 
   FormValidationState,
   FieldCondition,
-  FormSection,
+  FormSection as BaseFormSection,
   SectionDisplayMode 
 } from '../../types/workflow';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../ui/card";
@@ -64,6 +64,8 @@ interface FormField {
   step?: string;
   minDate?: string;
   maxDate?: string;
+  // Koşul dropdown'u için
+  displayCondition?: string;
 }
 
 interface LaunchFormRendererProps {
@@ -97,12 +99,48 @@ interface LaunchFormRendererProps {
   onCancelEditing?: () => void;
 }
 
+interface FormSection extends BaseFormSection {
+  displayCondition?: string;
+}
+
 const getSortedFields = (fields: FormField[], layout: any) => {
   if (!layout || !Array.isArray(layout.fieldOrder)) return fields.sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0));
   // layout.fieldOrder: [fieldId1, fieldId2, ...]
   const orderMap = new Map(layout.fieldOrder.map((id: string, idx: number) => [id, idx]));
   return [...fields].sort((a, b) => Number(orderMap.get(a.id) ?? 999) - Number(orderMap.get(b.id) ?? 999));
 };
+
+const mapFieldTypeToPropertyType = (type: string): import('@/types/workflow').PropertyType => {
+  switch (type) {
+    case 'TEXT': return 'text';
+    case 'EMAIL': return 'email';
+    case 'URL': return 'url';
+    case 'PHONE': return 'phone';
+    case 'DATE': return 'date';
+    case 'DATE_RANGE': return 'date_range';
+    case 'DURATION': return 'duration';
+    case 'NUMBER': return 'number';
+    case 'USER_PICKER': return 'user';
+    case 'SINGLE_SELECT': return 'select';
+    case 'MULTI_SELECT': return 'multi_select';
+    case 'BOOLEAN': return 'boolean';
+    case 'CHECKBOX': return 'checkbox';
+    case 'FILE_UPLOAD': return 'file_upload';
+    case 'TEXTAREA': return 'textarea';
+    default: return 'text';
+  }
+};
+
+// Koşul seçenekleri
+const DISPLAY_CONDITION_OPTIONS = [
+  { value: 'ALWAYS', label: 'Always' },
+  { value: 'AUTO_RENEW', label: 'Renewal Type is Auto-Renew' },
+  { value: 'AUTO_RENEW_OR_OPTIONAL', label: 'Renewal Type is Auto-Renew OR Optional Extension' },
+  { value: 'NONE', label: 'Renewal Type is None' },
+  { value: 'NOT_EVERGREEN', label: 'Renewal Type is not Evergreen' },
+  { value: 'OPTIONAL_EXTENSION', label: 'Renewal Type is Optional Extension' },
+  { value: 'OTHER', label: 'Renewal Type is Other' },
+];
 
 const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ 
   formFields, 
@@ -167,6 +205,9 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     minDate?: string;
     maxDate?: string;
   } }>({});
+
+  const [localFormFields, setLocalFormFields] = useState(formFields);
+  useEffect(() => { setLocalFormFields(formFields); }, [formFields]);
 
   // Sprint 2: Field validation hook
   const validateField = useCallback((field: FormField, value: any) => {
@@ -331,19 +372,36 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
   const isSectionVisible = (section: FormSection): boolean => {
     if (section.visibilityCondition === 'NEVER') return false;
     if (section.visibilityCondition === 'ALWAYS') return true;
-    
-    // Check conditional visibility
     if (section.showWhen && section.showWhen.length > 0) {
-      return formValidationEngine.evaluateConditions(section.showWhen, formData);
+      const cond = section.showWhen[0];
+      const fieldValue = formData[cond.field];
+      let visible = true;
+      if (typeof fieldValue === 'undefined' || fieldValue === null || fieldValue === '') {
+        visible = true; // renewalType henüz seçilmediyse, section gizlenmesin
+      } else if (cond.operator === 'equals') visible = fieldValue === cond.value;
+      else if (cond.operator === 'not_equals') visible = fieldValue !== cond.value;
+      else if (cond.operator === 'in') visible = Array.isArray(cond.value) ? cond.value.includes(fieldValue) : false;
+      else visible = true;
+      if (!visible) return false;
     }
     if (section.hideWhen && section.hideWhen.length > 0) {
       return !formValidationEngine.evaluateConditions(section.hideWhen, formData);
     }
-    
     return true;
   };
 
   const handleAddCondition = (field: FormField) => {
+    // En az iki soru yoksa koşul eklenemez
+    if (!formFields || formFields.length < 2) {
+      alert("Koşul eklemek için formda en az iki soru olmalı.");
+      return;
+    }
+    // Property listesi güvenli mi?
+    const otherFields = formFields.filter(f => f.id !== field.id);
+    if (!otherFields || otherFields.length === 0) {
+      alert("Koşul eklemek için başka bir soru olmalı.");
+      return;
+    }
     setSelectedConditionField(field);
     setIsConditionModalOpen(true);
   };
@@ -406,19 +464,77 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     );
   };
 
+  // Section için local state
+  const [localSections, setLocalSections] = useState(sections || []);
+  useEffect(() => { setLocalSections(sections || []); }, [sections]);
+
+  // Section koşulunu güncelleyen fonksiyon
+  const handleSectionDisplayConditionChange = async (sectionId: string, value: string) => {
+    let showWhen = undefined;
+    if (value !== 'ALWAYS') {
+      let condition: any = { field: 'renewalType', operator: 'equals', value: '' };
+      switch (value) {
+        case 'AUTO_RENEW':
+          condition.value = 'Auto-Renew'; break;
+        case 'AUTO_RENEW_OR_OPTIONAL':
+          condition.operator = 'in';
+          condition.value = ['Auto-Renew', 'Optional Extension']; break;
+        case 'NONE':
+          condition.value = 'None'; break;
+        case 'NOT_EVERGREEN':
+          condition.operator = 'not_equals';
+          condition.value = 'Evergreen'; break;
+        case 'OPTIONAL_EXTENSION':
+          condition.value = 'Optional Extension'; break;
+        case 'OTHER':
+          condition.value = 'Other'; break;
+        default:
+          condition.value = value;
+      }
+      showWhen = [condition];
+    }
+    // Backend'e kaydet
+    await addDisplayConditionToField({
+      fieldId: sectionId,
+      field: 'renewalType',
+      operator: showWhen ? showWhen[0].operator : 'always',
+      value: showWhen ? showWhen[0].value : '',
+      stepId: ''
+    });
+    // Local state güncelle
+    setLocalSections((prev = []) => prev.map(s =>
+      s.id === sectionId ? { ...s, displayCondition: value, showWhen } : s
+    ));
+  };
+
   // Section ve alanları render eden yardımcı fonksiyonlar
   const renderField = (field: FormField) => {
-    if (!visibleFields.has(field.id) || field.isHidden) {
+    const localField = localFormFields.find(f => f.id === field.id) || field;
+    // showWhen koşulunu kontrol et
+    if (localField.showWhen && localField.showWhen.length > 0) {
+      const cond = localField.showWhen[0];
+      const fieldValue = formData[cond.field];
+      let visible = true;
+      if (typeof fieldValue === 'undefined' || fieldValue === null || fieldValue === '') {
+        visible = true; // renewalType henüz seçilmediyse, soruyu gizleme
+      } else if (cond.operator === 'equals') visible = fieldValue === cond.value;
+      else if (cond.operator === 'not_equals') visible = fieldValue !== cond.value;
+      else if (cond.operator === 'in') visible = Array.isArray(cond.value) ? cond.value.includes(fieldValue) : false;
+      else visible = true;
+      if (!visible) return null;
+    }
+
+    if (!visibleFields.has(localField.id) || localField.isHidden) {
       return null;
     }
 
-    const value = formData?.[field.apiKey] ?? field.defaultValue ?? "";
-    const isFieldRequired = requiredFields.has(field.id) || field.isRequired;
-    const isFieldReadOnly = readOnlyFields.has(field.id) || field.isReadOnly;
-    const validationClasses = getValidationClasses(field.id);
-    const isEditing = editingFieldId === field.id;
+    const value = formData?.[localField.apiKey] ?? localField.defaultValue ?? "";
+    const isFieldRequired = requiredFields.has(localField.id) || localField.isRequired;
+    const isFieldReadOnly = readOnlyFields.has(localField.id) || localField.isReadOnly;
+    const validationClasses = getValidationClasses(localField.id);
+    const isEditing = editingFieldId === localField.id;
     
-    const dc = displayConditions && displayConditions[field.id];
+    const dc = displayConditions && displayConditions[localField.id];
     const conditionSummary = dc ? (
       <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
         Gösterim kuralı: {dc.field} {dc.operator} {dc.value}
@@ -429,55 +545,55 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     const handleSave = () => {
       if (onSaveField) {
         const updatedData: any = {
-          label: editData[field.id]?.label || field.label,
-          helpText: editData[field.id]?.helpText || field.helpText || ''
+          label: editData[localField.id]?.label || localField.label,
+          helpText: editData[localField.id]?.helpText || localField.helpText || ''
         };
 
         // Alan tipine göre özel alanları ekle
-        if (editData[field.id]?.placeholder !== undefined) {
-          updatedData.placeholder = editData[field.id].placeholder;
+        if (editData[localField.id]?.placeholder !== undefined) {
+          updatedData.placeholder = editData[localField.id].placeholder;
         }
-        if (editData[field.id]?.options !== undefined) {
-          updatedData.options = editData[field.id].options;
+        if (editData[localField.id]?.options !== undefined) {
+          updatedData.options = editData[localField.id].options;
         }
-        if (editData[field.id]?.minValue !== undefined) {
-          updatedData.minValue = editData[field.id].minValue;
+        if (editData[localField.id]?.minValue !== undefined) {
+          updatedData.minValue = editData[localField.id].minValue;
         }
-        if (editData[field.id]?.maxValue !== undefined) {
-          updatedData.maxValue = editData[field.id].maxValue;
+        if (editData[localField.id]?.maxValue !== undefined) {
+          updatedData.maxValue = editData[localField.id].maxValue;
         }
-        if (editData[field.id]?.minLength !== undefined) {
-          updatedData.minLength = editData[field.id].minLength;
+        if (editData[localField.id]?.minLength !== undefined) {
+          updatedData.minLength = editData[localField.id].minLength;
         }
-        if (editData[field.id]?.maxLength !== undefined) {
-          updatedData.maxLength = editData[field.id].maxLength;
+        if (editData[localField.id]?.maxLength !== undefined) {
+          updatedData.maxLength = editData[localField.id].maxLength;
         }
-        if (editData[field.id]?.pattern !== undefined) {
-          updatedData.pattern = editData[field.id].pattern;
+        if (editData[localField.id]?.pattern !== undefined) {
+          updatedData.pattern = editData[localField.id].pattern;
         }
-        if (editData[field.id]?.accept !== undefined) {
-          updatedData.accept = editData[field.id].accept;
+        if (editData[localField.id]?.accept !== undefined) {
+          updatedData.accept = editData[localField.id].accept;
         }
-        if (editData[field.id]?.maxFileSize !== undefined) {
-          updatedData.maxFileSize = editData[field.id].maxFileSize;
+        if (editData[localField.id]?.maxFileSize !== undefined) {
+          updatedData.maxFileSize = editData[localField.id].maxFileSize;
         }
-        if (editData[field.id]?.multiple !== undefined) {
-          updatedData.multiple = editData[field.id].multiple;
+        if (editData[localField.id]?.multiple !== undefined) {
+          updatedData.multiple = editData[localField.id].multiple;
         }
-        if (editData[field.id]?.defaultChecked !== undefined) {
-          updatedData.defaultChecked = editData[field.id].defaultChecked;
+        if (editData[localField.id]?.defaultChecked !== undefined) {
+          updatedData.defaultChecked = editData[localField.id].defaultChecked;
         }
-        if (editData[field.id]?.step !== undefined) {
-          updatedData.step = editData[field.id].step;
+        if (editData[localField.id]?.step !== undefined) {
+          updatedData.step = editData[localField.id].step;
         }
-        if (editData[field.id]?.minDate !== undefined) {
-          updatedData.minDate = editData[field.id].minDate;
+        if (editData[localField.id]?.minDate !== undefined) {
+          updatedData.minDate = editData[localField.id].minDate;
         }
-        if (editData[field.id]?.maxDate !== undefined) {
-          updatedData.maxDate = editData[field.id].maxDate;
+        if (editData[localField.id]?.maxDate !== undefined) {
+          updatedData.maxDate = editData[localField.id].maxDate;
         }
 
-        onSaveField(field.id, updatedData);
+        onSaveField(localField.id, updatedData);
       }
     };
     
@@ -485,23 +601,23 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     const handleCancel = () => {
       setEditData(prev => ({
         ...prev,
-        [field.id]: {
-          label: field.label,
-          helpText: field.helpText || '',
-          placeholder: field.placeholder,
-          options: Array.isArray(field.options) ? field.options : [],
-          minValue: field.minValue,
-          maxValue: field.maxValue,
-          minLength: field.minLength,
-          maxLength: field.maxLength,
-          pattern: field.pattern,
-          accept: field.accept,
-          maxFileSize: field.maxFileSize,
-          multiple: field.multiple,
-          defaultChecked: field.defaultChecked,
-          step: field.step,
-          minDate: field.minDate,
-          maxDate: field.maxDate
+        [localField.id]: {
+          label: localField.label,
+          helpText: localField.helpText || '',
+          placeholder: localField.placeholder,
+          options: Array.isArray(localField.options) ? localField.options : [],
+          minValue: localField.minValue,
+          maxValue: localField.maxValue,
+          minLength: localField.minLength,
+          maxLength: localField.maxLength,
+          pattern: localField.pattern,
+          accept: localField.accept,
+          maxFileSize: localField.maxFileSize,
+          multiple: localField.multiple,
+          defaultChecked: localField.defaultChecked,
+          step: localField.step,
+          minDate: localField.minDate,
+          maxDate: localField.maxDate
         }
       }));
       if (onCancelEditing) {
@@ -512,71 +628,124 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     // Küçük, kurumsal ve modern Card UI
     return (
       <Card
-        key={field.id}
+        key={localField.id}
         className={`mb-2 border-gray-200 shadow-xs hover:shadow-sm transition-shadow group bg-white/95 rounded-lg ${
           isEditing ? 'ring-2 ring-blue-500' : 'cursor-pointer'
         }`}
-        onClick={isEditing ? () => onCancelEditing?.() : (onStartEditing ? () => onStartEditing(field.id) : undefined)}
+        onClick={isEditing ? () => onCancelEditing?.() : (onStartEditing ? () => onStartEditing(localField.id) : undefined)}
       >
         <CardHeader className="flex flex-row items-center justify-between p-2 pb-1 min-h-0">
           <div className="flex flex-col gap-0.5 flex-1">
+            <div className="flex items-center gap-2 cursor-pointer" style={{ cursor: 'pointer' }} onClick={isEditing ? () => onCancelEditing?.() : (onStartEditing ? () => onStartEditing(localField.id) : undefined)}>
+              <span className="text-base font-semibold text-gray-900 tracking-tight">{localField.label}</span>
+            </div>
             {isEditing ? (
               // Düzenleme modu
               <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                {/* display question when + dropdown */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-gray-700">
+                    display question when
+                  </span>
+                  <select
+                    className="border rounded px-2 py-1 text-xs"
+                    value={localField.displayCondition || 'ALWAYS'}
+                    onChange={async (e) => {
+                      const value = e.target.value;
+                      let showWhen = undefined;
+                      if (value !== 'ALWAYS') {
+                        let condition: any = { field: 'renewalType', operator: 'equals', value: '' };
+                        switch (value) {
+                          case 'AUTO_RENEW':
+                            condition.value = 'Auto-Renew'; break;
+                          case 'AUTO_RENEW_OR_OPTIONAL':
+                            condition.operator = 'in';
+                            condition.value = ['Auto-Renew', 'Optional Extension']; break;
+                          case 'NONE':
+                            condition.value = 'None'; break;
+                          case 'NOT_EVERGREEN':
+                            condition.operator = 'not_equals';
+                            condition.value = 'Evergreen'; break;
+                          case 'OPTIONAL_EXTENSION':
+                            condition.value = 'Optional Extension'; break;
+                          case 'OTHER':
+                            condition.value = 'Other'; break;
+                        }
+                        showWhen = [condition];
+                      }
+                      // Backend'e kaydet
+                      await addDisplayConditionToField({
+                        fieldId: localField.id,
+                        field: 'renewalType',
+                        operator: showWhen ? showWhen[0].operator : 'always',
+                        value: showWhen ? showWhen[0].value : '',
+                        stepId: ''
+                      });
+                      // Local state güncelle
+                      setLocalFormFields(prev => prev.map(f =>
+                        f.id === localField.id ? { ...f, displayCondition: value, showWhen } : f
+                      ));
+                    }}
+                  >
+                    {DISPLAY_CONDITION_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <Input
-                  value={editData[field.id]?.label || field.label}
-                  onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], label: e.target.value } }))}
+                  value={editData[localField.id]?.label || localField.label}
+                  onChange={(e) => setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], label: e.target.value } }))}
                   placeholder="Alan başlığı"
                   className="text-sm font-medium"
                 />
                 <Textarea
-                  value={editData[field.id]?.helpText || field.helpText || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], helpText: e.target.value } }))}
+                  value={editData[localField.id]?.helpText || localField.helpText || ''}
+                  onChange={(e) => setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], helpText: e.target.value } }))}
                   placeholder="Alan açıklaması (opsiyonel)"
                   className="text-xs"
                   rows={2}
                 />
                 
                 {/* Alan tipine göre özel düzenleme alanları */}
-                {field.type === 'TEXT' || field.type === 'EMAIL' || field.type === 'TEXTAREA' ? (
+                {localField.type === 'TEXT' || localField.type === 'EMAIL' || localField.type === 'TEXTAREA' ? (
                   <Input
-                    value={editData[field.id]?.placeholder || field.placeholder || ''}
-                    onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], placeholder: e.target.value } }))}
+                    value={editData[localField.id]?.placeholder || localField.placeholder || ''}
+                    onChange={(e) => setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], placeholder: e.target.value } }))}
                     placeholder="Placeholder metni"
                     className="text-xs"
                   />
                 ) : null}
                 
-                {field.type === 'NUMBER' && (
+                {localField.type === 'NUMBER' && (
                   <div className="flex gap-2">
                     <Input
                       type="number"
-                      value={editData[field.id]?.minValue || field.minValue || ''}
-                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], minValue: e.target.value ? Number(e.target.value) : undefined } }))}
+                      value={editData[localField.id]?.minValue || localField.minValue || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], minValue: e.target.value ? Number(e.target.value) : undefined } }))}
                       placeholder="Min değer"
                       className="text-xs"
                     />
                     <Input
                       type="number"
-                      value={editData[field.id]?.maxValue || field.maxValue || ''}
-                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], maxValue: e.target.value ? Number(e.target.value) : undefined } }))}
+                      value={editData[localField.id]?.maxValue || localField.maxValue || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], maxValue: e.target.value ? Number(e.target.value) : undefined } }))}
                       placeholder="Max değer"
                       className="text-xs"
                     />
                   </div>
                 )}
                 
-                {(field.type === 'SINGLE_SELECT' || field.type === 'MULTI_SELECT') && (
+                {(localField.type === 'SINGLE_SELECT' || localField.type === 'MULTI_SELECT') && (
                   <div className="space-y-2">
                     <div className="text-xs font-medium text-gray-600">Seçenekler:</div>
-                    {(editData[field.id]?.options || field.options || []).map((option: string, index: number) => (
+                    {(editData[localField.id]?.options || localField.options || []).map((option: string, index: number) => (
                       <div key={index} className="flex gap-2">
                         <Input
                           value={option}
                           onChange={(e) => {
-                            const newOptions = [...(editData[field.id]?.options || field.options || [])];
+                            const newOptions = [...(editData[localField.id]?.options || localField.options || [])];
                             newOptions[index] = e.target.value;
-                            setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], options: newOptions } }));
+                            setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], options: newOptions } }));
                           }}
                           placeholder={`Seçenek ${index + 1}`}
                           className="text-xs"
@@ -585,8 +754,8 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            const newOptions = (editData[field.id]?.options || field.options || []).filter((_: string, i: number) => i !== index);
-                            setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], options: newOptions } }));
+                            const newOptions = (editData[localField.id]?.options || localField.options || []).filter((_: string, i: number) => i !== index);
+                            setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], options: newOptions } }));
                           }}
                           className="text-xs px-2 py-1"
                         >
@@ -598,8 +767,8 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const newOptions = [...(editData[field.id]?.options || field.options || []), ''];
-                        setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], options: newOptions } }));
+                        const newOptions = [...(editData[localField.id]?.options || localField.options || []), ''];
+                        setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], options: newOptions } }));
                       }}
                       className="text-xs px-2 py-1"
                     >
@@ -608,36 +777,36 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                   </div>
                 )}
                 
-                {field.type === 'FILE_UPLOAD' && (
+                {localField.type === 'FILE_UPLOAD' && (
                   <div className="space-y-2">
                     <Input
-                      value={editData[field.id]?.accept || field.accept || ''}
-                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], accept: e.target.value } }))}
+                      value={editData[localField.id]?.accept || localField.accept || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], accept: e.target.value } }))}
                       placeholder="Kabul edilen dosya türleri (örn: .pdf,.doc,.docx)"
                       className="text-xs"
                     />
                     <Input
-                      value={editData[field.id]?.maxFileSize || field.maxFileSize || ''}
-                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], maxFileSize: e.target.value } }))}
+                      value={editData[localField.id]?.maxFileSize || localField.maxFileSize || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], maxFileSize: e.target.value } }))}
                       placeholder="Maksimum dosya boyutu (örn: 5MB)"
                       className="text-xs"
                     />
                   </div>
                 )}
                 
-                {field.type === 'DATE' && (
+                {localField.type === 'DATE' && (
                   <div className="flex gap-2">
                     <Input
                       type="date"
-                      value={editData[field.id]?.minDate || field.minDate || ''}
-                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], minDate: e.target.value } }))}
+                      value={editData[localField.id]?.minDate || localField.minDate || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], minDate: e.target.value } }))}
                       placeholder="Min tarih"
                       className="text-xs"
                     />
                     <Input
                       type="date"
-                      value={editData[field.id]?.maxDate || field.maxDate || ''}
-                      onChange={(e) => setEditData(prev => ({ ...prev, [field.id]: { ...prev[field.id], maxDate: e.target.value } }))}
+                      value={editData[localField.id]?.maxDate || localField.maxDate || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, [localField.id]: { ...prev[localField.id], maxDate: e.target.value } }))}
                       placeholder="Max tarih"
                       className="text-xs"
                     />
@@ -672,12 +841,12 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
               // Görüntüleme modu
               <>
                 <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-1 leading-tight">
-                  {field.label}
+                  {localField.label}
                   {isFieldRequired && <span className="text-red-500">*</span>}
                 </CardTitle>
-                {field.helpText && (
+                {localField.helpText && (
                   <CardDescription className="text-xs text-gray-400 mt-0.5 leading-tight">
-                    {field.helpText}
+                    {localField.helpText}
                   </CardDescription>
                 )}
               </>
@@ -690,7 +859,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                 className="text-blue-500 hover:text-blue-700 text-xs underline px-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleAddCondition(field);
+                  handleAddCondition(localField);
                 }}
               >
                 Koşul
@@ -701,7 +870,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                   className="text-gray-400 hover:text-red-600 text-base ml-1 p-0.5"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteField(field.id);
+                    onDeleteField(localField.id);
                   }}
                   title="Soruyu sil"
                 >
@@ -716,116 +885,116 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
           <CardContent className="p-2 pt-0">
             {/* Alan tipi bazlı inputlar */}
             {(() => {
-              switch (field.type) {
-                case "TEXT":
-                  return (
-                    <input
-                      type="text"
+    switch (localField.type) {
+      case "TEXT":
+        return (
+            <input
+              type="text"
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
-                      placeholder={field.placeholder || "Yanıtınızı girin"}
-                      required={isFieldRequired}
-                      readOnly={isFieldReadOnly}
-                      value={value}
-                      onChange={e => handleChange(field.apiKey, e.target.value)}
-                      onBlur={() => handleBlur(field.apiKey)}
-                      minLength={field.minLength}
-                      maxLength={field.maxLength}
-                      pattern={field.pattern}
-                    />
-                  );
-                case "EMAIL":
-                  return (
-                    <input
-                      type="email"
+                      placeholder={localField.placeholder || "Yanıtınızı girin"}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
+              value={value}
+              onChange={e => handleChange(localField.apiKey, e.target.value)}
+              onBlur={() => handleBlur(localField.apiKey)}
+              minLength={localField.minLength}
+              maxLength={localField.maxLength}
+              pattern={localField.pattern}
+            />
+        );
+      case "EMAIL":
+        return (
+            <input
+              type="email"
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
-                      placeholder={field.placeholder || "ornek@email.com"}
-                      required={isFieldRequired}
-                      readOnly={isFieldReadOnly}
-                      value={value}
-                      onChange={e => handleChange(field.apiKey, e.target.value)}
-                      onBlur={() => handleBlur(field.apiKey)}
-                      pattern={field.pattern}
-                    />
-                  );
-                case "TEXTAREA":
-                  return (
-                    <textarea
+              placeholder={localField.placeholder || "ornek@email.com"}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
+              value={value}
+              onChange={e => handleChange(localField.apiKey, e.target.value)}
+              onBlur={() => handleBlur(localField.apiKey)}
+              pattern={localField.pattern}
+            />
+        );
+      case "TEXTAREA":
+        return (
+            <textarea
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
-                      placeholder={field.placeholder || "Yanıtınızı girin"}
-                      required={isFieldRequired}
-                      readOnly={isFieldReadOnly}
-                      value={value}
-                      onChange={e => handleChange(field.apiKey, e.target.value)}
-                      onBlur={() => handleBlur(field.apiKey)}
+                      placeholder={localField.placeholder || "Yanıtınızı girin"}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
+              value={value}
+              onChange={e => handleChange(localField.apiKey, e.target.value)}
+              onBlur={() => handleBlur(localField.apiKey)}
                       rows={3}
-                      minLength={field.minLength}
-                      maxLength={field.maxLength}
-                    />
-                  );
-                case "NUMBER":
-                  return (
-                    <input
-                      type="number"
+              minLength={localField.minLength}
+              maxLength={localField.maxLength}
+            />
+        );
+      case "NUMBER":
+        return (
+            <input
+              type="number"
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
-                      placeholder={field.placeholder || ""}
-                      required={isFieldRequired}
-                      readOnly={isFieldReadOnly}
-                      value={value}
-                      onChange={e => handleChange(field.apiKey, e.target.value === "" ? "" : Number(e.target.value))}
-                      onBlur={() => handleBlur(field.apiKey)}
-                      min={field.minValue}
-                      max={field.maxValue}
-                    />
-                  );
-                case "DATE":
-                  return (
-                    <input
-                      type="date"
+                      placeholder={localField.placeholder || ""}
+              required={isFieldRequired}
+              readOnly={isFieldReadOnly}
+              value={value}
+              onChange={e => handleChange(localField.apiKey, e.target.value === "" ? "" : Number(e.target.value))}
+              onBlur={() => handleBlur(localField.apiKey)}
+              min={localField.minValue}
+              max={localField.maxValue}
+            />
+        );
+      case "DATE":
+        return (
+            <input
+              type="date"
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
                       required={isFieldRequired}
                       readOnly={isFieldReadOnly}
-                      value={value}
-                      onChange={e => handleChange(field.apiKey, e.target.value)}
-                      onBlur={() => handleBlur(field.apiKey)}
-                    />
-                  );
-                case "SINGLE_SELECT":
-                  return (
-                    <select
+              value={value}
+              onChange={e => handleChange(localField.apiKey, e.target.value)}
+                      onBlur={() => handleBlur(localField.apiKey)}
+            />
+        );
+      case "SINGLE_SELECT":
+        return (
+            <select
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
                       required={isFieldRequired}
-                      value={value}
-                      onChange={e => handleChange(field.apiKey, e.target.value)}
-                      onBlur={() => handleBlur(field.apiKey)}
-                    >
-                      <option value="">Seçiniz</option>
-                      {(Array.isArray(field.options) ? field.options : [])
-                        .map((opt: any, i: number) => (
-                          <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
-                        ))}
-                    </select>
-                  );
-                case "MULTI_SELECT":
-                  return (
-                    <select
+              value={value}
+              onChange={e => handleChange(localField.apiKey, e.target.value)}
+                      onBlur={() => handleBlur(localField.apiKey)}
+            >
+              <option value="">Seçiniz</option>
+              {(Array.isArray(localField.options) ? localField.options : [])
+                .map((opt: any, i: number) => (
+                  <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
+                ))}
+            </select>
+        );
+      case "MULTI_SELECT":
+        return (
+            <select
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
                       required={isFieldRequired}
-                      multiple
-                      value={Array.isArray(value) ? value : []}
-                      onChange={e => {
-                        const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
-                        handleChange(field.apiKey, selected);
-                      }}
-                      onBlur={() => handleBlur(field.apiKey)}
-                    >
-                      {(Array.isArray(field.options) ? field.options : [])
-                        .map((opt: any, i: number) => (
-                          <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
-                        ))}
-                    </select>
-                  );
+              multiple
+              value={Array.isArray(value) ? value : []}
+              onChange={e => {
+                const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
+                handleChange(localField.apiKey, selected);
+              }}
+                      onBlur={() => handleBlur(localField.apiKey)}
+            >
+              {(Array.isArray(localField.options) ? localField.options : [])
+                .map((opt: any, i: number) => (
+                  <option key={i} value={typeof opt === 'string' ? opt : opt.value}>{typeof opt === 'string' ? opt : opt.label}</option>
+                ))}
+            </select>
+        );
                 case "CHECKBOX":
-                  return (
+        return (
                     <label className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
@@ -833,10 +1002,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                         required={isFieldRequired}
                         disabled={isFieldReadOnly}
                         checked={!!value}
-                        onChange={e => handleChange(field.apiKey, e.target.checked)}
-                        onBlur={() => handleBlur(field.apiKey)}
+                        onChange={e => handleChange(localField.apiKey, e.target.checked)}
+                        onBlur={() => handleBlur(localField.apiKey)}
                       />
-                      {field.label}
+                      {localField.label}
                     </label>
                   );
                 case "FILE_UPLOAD":
@@ -846,26 +1015,26 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm transition"
                       required={isFieldRequired}
                       disabled={isFieldReadOnly}
-                      onChange={e => handleChange(field.apiKey, e.target.files?.[0])}
-                      onBlur={() => handleBlur(field.apiKey)}
+                      onChange={e => handleChange(localField.apiKey, e.target.files?.[0])}
+                      onBlur={() => handleBlur(localField.apiKey)}
                     />
-                  );
-                default:
-                  return (
+        );
+      default:
+        return (
                     <input
                       type="text"
                       className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-200 focus:border-blue-500 text-sm placeholder-gray-400 transition"
-                      placeholder={field.placeholder || "Yanıtınızı girin"}
+                      placeholder={localField.placeholder || "Yanıtınızı girin"}
                       required={isFieldRequired}
                       readOnly={isFieldReadOnly}
                       value={value}
-                      onChange={e => handleChange(field.apiKey, e.target.value)}
-                      onBlur={() => handleBlur(field.apiKey)}
+                      onChange={e => handleChange(localField.apiKey, e.target.value)}
+                      onBlur={() => handleBlur(localField.apiKey)}
                     />
                   );
               }
             })()}
-            {renderValidationMessages(field.id)}
+            {renderValidationMessages(localField.id)}
           </CardContent>
         )}
       </Card>
@@ -874,7 +1043,8 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
 
   // Sprint 4: Modern section ve alanları render et
   const renderSection = (section: FormSection) => {
-    if (!isSectionVisible(section)) return null;
+    const localSection = (localSections || []).find(s => s.id === section.id) || section;
+    if (!isSectionVisible(localSection)) return null;
 
     const isCollapsed = collapsedSections.has(section.id);
     const fieldsBySection = getFieldsBySection() as { [key: string]: FormField[] };
@@ -891,10 +1061,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       >
         {/* Section Header */}
         <div 
-          className="px-4 py-2 border-b bg-white rounded-t-lg flex items-center gap-2 justify-between"
+          className="px-4 py-2 border-b bg-white rounded-t-lg flex flex-col gap-2 justify-between"
         >
-          <div 
-            className="flex items-center gap-2 cursor-pointer flex-1"
+          <div className="flex items-center gap-2 cursor-pointer flex-1"
+            style={{ cursor: 'pointer' }}
             onClick={section.isCollapsible ? () => toggleSection(section.id) : undefined}
           >
             {section.icon && (
@@ -907,6 +1077,26 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
               )}
             </div>
           </div>
+          {/* display section when + dropdown sadece section açıkken ve en üstte */}
+          {!isCollapsed && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-xs font-medium text-gray-700">
+                display section when
+              </span>
+              <select
+                className="border rounded px-2 py-1 text-xs"
+                value={localSection.displayCondition || 'ALWAYS'}
+                onChange={async (e) => {
+                  const value = e.target.value;
+                  await handleSectionDisplayConditionChange(section.id, value);
+                }}
+              >
+                {DISPLAY_CONDITION_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         {/* Section Content */}
         {!isCollapsed && (
@@ -920,15 +1110,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
                 .sort((a: FormField, b: FormField) => (a.priority || 0) - (b.priority || 0))
                 .map((field) => (
                   <div key={field.id} className="transition hover:bg-blue-50 rounded-lg p-2">
-                    {/* Zorunlu alanlar için label'da kırmızı yıldız ve tooltip */}
-                    <label className="block text-base font-semibold mb-1 text-gray-900 flex items-center gap-1">
-                      {field.label}
-                      {field.isRequired && (
-                        <span className="text-red-500 cursor-help" title="Bu alan zorunludur">*</span>
-                      )}
-                    </label>
-                    {/* Alan açıklaması */}
-                    {field.helpText && <p className="text-xs text-gray-400 mb-1">{field.helpText}</p>}
+                    {/* Sadece bir kez label göster */}
                     {/* Alanın kendisi (input/select/textarea vs.) burada render edilecek */}
                     {renderField(field)}
                   </div>
@@ -1117,6 +1299,14 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     );
   };
 
+  // Fonksiyon: Koşulu sil
+  const handleDeleteCondition = async (fieldId: string) => {
+    if (!confirm('Bu alanın koşulunu silmek istediğinize emin misiniz?')) return;
+    await fetch(`/api/workflow-templates/${fieldId}/form-fields/${fieldId}/display-condition`, { method: 'DELETE' });
+    // Sayfayı yenile veya parent'a refresh tetikle
+    window.location.reload();
+  };
+
   if (!formFields || formFields.length === 0) {
     return <div className="text-gray-500 text-sm">Bu şablona ait özel bir başlatma formu yok.</div>;
   }
@@ -1138,13 +1328,17 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
         onClose={handleConditionClose}
         onSave={handleConditionSave}
         condition={null}
-        properties={formFields.map(f => ({
+        properties={
+          formFields && selectedConditionField
+            ? formFields.filter(f => f.id !== selectedConditionField.id).map(f => ({
           id: f.id,
           name: f.label,
           required: !!f.isRequired,
-          type: f.type as import('@/types/workflow').PropertyType,
-          options: f.options || [],
-        }))}
+                type: mapFieldTypeToPropertyType(f.type),
+                options: f.options || []
+              }))
+            : []
+        }
       />
     </>
   );
