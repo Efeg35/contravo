@@ -30,9 +30,10 @@ import {
 interface AddFieldModalProps {
   templateId: string;
   onFieldAdded: () => void;
+  sectionId?: string;
 }
 
-const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded }) => {
+const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded, sectionId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [fieldData, setFieldData] = useState({
     name: '',
@@ -107,7 +108,8 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded 
           fieldGroup: fieldData.fieldGroup || undefined,
           priority: fieldData.priority ? parseInt(fieldData.priority.toString()) : 0,
           realTimeValidation: fieldData.realTimeValidation || false,
-          isConditional: fieldData.isConditional || false
+          isConditional: fieldData.isConditional || false,
+          sectionId: sectionId || undefined
         })
       });
       
@@ -477,10 +479,11 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded 
 interface AddSectionModalProps {
   templateId: string;
   onSectionAdded: () => void;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
 }
 
-const AddSectionModal: React.FC<AddSectionModalProps> = ({ templateId, onSectionAdded }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const AddSectionModal: React.FC<AddSectionModalProps> = ({ templateId, onSectionAdded, isOpen, setIsOpen }) => {
   const [sectionData, setSectionData] = useState({
     name: '',
     description: '',
@@ -550,9 +553,6 @@ const AddSectionModal: React.FC<AddSectionModalProps> = ({ templateId, onSection
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">+ Add Section</Button>
-      </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Yeni Section Ekle</DialogTitle>
@@ -681,9 +681,11 @@ const AddSectionModal: React.FC<AddSectionModalProps> = ({ templateId, onSection
 export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: () => void }> = ({ templateId, refreshForm }) => {
   const [formFields, setFormFields] = useState<any[]>([]);
   const [layout, setLayout] = useState<any>(null);
+  const [sections, setSections] = useState<any[]>([]);
   const [displayConditions, setDisplayConditions] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [newField, setNewField] = useState<any>(null);
   const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false);
   const [sectionForm, setSectionForm] = useState({ name: '', description: '' });
@@ -693,6 +695,8 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
 
   const doRefreshForm = () => {
     setLoading(true);
+    
+    // Template verilerini yükle
     fetch(`/api/workflow-templates/${templateId}`)
       .then(res => res.json())
       .then(data => {
@@ -706,13 +710,27 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
         });
         setDisplayConditions(dc);
         setWorkflowSchema(data.workflowSchema || null);
-        setLoading(false);
       })
       .catch(() => {
         setFormFields([]);
         setLayout(null);
         setDisplayConditions({});
         setWorkflowSchema(null);
+      });
+
+    // Sections'ları yükle
+    fetch(`/api/workflow-templates/${templateId}/sections`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.sections)) {
+          setSections(data.sections);
+        } else {
+          setSections([]);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        setSections([]);
         setLoading(false);
       });
   };
@@ -732,7 +750,8 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
           type: String(field.type).toUpperCase(),
           required: !!field.required,
           description: field.description,
-          options: field.options || []
+          options: field.options || [],
+          sectionId: selectedSectionId || undefined
         })
       });
       const result = await response.json();
@@ -748,11 +767,63 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
     }
   };
 
+  const handleDeleteField = async (fieldId: string) => {
+    if (!confirm('Bu soruyu silmek istediğinizden emin misiniz?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/workflow-templates/${templateId}/form-fields/${fieldId}`, {
+        method: 'DELETE'
+      });
+      const result = await response.json();
+      if (result && result.success) {
+        doRefreshForm();
+      } else {
+        alert(result.message || 'Soru silinirken bir hata oluştu.');
+      }
+    } catch (e) {
+      alert('Sunucuya ulaşılamadı veya beklenmeyen bir hata oluştu.');
+    }
+  };
+
+  const handleDeleteSection = async (sectionId: string) => {
+    if (!confirm('Bu section\'ı silmek istediğinizden emin misiniz? Section içindeki tüm sorular da silinecektir.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/workflow-templates/${templateId}/sections/${sectionId}`, {
+        method: 'DELETE'
+      });
+      const result = await response.json();
+      if (result && result.success) {
+        doRefreshForm();
+      } else {
+        alert(result.message || 'Section silinirken bir hata oluştu.');
+      }
+    } catch (e) {
+      alert('Sunucuya ulaşılamadı veya beklenmeyen bir hata oluştu.');
+    }
+  };
+
+  const openAddQuestionModalForSection = (sectionId: string) => {
+    setSelectedSectionId(sectionId);
+    setIsAddFieldModalOpen(true);
+  };
+
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen py-12">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Launch Form</h3>
-        <AddFieldModal templateId={templateId} onFieldAdded={() => refreshForm?.()} />
+        <AddFieldModal 
+          templateId={templateId} 
+          onFieldAdded={() => {
+            setSelectedSectionId(null);
+            refreshForm?.();
+          }}
+          sectionId={selectedSectionId || undefined}
+        />
       </div>
       <div className="w-full max-w-2xl mx-auto">
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-8 mb-12 flex flex-col gap-2 transition-all hover:shadow-3xl hover:-translate-y-1">
@@ -766,21 +837,29 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
             <div className="text-center text-gray-400">Yükleniyor...</div>
           ) : (
             <>
-              <LaunchFormRenderer formFields={formFields} layout={layout} displayConditions={displayConditions} />
+              <LaunchFormRenderer 
+                formFields={formFields} 
+                layout={layout} 
+                displayConditions={displayConditions} 
+                onDeleteField={handleDeleteField} 
+                onDeleteSection={handleDeleteSection}
+                sections={sections}
+                onAddQuestionToSection={openAddQuestionModalForSection}
+              />
               <div className="flex gap-4 justify-center mt-12">
                 <button
-                  className="bg-gray-50 hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 rounded-lg border border-gray-200 shadow-sm transition-all hover:scale-105 focus:ring-4 focus:ring-blue-100"
+                  className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-1.5 px-3 rounded-md border border-gray-200 shadow-xs text-sm transition-all focus:ring-2 focus:ring-blue-100 min-h-0 min-w-0"
                   onClick={() => setIsAddSectionModalOpen(true)}
                   type="button"
                 >
-                  <span className="mr-2">➕</span> Add section to form
+                  <span className="text-base">➕</span> Add section to form
                 </button>
                 <button
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-sm transition-all hover:scale-105 focus:ring-4 focus:ring-blue-200"
+                  className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded-md shadow-xs text-sm transition-all focus:ring-2 focus:ring-blue-200 min-h-0 min-w-0"
                   onClick={() => setIsAddTableModalOpen(true)}
                   type="button"
                 >
-                  <span className="mr-2">📋</span> Add table to form
+                  <span className="text-base">📋</span> Add table to form
                 </button>
               </div>
               <PropertyEditorModal
@@ -795,8 +874,10 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
                   templateId={templateId}
                   onSectionAdded={() => {
                     setIsAddSectionModalOpen(false);
-                    setTimeout(() => setFormFields([]), 100);
+                    doRefreshForm();
                   }}
+                  isOpen={isAddSectionModalOpen}
+                  setIsOpen={setIsAddSectionModalOpen}
                 />
               )}
               {/* Table Modal */}
