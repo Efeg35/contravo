@@ -31,10 +31,11 @@ interface AddFieldModalProps {
   templateId: string;
   onFieldAdded: () => void;
   sectionId?: string;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
 }
 
-const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded, sectionId }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded, sectionId, isOpen, setIsOpen }) => {
   const [fieldData, setFieldData] = useState({
     name: '',
     type: 'TEXT',
@@ -174,7 +175,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">+ Add question to form</Button>
+        {/* <Button variant="outline" size="sm">+ Add question to form</Button> */}
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
@@ -814,17 +815,6 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
 
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen py-12">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Launch Form</h3>
-        <AddFieldModal 
-          templateId={templateId} 
-          onFieldAdded={() => {
-            setSelectedSectionId(null);
-            refreshForm?.();
-          }}
-          sectionId={selectedSectionId || undefined}
-        />
-      </div>
       <div className="w-full max-w-2xl mx-auto">
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-8 mb-12 flex flex-col gap-2 transition-all hover:shadow-3xl hover:-translate-y-1">
           <h2 className="text-2xl font-bold mb-1 text-gray-900 text-center">Başlatma Formu Tasarımcısı</h2>
@@ -837,6 +827,16 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
             <div className="text-center text-gray-400">Yükleniyor...</div>
           ) : (
             <>
+              <AddFieldModal
+                templateId={templateId}
+                onFieldAdded={() => {
+                  setSelectedSectionId(null);
+                  refreshForm?.();
+                }}
+                sectionId={selectedSectionId || undefined}
+                isOpen={isAddFieldModalOpen}
+                setIsOpen={setIsAddFieldModalOpen}
+              />
               <LaunchFormRenderer 
                 formFields={formFields} 
                 layout={layout} 
@@ -847,6 +847,13 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
                 onAddQuestionToSection={openAddQuestionModalForSection}
               />
               <div className="flex gap-4 justify-center mt-12">
+                <button
+                  className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white font-medium py-1.5 px-3 rounded-md shadow-xs text-sm transition-all focus:ring-2 focus:ring-green-200 min-h-0 min-w-0"
+                  onClick={() => setIsAddFieldModalOpen(true)}
+                  type="button"
+                >
+                  <span className="text-base">✚</span> Add question to form
+                </button>
                 <button
                   className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-1.5 px-3 rounded-md border border-gray-200 shadow-xs text-sm transition-all focus:ring-2 focus:ring-blue-100 min-h-0 min-w-0"
                   onClick={() => setIsAddSectionModalOpen(true)}
@@ -862,12 +869,6 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
                   <span className="text-base">📋</span> Add table to form
                 </button>
               </div>
-              <PropertyEditorModal
-                isOpen={isAddFieldModalOpen}
-                onClose={() => setIsAddFieldModalOpen(false)}
-                onSave={handleAddField}
-                property={newField}
-              />
               {/* Section Modal */}
               {isAddSectionModalOpen && (
                 <AddSectionModal
