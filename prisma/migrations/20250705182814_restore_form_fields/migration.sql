@@ -478,7 +478,6 @@ CREATE TABLE "WorkflowTemplate" (
     "documentHtml" TEXT,
     "documentProperties" JSONB,
     "launchFormLayout" JSONB,
-    "reviewSettings" JSONB,
     "enableRealTimeValidation" BOOLEAN NOT NULL DEFAULT false,
     "validationMode" TEXT NOT NULL DEFAULT 'SUBMIT',
     "showValidationSummary" BOOLEAN NOT NULL DEFAULT true,
@@ -509,9 +508,9 @@ CREATE TABLE "Condition" (
     "operator" TEXT NOT NULL,
     "value" TEXT NOT NULL,
     "stepId" TEXT NOT NULL,
-    "displayConditionForFieldId" TEXT,
+    "fieldId" TEXT,
     CONSTRAINT "Condition_stepId_fkey" FOREIGN KEY ("stepId") REFERENCES "WorkflowTemplateStep" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Condition_displayConditionForFieldId_fkey" FOREIGN KEY ("displayConditionForFieldId") REFERENCES "FormField" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "Condition_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "FormField" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -523,7 +522,7 @@ CREATE TABLE "FormField" (
     "isRequired" BOOLEAN NOT NULL DEFAULT false,
     "placeholder" TEXT,
     "options" JSONB,
-    "order" INTEGER NOT NULL,
+    "order" INTEGER NOT NULL DEFAULT 1,
     "minLength" INTEGER,
     "maxLength" INTEGER,
     "minValue" REAL,
@@ -549,8 +548,8 @@ CREATE TABLE "FormField" (
     "realTimeValidation" BOOLEAN NOT NULL DEFAULT false,
     "sectionId" TEXT,
     "templateId" TEXT NOT NULL,
-    CONSTRAINT "FormField_sectionId_fkey" FOREIGN KEY ("sectionId") REFERENCES "FormSection" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "FormField_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "WorkflowTemplate" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "FormField_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "WorkflowTemplate" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "FormField_sectionId_fkey" FOREIGN KEY ("sectionId") REFERENCES "FormSection" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -1054,7 +1053,16 @@ CREATE INDEX "WorkflowTemplateStep_approverRole_idx" ON "WorkflowTemplateStep"("
 CREATE UNIQUE INDEX "WorkflowTemplateStep_templateId_order_key" ON "WorkflowTemplateStep"("templateId", "order");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Condition_displayConditionForFieldId_key" ON "Condition"("displayConditionForFieldId");
+CREATE INDEX "FormField_templateId_idx" ON "FormField"("templateId");
+
+-- CreateIndex
+CREATE INDEX "FormField_sectionId_idx" ON "FormField"("sectionId");
+
+-- CreateIndex
+CREATE INDEX "FormField_order_idx" ON "FormField"("order");
+
+-- CreateIndex
+CREATE INDEX "FormField_apiKey_idx" ON "FormField"("apiKey");
 
 -- CreateIndex
 CREATE INDEX "FormValidationRule_templateId_idx" ON "FormValidationRule"("templateId");
@@ -1067,18 +1075,6 @@ CREATE INDEX "FormValidationRule_isActive_idx" ON "FormValidationRule"("isActive
 
 -- CreateIndex
 CREATE INDEX "FormValidationRule_priority_idx" ON "FormValidationRule"("priority");
-
--- CreateIndex
-CREATE INDEX "FormSection_templateId_idx" ON "FormSection"("templateId");
-
--- CreateIndex
-CREATE INDEX "FormSection_order_idx" ON "FormSection"("order");
-
--- CreateIndex
-CREATE INDEX "FormSection_isHidden_idx" ON "FormSection"("isHidden");
-
--- CreateIndex
-CREATE INDEX "FormSection_isRequired_idx" ON "FormSection"("isRequired");
 
 -- CreateIndex
 CREATE INDEX "WorkflowApprover_templateId_idx" ON "WorkflowApprover"("templateId");
