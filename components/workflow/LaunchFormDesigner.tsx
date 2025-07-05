@@ -749,36 +749,38 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-gray-50 min-h-screen py-12">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Launch Form</h3>
         <AddFieldModal templateId={templateId} onFieldAdded={() => refreshForm?.()} />
       </div>
       <div className="w-full max-w-2xl mx-auto">
-        <h2 className="text-2xl font-bold mb-4 text-center">Başlatma Formu Tasarımcısı</h2>
-        <p className="text-gray-600 mb-8 text-center">
-          Forma alan eklemek için soldaki <b>"Attributes"</b> panelini kullanın.
-        </p>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg min-h-[200px] bg-white p-4">
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-8 mb-12 flex flex-col gap-2 transition-all hover:shadow-3xl hover:-translate-y-1">
+          <h2 className="text-2xl font-bold mb-1 text-gray-900 text-center">Başlatma Formu Tasarımcısı</h2>
+          <p className="text-gray-500 mb-0 text-center text-base">
+            Forma alan eklemek için soldaki <b>"Attributes"</b> panelini kullanın.
+          </p>
+        </div>
+        <div className="border-2 border-dashed border-gray-200 rounded-2xl bg-white p-8 shadow-lg divide-y divide-gray-100">
           {loading ? (
             <div className="text-center text-gray-400">Yükleniyor...</div>
           ) : (
             <>
               <LaunchFormRenderer formFields={formFields} layout={layout} displayConditions={displayConditions} />
-              <div className="flex gap-4 justify-center mt-8">
+              <div className="flex gap-4 justify-center mt-12">
                 <button
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded shadow"
+                  className="bg-gray-50 hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 rounded-lg border border-gray-200 shadow-sm transition-all hover:scale-105 focus:ring-4 focus:ring-blue-100"
                   onClick={() => setIsAddSectionModalOpen(true)}
                   type="button"
                 >
-                  Add section to form
+                  <span className="mr-2">➕</span> Add section to form
                 </button>
                 <button
-                  className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded shadow"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-sm transition-all hover:scale-105 focus:ring-4 focus:ring-blue-200"
                   onClick={() => setIsAddTableModalOpen(true)}
                   type="button"
                 >
-                  Add table to form
+                  <span className="mr-2">📋</span> Add table to form
                 </button>
               </div>
               <PropertyEditorModal

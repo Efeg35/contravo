@@ -30,11 +30,13 @@ interface PropertyEditorModalProps {
   onClose: () => void;
   onSave: (property: WorkflowProperty) => void;
   property: WorkflowProperty | null;
+  preselectedType?: PropertyType; // Yeni: Önceden seçilmiş tip
+  lockType?: boolean; // Yeni: Tipi kilitle
 }
 
-const PROPERTY_TYPES: PropertyType[] = ['text', 'email', 'date', 'duration', 'number', 'user', 'select', 'boolean'];
+const PROPERTY_TYPES: PropertyType[] = ['text', 'textarea', 'email', 'url', 'phone', 'date', 'date_range', 'duration', 'number', 'user', 'select', 'multi_select', 'boolean', 'checkbox', 'file_upload'];
 
-export const PropertyEditorModal = ({ isOpen, onClose, onSave, property }: PropertyEditorModalProps) => {
+export const PropertyEditorModal = ({ isOpen, onClose, onSave, property, preselectedType, lockType = false }: PropertyEditorModalProps) => {
   const [formData, setFormData] = useState<Partial<WorkflowProperty>>({});
 
   useEffect(() => {
@@ -44,14 +46,14 @@ export const PropertyEditorModal = ({ isOpen, onClose, onSave, property }: Prope
       // Set defaults for a new property
       setFormData({
         id: uuidv4(),
-        type: 'text',
+        type: preselectedType || 'text',
         name: '',
         required: false,
         description: '',
         options: [],
       });
     }
-  }, [property, isOpen]);
+  }, [property, isOpen, preselectedType]);
 
   const handleChange = (field: keyof WorkflowProperty, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -120,8 +122,9 @@ export const PropertyEditorModal = ({ isOpen, onClose, onSave, property }: Prope
                  <Select
                   value={formData.type}
                   onValueChange={(value: PropertyType) => handleChange('type', value)}
+                  disabled={lockType}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={lockType ? 'bg-gray-100' : ''}>
                     <SelectValue placeholder="Select a type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -131,13 +134,15 @@ export const PropertyEditorModal = ({ isOpen, onClose, onSave, property }: Prope
                            <span className={`w-4 h-4 rounded flex items-center justify-center text-xs font-medium`}>
                               {PROPERTY_ICONS[type]}
                             </span>
-                            <span>{type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                            <span>{type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}</span>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-gray-500">Data type cannot be modified later.</p>
+                <p className="text-xs text-gray-500">
+                  {lockType ? 'Type has been pre-selected and cannot be changed.' : 'Data type cannot be modified later.'}
+                </p>
             </div>
              <div className="space-y-2">
                 <Label htmlFor="description">Description (optional)</Label>
@@ -149,7 +154,7 @@ export const PropertyEditorModal = ({ isOpen, onClose, onSave, property }: Prope
                 />
             </div>
           
-            {formData.type === 'select' && (
+            {(formData.type === 'select' || formData.type === 'multi_select') && (
                 <div className="space-y-3 pt-4 border-t">
                     <Label>Options</Label>
                     <div className="space-y-2">

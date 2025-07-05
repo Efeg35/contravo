@@ -13,66 +13,74 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const params = await context.params;
     const templateId = params.id;
     const body = await req.json();
-    
-    const { 
-      name, 
-      description, 
-      icon, 
-      displayMode, 
-      isCollapsible, 
-      isExpanded, 
-      visibilityCondition, 
-      order
-    } = body;
 
-    if (!templateId || !name) {
-      return NextResponse.json({ success: false, message: 'Template ID ve section adı gerekli.' }, { status: 400 });
+    if (!templateId || templateId === 'new') {
+      return NextResponse.json(
+        { success: false, message: 'Template ID is required' },
+        { status: 400 }
+      );
     }
 
-    // Template'in var olduğunu kontrol et
-    const template = await db.workflowTemplate.findFirst({
-      where: {
-        id: templateId
-      }
+    // Verify template exists
+    const template = await db.workflowTemplate.findUnique({
+      where: { id: templateId }
     });
 
     if (!template) {
-      return NextResponse.json({ success: false, message: 'Template bulunamadı.' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: 'Workflow template not found' },
+        { status: 404 }
+      );
     }
 
-    // Section oluştur (Prisma model ready olduğunda)
-    // Şimdilik success response döndür
-    const mockSection = {
+    // Create new section using generic JSON approach since FormSection model may not exist yet
+    const sectionData = {
       id: `section_${Date.now()}`,
-      templateId,
-      name,
-      description: description || null,
-      icon: icon || null,
-      displayMode: displayMode || 'EXPANDED',
-      isCollapsible: isCollapsible ?? true,
-      isExpanded: isExpanded ?? true,
-      visibilityCondition: visibilityCondition || 'ALWAYS',
-      order: order || 0,
+      workflowTemplateId: templateId,
+      name: body.name || 'New Section',
+      description: body.description || '',
+      icon: body.icon || '📋',
+      displayMode: body.displayMode || 'EXPANDED',
+      isCollapsible: body.isCollapsible !== undefined ? body.isCollapsible : true,
+      isExpanded: body.isExpanded !== undefined ? body.isExpanded : true,
+      visibilityCondition: body.visibilityCondition || 'ALWAYS',
+      order: body.order || 0,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Section başarıyla eklendi',
-      section: mockSection
+    // Store in template's launchFormLayout as sections array
+    const currentLayout = template.launchFormLayout as any || {};
+    const sections = currentLayout.sections || [];
+    sections.push(sectionData);
+
+    await db.workflowTemplate.update({
+      where: { id: templateId },
+      data: {
+        launchFormLayout: {
+          ...currentLayout,
+          sections
+        }
+      }
     });
 
+    return NextResponse.json({
+      success: true,
+      section: sectionData
+    }, { status: 201 });
   } catch (error) {
-    console.error('Section ekleme hatası:', error);
-    return NextResponse.json({ 
-      success: false, 
-      message: 'Section eklenirken hata oluştu' 
-    }, { status: 500 });
+    console.error('Error creating section:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to create section' },
+      { status: 500 }
+    );
   }
 }
 
-export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -82,31 +90,37 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const params = await context.params;
     const templateId = params.id;
 
-    // Template'in var olduğunu kontrol et
-    const template = await db.workflowTemplate.findFirst({
-      where: {
-        id: templateId
-      }
+    if (!templateId || templateId === 'new') {
+      return NextResponse.json({
+        success: true,
+        sections: []
+      });
+    }
+
+    // Get template with sections
+    const template = await db.workflowTemplate.findUnique({
+      where: { id: templateId }
     });
 
     if (!template) {
-      return NextResponse.json({ success: false, message: 'Template bulunamadı.' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: 'Template not found' },
+        { status: 404 }
+      );
     }
 
-    // Sections'ları getir (Prisma model ready olduğunda)
-    // Şimdilik boş array döndür
-    const sections: any[] = [];
+    const layout = template.launchFormLayout as any || {};
+    const sections = layout.sections || [];
 
-    return NextResponse.json({ 
-      success: true, 
-      sections 
+    return NextResponse.json({
+      success: true,
+      sections
     });
-
   } catch (error) {
-    console.error('Sections getirme hatası:', error);
-    return NextResponse.json({ 
-      success: false, 
-      message: 'Sections getirilirken hata oluştu' 
-    }, { status: 500 });
+    console.error('Error fetching sections:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to fetch sections' },
+      { status: 500 }
+    );
   }
 } 

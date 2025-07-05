@@ -35,6 +35,9 @@ import { DocumentToolbar } from "@/components/workflow/DocumentToolbar";
 import { ConditionBuilder, Condition } from '@/components/workflow/ConditionBuilder';
 import { MultiUserAutocomplete } from '@/components/ui/MultiUserAutocomplete';
 import { ReviewSettings } from '@/components/workflow/ReviewSettings';
+import { QuestionTypeSelector } from '@/components/workflow/QuestionTypeSelector';
+import { PropertyEditorModal } from '@/components/workflow/PropertyEditorModal';
+import { PropertyType } from '@/types/workflow';
 import toast from 'react-hot-toast';
 
 type WorkflowTemplateWithFields = PrismaWorkflowTemplate & { 
@@ -62,6 +65,18 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
     const [editingTitleId, setEditingTitleId] = useState<number | null>(null);
     const [showAdvancedModal, setShowAdvancedModal] = useState<number | null>(null);
     const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+    
+    // Create sekmesi alt sekmeleri için state
+    const [createTab, setCreateTab] = useState('Launch Form');
+    
+    // Form sections state
+    const [formSections, setFormSections] = useState<any[]>([]);
+    const [isLoadingSections, setIsLoadingSections] = useState(true);
+    
+    // Question type selector state
+    const [isQuestionTypeSelectorOpen, setIsQuestionTypeSelectorOpen] = useState(false);
+    const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
+    const [selectedQuestionType, setSelectedQuestionType] = useState<PropertyType | null>(null);
 
     // Approvers sekmesi için state
     type UserType = { id: string; name: string; email: string; type?: 'user' | 'role' | 'group' };
@@ -202,6 +217,26 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
             .catch(err => {
                 console.log('Review settings yüklenemedi:', err);
             });
+    }, [currentTemplate.id]);
+
+    // Form sections'ı yükle
+    useEffect(() => {
+        if (!currentTemplate.id || currentTemplate.id === 'new') {
+            setIsLoadingSections(false);
+            return;
+        }
+        setIsLoadingSections(true);
+        fetch(`/api/workflow-templates/${currentTemplate.id}/sections`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && Array.isArray(data.sections)) {
+                    setFormSections(data.sections);
+                } else {
+                    setFormSections([]);
+                }
+            })
+            .catch(() => setFormSections([]))
+            .finally(() => setIsLoadingSections(false));
     }, [currentTemplate.id]);
 
     // Approvers'ı backend'e kaydet
@@ -472,6 +507,108 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
         setApprovers(prev => prev.map(a => a.id === id ? { ...a, advancedConditions: conds } : a));
     };
 
+    // Form section fonksiyonları
+    const handleAddSection = async () => {
+        if (!currentTemplate.id || currentTemplate.id === 'new') {
+            alert('Önce workflow\'u kaydedin!');
+            return;
+        }
+        
+        const newSection = {
+            name: 'New Section',
+            description: '',
+            icon: '📋',
+            displayMode: 'EXPANDED' as const,
+            isCollapsible: true,
+            isExpanded: true,
+            visibilityCondition: 'ALWAYS' as const,
+            order: formSections.length,
+        };
+
+        try {
+            const response = await fetch(`/api/workflow-templates/${currentTemplate.id}/sections`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newSection)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    setFormSections(prev => [...prev, result.section]);
+                    toast.success('Yeni bölüm eklendi!');
+                } else {
+                    throw new Error(result.message);
+                }
+            } else {
+                throw new Error('Section eklenemedi');
+            }
+        } catch (error) {
+            console.error('Section ekleme hatası:', error);
+            toast.error('Bölüm eklenirken hata oluştu!');
+        }
+    };
+
+    const handleDeleteSection = async (sectionId: string) => {
+        if (!confirm('Bu bölümü silmek istediğinizden emin misiniz?')) return;
+
+        try {
+            const response = await fetch(`/api/workflow-templates/${currentTemplate.id}/sections/${sectionId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                setFormSections(prev => prev.filter(s => s.id !== sectionId));
+                toast.success('Bölüm silindi!');
+            } else {
+                throw new Error('Section silinemedi');
+            }
+        } catch (error) {
+            console.error('Section silme hatası:', error);
+            toast.error('Bölüm silinirken hata oluştu!');
+        }
+    };
+
+    // Yeni soru ekleme akışı
+    const handleAddQuestionClick = () => {
+        setIsQuestionTypeSelectorOpen(true);
+    };
+
+    const handleQuestionTypeSelect = (type: PropertyType) => {
+        setSelectedQuestionType(type);
+        setIsPropertyModalOpen(true);
+    };
+
+    const handlePropertySave = async (property: any) => {
+        try {
+            const response = await fetch(`/api/workflow-templates/${currentTemplate.id}/form-fields`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: property.name,
+                    type: String(property.type).toUpperCase(),
+                    required: !!property.required,
+                    description: property.description,
+                    options: property.options || []
+                })
+            });
+
+            const result = await response.json();
+            if (result && result.success) {
+                setIsPropertyModalOpen(false);
+                setSelectedQuestionType(null);
+                toast.success('Yeni soru başarıyla eklendi!');
+                // Form'u yeniden yükle
+                window.location.reload();
+            } else {
+                toast.error(result.message || 'Soru eklenirken bir hata oluştu.');
+            }
+        } catch (e) {
+            console.error('Soru ekleme hatası:', e);
+            toast.error('Sunucuya ulaşılamadı veya beklenmeyen bir hata oluştu.');
+        }
+    };
+
     return (
         <div className="flex flex-col h-screen bg-gray-50">
             {/* Header */}
@@ -620,8 +757,156 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                         )
                     )}
                     {activeStep === "Create" && (
-                        <div className="w-full max-w-4xl mx-auto space-y-6">
-                            <LaunchFormDesigner templateId={currentTemplate.id} />
+                        <div className="w-full max-w-5xl mx-auto py-8">
+                            {/* Create Alt Sekmeler */}
+                            <div className="flex border-b mb-6">
+                                {['Launch Form', 'Additional Forms', 'Custom Emails', 'Settings'].map((tab) => (
+                                    <button
+                                        key={tab}
+                                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors focus:outline-none ${createTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                        onClick={() => setCreateTab(tab)}
+                                        type="button"
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                            
+                            {/* Alt sekme içerikleri */}
+                            {createTab === 'Launch Form' && (
+                                <div className="bg-white rounded-lg shadow-sm border p-8">
+                                    {/* Form Başlığı */}
+                                    <div className="mb-8">
+                                        <h2 className="text-2xl font-bold text-gray-900 mb-4">Untitled workflow configuration</h2>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Form description (optional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                placeholder="Add a description for this form..."
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Form Canvas - Önizleme Alanı */}
+                                    <div className="border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 p-8 mb-6">
+                                        {isLoadingSections ? (
+                                            <div className="text-center py-12">
+                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                                <p className="text-gray-500">Loading form sections...</p>
+                                            </div>
+                                        ) : formSections.length === 0 ? (
+                                            <div className="text-center text-gray-500">
+                                                <div className="mb-4">
+                                                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                </div>
+                                                <p className="text-lg font-medium">Your form preview will appear here</p>
+                                                <p className="text-sm text-gray-400 mt-1">Add sections and questions to build your form</p>
+                                            </div>
+                                        ) : (
+                                            <div id="form-canvas" className="space-y-6">
+                                                {formSections.map((section, index) => (
+                                                    <div key={section.id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+                                                        <div className="flex items-center justify-between mb-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-xl">{section.icon || '📋'}</span>
+                                                                <div>
+                                                                    <h3 className="text-lg font-medium text-gray-900">{section.name}</h3>
+                                                                    {section.description && (
+                                                                        <p className="text-sm text-gray-500">{section.description}</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                                                                    title="Section menu"
+                                                                >
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                                                    </svg>
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteSection(section.id)}
+                                                                    className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50"
+                                                                    title="Delete section"
+                                                                >
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Section content placeholder */}
+                                                        <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-400">
+                                                            <p className="text-sm">No questions in this section yet</p>
+                                                            <button className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                                                + Add question
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Eylem Butonları */}
+                                    <div className="flex justify-center gap-4">
+                                        <button 
+                                            onClick={handleAddQuestionClick}
+                                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                                            type="button"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                            Add question to form
+                                        </button>
+                                        <button 
+                                            onClick={handleAddSection}
+                                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                                            type="button"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                            Add section to form
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {createTab === 'Additional Forms' && (
+                                <div className="bg-white rounded-lg shadow-sm border p-8">
+                                    <div className="text-center py-12">
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Additional Forms</h3>
+                                        <p className="text-gray-500">Configure additional forms for this workflow.</p>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {createTab === 'Custom Emails' && (
+                                <div className="bg-white rounded-lg shadow-sm border p-8">
+                                    <div className="text-center py-12">
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Custom Emails</h3>
+                                        <p className="text-gray-500">Set up custom email templates for this workflow.</p>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {createTab === 'Settings' && (
+                                <div className="bg-white rounded-lg shadow-sm border p-8">
+                                    <div className="text-center py-12">
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Workflow Settings</h3>
+                                        <p className="text-gray-500">Configure general settings for this workflow.</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                     {activeStep === "Review" && (
@@ -890,6 +1175,26 @@ export const WorkflowEditorClient = ({ initialTemplate }: { initialTemplate: Wor
                     )}
                 </section>
             </main>
+
+            {/* Question Type Selector Modal */}
+            <QuestionTypeSelector
+                isOpen={isQuestionTypeSelectorOpen}
+                onClose={() => setIsQuestionTypeSelectorOpen(false)}
+                onSelectType={handleQuestionTypeSelect}
+            />
+
+            {/* Property Editor Modal with preselected type */}
+            <PropertyEditorModal
+                isOpen={isPropertyModalOpen}
+                onClose={() => {
+                    setIsPropertyModalOpen(false);
+                    setSelectedQuestionType(null);
+                }}
+                onSave={handlePropertySave}
+                property={null}
+                preselectedType={selectedQuestionType || undefined}
+                lockType={true}
+            />
 
             {/* Preview Modal */}
             <Dialog open={showPreview} onOpenChange={setShowPreview}>

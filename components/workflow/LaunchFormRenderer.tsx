@@ -372,10 +372,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "TEXT":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <input
               type="text"
-              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition placeholder-gray-400 text-base"
               placeholder={field.placeholder}
               required={isFieldRequired}
               readOnly={isFieldReadOnly}
@@ -393,10 +393,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "EMAIL":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <input
               type="email"
-              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition text-base"
               placeholder={field.placeholder || "ornek@email.com"}
               required={isFieldRequired}
               readOnly={isFieldReadOnly}
@@ -412,10 +412,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "URL":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <input
               type="url"
-              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition text-base"
               placeholder={field.placeholder || "https://example.com"}
               required={isFieldRequired}
               readOnly={isFieldReadOnly}
@@ -431,10 +431,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "PHONE":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <input
               type="tel"
-              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition text-base"
               placeholder={field.placeholder || "+90 555 123 45 67"}
               required={isFieldRequired}
               readOnly={isFieldReadOnly}
@@ -469,10 +469,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "FILE_UPLOAD":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <input
               type="file"
-              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition text-base"
               required={isFieldRequired}
               disabled={isFieldReadOnly}
               onChange={e => {
@@ -488,9 +488,9 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "USER_PICKER":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <select
-              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition text-base"
               required={isFieldRequired}
               disabled={isFieldReadOnly}
               value={value}
@@ -510,11 +510,11 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "DATE_RANGE":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="date"
-                className={`px-3 py-2 border rounded-md ${validationClasses}`}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition placeholder-gray-400 text-base"
                 placeholder="Başlangıç"
                 required={isFieldRequired}
                 disabled={isFieldReadOnly}
@@ -524,7 +524,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
               />
               <input
                 type="date"
-                className={`px-3 py-2 border rounded-md ${validationClasses}`}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition placeholder-gray-400 text-base"
                 placeholder="Bitiş"
                 required={isFieldRequired}
                 disabled={isFieldReadOnly}
@@ -538,9 +538,9 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "TEXTAREA":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <textarea
-              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition placeholder-gray-400 text-base"
               placeholder={field.placeholder}
               required={isFieldRequired}
               readOnly={isFieldReadOnly}
@@ -558,10 +558,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "NUMBER":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <input
               type="number"
-              className={`w-full px-3 py-2 border rounded-md ${validationClasses}`}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition text-base"
               placeholder={field.placeholder}
               required={isFieldRequired}
               readOnly={isFieldReadOnly}
@@ -578,10 +578,10 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "DATE":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <input
               type="date"
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition text-base"
               required={field.isRequired}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
@@ -592,9 +592,9 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "SINGLE_SELECT":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <select
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition text-base"
               required={field.isRequired}
               value={value}
               onChange={e => handleChange(field.apiKey, e.target.value)}
@@ -611,9 +611,9 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       case "MULTI_SELECT":
         return (
           <div key={field.id}>
-            <label className="block text-sm font-medium mb-1">{labelWithCondition}</label>
+            <label className="block text-base font-semibold mb-1 text-gray-900">{labelWithCondition}</label>
             <select
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition text-base"
               required={field.isRequired}
               multiple
               value={Array.isArray(value) ? value : []}
@@ -678,7 +678,7 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
     return (
       <div 
         key={section.id} 
-        className={`mt-6 border rounded-lg ${section.style?.backgroundColor || 'bg-white'} shadow-sm`}
+        className={`mt-12 border rounded-2xl bg-gray-50 shadow-lg divide-y divide-gray-100 transition-all hover:shadow-2xl hover:-translate-y-1`}
         style={{
           borderColor: section.style?.borderColor,
           color: section.style?.textColor
@@ -686,40 +686,44 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       >
         {/* Section Header */}
         <div 
-          className={`px-6 py-4 border-b ${section.isCollapsible ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+          className={`px-8 py-6 border-b bg-white rounded-t-2xl flex items-center gap-3`}
           onClick={section.isCollapsible ? () => toggleSection(section.id) : undefined}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {section.icon && (
-                <span className="text-xl">{section.icon}</span>
-              )}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
-                {section.description && (
-                  <p className="text-sm text-gray-600 mt-1">{section.description}</p>
-                )}
-              </div>
-            </div>
-            {section.isCollapsible && (
-              <div className="text-gray-400">
-                {isCollapsed ? '▼' : '▲'}
-              </div>
+          {section.icon && (
+            <span className="text-3xl text-blue-600 mr-2">{section.icon}</span>
+          )}
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">{section.name}</h3>
+            {section.description && (
+              <p className="text-sm text-gray-400 mt-1">{section.description}</p>
             )}
           </div>
         </div>
-
         {/* Section Content */}
         {!isCollapsed && (
-          <div className="p-6">
-            <div className={`space-y-4 ${
-              sectionLayout?.displayMode === 'TWO_COLUMN' ? 'grid grid-cols-2 gap-4' :
-              sectionLayout?.displayMode === 'THREE_COLUMN' ? 'grid grid-cols-3 gap-4' : ''
+          <div className="p-8 divide-y divide-gray-100">
+            <div className={`space-y-6 ${
+              sectionLayout?.displayMode === 'TWO_COLUMN' ? 'grid grid-cols-2 gap-6' :
+              sectionLayout?.displayMode === 'THREE_COLUMN' ? 'grid grid-cols-3 gap-6' : ''
             }`}>
               {sectionFields
                 .filter((field: FormField) => visibleFields.has(field.id))
                 .sort((a: FormField, b: FormField) => (a.priority || 0) - (b.priority || 0))
-                .map(renderField)}
+                .map((field) => (
+                  <div key={field.id} className="transition hover:bg-blue-50 rounded-lg p-2">
+                    {/* Zorunlu alanlar için label'da kırmızı yıldız ve tooltip */}
+                    <label className="block text-base font-semibold mb-1 text-gray-900 flex items-center gap-1">
+                      {field.label}
+                      {field.isRequired && (
+                        <span className="text-red-500 cursor-help" title="Bu alan zorunludur">*</span>
+                      )}
+                    </label>
+                    {/* Alan açıklaması */}
+                    {field.helpText && <p className="text-xs text-gray-400 mb-1">{field.helpText}</p>}
+                    {/* Alanın kendisi (input/select/textarea vs.) burada render edilecek */}
+                    {renderField(field)}
+                  </div>
+                ))}
             </div>
           </div>
         )}
