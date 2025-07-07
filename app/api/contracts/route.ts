@@ -7,6 +7,7 @@ import { getContractsVisibilityFilter } from '../../../lib/permissions'
 import { Prisma } from '@prisma/client'
 import { handleApiError, createSuccessResponse, commonErrors } from '@/lib/api-error-handler'
 import { ContractStatusEnum } from '@/app/types'
+import { DocumentMerger } from '@/lib/document-merger'
 
 const createContractSchema = z.object({
   title: z.string().min(1, 'Contract title is required'),
@@ -364,7 +365,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const validatedData = createContractSchema.parse(body)
+    let validatedData;
+    
+    try {
+      validatedData = createContractSchema.parse(body)
+    } catch (validationError) {
+      if (validationError instanceof z.ZodError) {
+        return NextResponse.json(
+          { 
+            error: 'Veri doğrulama hatası',
+            details: validationError.errors.map(err => ({
+              field: err.path.join('.'),
+              message: err.message
+            }))
+          },
+          { status: 400 }
+        )
+      }
+      throw validationError;
+    }
 
     // Check if user has permission to create contracts (simplified check)
     // await checkPermissionOrThrow(Permission.CONTRACT_CREATE, validatedData.companyId)
@@ -429,11 +448,67 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 🔄 DOCUMENT MERGE: Eğer workflowTemplateId varsa document'i merge et
+    let mergedContent = validatedData.description || '';
+    let mergeResult = null;
+
+    if (validatedData.workflowTemplateId && body.formData) {
+      try {
+        // Workflow template'i al
+        const workflowTemplate = await prisma.workflowTemplate.findUnique({
+          where: { id: validatedData.workflowTemplateId },
+          include: {
+            formFields: true
+          }
+        });
+
+        if (workflowTemplate && workflowTemplate.documentHtml) {
+          // Form field'ları DocumentMerger formatına çevir
+          const formFields = Object.entries(body.formData).map(([key, value]) => ({
+            id: key,
+            name: key,
+            value: value as any,
+            type: 'TEXT' // Gerçek implementasyonda field type'ını al
+          }));
+
+          // Property tag'leri documentProperties JSON'dan al
+          const propertyTags: any[] = [];
+          if (workflowTemplate.documentProperties && typeof workflowTemplate.documentProperties === 'object') {
+            const docProps = workflowTemplate.documentProperties as any;
+            if (Array.isArray(docProps)) {
+              propertyTags.push(...docProps.map((prop: any) => ({
+                id: prop.id || prop.name,
+                label: prop.name || prop.label,
+                description: prop.description
+              })));
+            }
+          }
+
+          // Document'i merge et
+          mergeResult = DocumentMerger.mergeDocument(
+            workflowTemplate.documentHtml,
+            formFields,
+            propertyTags
+          );
+
+          if (mergeResult.success) {
+            mergedContent = mergeResult.mergedContent;
+            console.log(`✅ Document merge başarılı. ${mergeResult.replacedTags.length} tag değiştirildi.`);
+          } else {
+            console.warn(`⚠️ Document merge uyarıları:`, mergeResult.errors);
+          }
+        }
+      } catch (mergeError) {
+        console.error('❌ Document merge hatası:', mergeError);
+        // Merge hatası contract oluşturmayı engellemez
+      }
+    }
+
     // Create the contract with department tracking and key date tracking
     const contract = await prisma.contract.create({
       data: {
         title: validatedData.title,
-        description: validatedData.description,
+        description: mergedContent, // Merge edilmiş içeriği kullan
         type: validatedData.type,
         value: validatedData.value,
         startDate: validatedData.startDate ? new Date(validatedData.startDate) : undefined,
@@ -448,7 +523,15 @@ export async function POST(request: NextRequest) {
         // workflowTemplateId: validatedData.workflowTemplateId, // Temporarily disabled
         createdById: user.id,
         status: validatedData.status || 'DRAFT',
-        metadata: validatedData.metadata,
+        metadata: {
+          ...validatedData.metadata,
+          // Merge bilgilerini metadata'ya ekle
+          documentMerge: mergeResult ? {
+            success: mergeResult.success,
+            replacedTags: mergeResult.replacedTags,
+            errors: mergeResult.errors
+          } : null
+        },
       },
       include: {
         company: {
@@ -495,7 +578,8 @@ export async function POST(request: NextRequest) {
     }
 
     return createSuccessResponse(contract, {
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      ...(mergeResult && { documentMerge: mergeResult })
     })
   } catch (error) {
     return handleApiError(error, 'POST /api/contracts')

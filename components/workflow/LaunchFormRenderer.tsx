@@ -17,6 +17,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { FileText, Calendar, Hash, Mail, Globe, Phone, CheckSquare, Upload, User, X } from "lucide-react";
 
 interface FormField {
   id: string;
@@ -25,7 +27,7 @@ interface FormField {
   type: string;
   isRequired?: boolean;
   placeholder?: string;
-  options?: any;
+  options?: string[];
   order?: number;
   minLength?: number;
   maxLength?: number;
@@ -66,6 +68,22 @@ interface FormField {
   maxDate?: string;
   // Koşul dropdown'u için
   displayCondition?: string;
+  propertyId?: string;
+  property?: {
+    id: string;
+    label: string;
+    name?: string;
+    description?: string;
+    type: string;
+  };
+}
+
+interface Property {
+  id: string;
+  label: string;
+  name?: string;
+  description?: string;
+  type?: string;
 }
 
 interface LaunchFormRendererProps {
@@ -97,6 +115,7 @@ interface LaunchFormRendererProps {
   onStartEditing?: (fieldId: string) => void;
   onSaveField?: (fieldId: string, updatedData: Partial<FormField>) => void;
   onCancelEditing?: () => void;
+  properties?: Property[];
 }
 
 interface FormSection extends BaseFormSection {
@@ -142,6 +161,54 @@ const DISPLAY_CONDITION_OPTIONS = [
   { value: 'OTHER', label: 'Renewal Type is Other' },
 ];
 
+// Property tag bileşeni
+const PropertyTag = ({ property, onRemove }: { 
+  property: NonNullable<FormField['property']>, 
+  onRemove?: () => void 
+}) => {
+  if (!property || !property.type) return null;
+
+  const getIcon = () => {
+    switch (property.type.toUpperCase()) {
+      case 'TEXT': return <FileText className="w-2.5 h-2.5" />;
+      case 'DATE': return <Calendar className="w-2.5 h-2.5" />;
+      case 'NUMBER': return <Hash className="w-2.5 h-2.5" />;
+      case 'EMAIL': return <Mail className="w-2.5 h-2.5" />;
+      case 'URL': return <Globe className="w-2.5 h-2.5" />;
+      case 'PHONE': return <Phone className="w-2.5 h-2.5" />;
+      case 'CHECKBOX': return <CheckSquare className="w-2.5 h-2.5" />;
+      case 'FILE_UPLOAD': return <Upload className="w-2.5 h-2.5" />;
+      case 'USER_PICKER': return <User className="w-2.5 h-2.5" />;
+      default: return <FileText className="w-2.5 h-2.5" />;
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 mb-2">
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors cursor-default group">
+        <span className="w-3 h-3 flex items-center justify-center">
+          {getIcon()}
+        </span>
+        {property.label || property.name}
+        {onRemove && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="ml-1 opacity-0 group-hover:opacity-100 hover:text-blue-800 focus:outline-none"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </span>
+      {property.description && (
+        <span className="text-xs text-gray-500">{property.description}</span>
+      )}
+    </div>
+  );
+};
+
 const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({ 
   formFields, 
   layout, 
@@ -165,7 +232,8 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
   editingFieldId,
   onStartEditing,
   onSaveField,
-  onCancelEditing
+  onCancelEditing,
+  properties = []
 }) => {
   const sortedFields = getSortedFields(formFields, layout);
 
@@ -541,6 +609,9 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       </span>
     ) : null;
     
+    // Property tag'i bul
+    const property = properties.find(p => p.id === localField.propertyId);
+    
     // Düzenleme modunda kaydetme
     const handleSave = () => {
       if (onSaveField) {
@@ -636,6 +707,18 @@ const LaunchFormRenderer: React.FC<LaunchFormRendererProps> = ({
       >
         <CardHeader className="flex flex-row items-center justify-between p-2 pb-1 min-h-0">
           <div className="flex flex-col gap-0.5 flex-1">
+            {/* PROPERTY TAG BURADA */}
+            {property && property.type && (
+              <PropertyTag 
+                property={{
+                  id: property.id || '',
+                  label: property.label || '',
+                  type: property.type,
+                  description: property.description || ''
+                }} 
+                onRemove={isEditing ? () => onCancelEditing?.() : undefined} 
+              />
+            )}
             <div className="flex items-center gap-2 cursor-pointer" style={{ cursor: 'pointer' }} onClick={isEditing ? () => onCancelEditing?.() : (onStartEditing ? () => onStartEditing(localField.id) : undefined)}>
               <span className="text-base font-semibold text-gray-900 tracking-tight">{localField.label}</span>
             </div>

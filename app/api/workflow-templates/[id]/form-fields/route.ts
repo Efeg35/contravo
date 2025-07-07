@@ -16,9 +16,40 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       return NextResponse.json({ success: false, message: 'Template bulunamadı.' }, { status: 404 });
     }
     
+    const formFields = await db.formField.findMany({
+      where: { templateId },
+      select: {
+        id: true,
+        label: true,
+        type: true,
+        isRequired: true,
+        helpText: true,
+        placeholder: true,
+        options: true,
+        order: true,
+        propertyId: true,
+        property: {
+          select: {
+            id: true,
+            label: true,
+            type: true,
+            helpText: true,
+            isRequired: true
+          }
+        }
+      },
+      orderBy: [
+        { order: 'asc' },
+        { label: 'asc' }
+      ]
+    });
+    
     return NextResponse.json({ 
       success: true, 
-      data: template.formFields 
+      data: {
+        template: template,
+        formFields: formFields
+      }
     });
   } catch (error) {
     console.error('API form fields getirme hatası:', error);

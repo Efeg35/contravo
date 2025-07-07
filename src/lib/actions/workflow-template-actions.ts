@@ -83,7 +83,8 @@ export async function addFieldToLaunchForm({
         type: string,
         required: boolean,
         description?: string,
-        options?: any[]
+        options?: any[],
+        propertyId?: string
     },
     sectionId?: string
 }) {
@@ -91,13 +92,9 @@ export async function addFieldToLaunchForm({
         throw new Error('Template ID ve property bilgileri gereklidir.');
     }
     try {
-        // 1. Önce FormField oluştur
         const count = await db.formField.count({ where: { templateId } });
-        
-        // Debug için type mapping sonucunu loglayalım
         const mappedType = mapToFormFieldType(property.type);
         console.log('[addFieldToLaunchForm] mapped type', mappedType);
-        
         const result = await addFormFieldToTemplate({
             templateId,
             name: property.name,
@@ -106,7 +103,8 @@ export async function addFieldToLaunchForm({
             description: property.description,
             options: property.options,
             sectionId,
-            priority: 0
+            priority: 0,
+            propertyId: property.propertyId || property.id
         });
 
         // 2. Ardından layout'a ekle
@@ -212,7 +210,6 @@ export async function addFormFieldToTemplate({
     dependsOn,
     dependsOnValue,
     helpText,
-    // Sprint 2: Enhanced validation and rules
     isConditional,
     validationRules,
     defaultValue,
@@ -227,7 +224,8 @@ export async function addFormFieldToTemplate({
     fieldGroup,
     priority,
     realTimeValidation,
-    sectionId
+    sectionId,
+    propertyId
 }: {
     templateId: string,
     name: string,
@@ -245,7 +243,6 @@ export async function addFormFieldToTemplate({
     dependsOn?: string,
     dependsOnValue?: string,
     helpText?: string,
-    // Sprint 2: Enhanced validation and rules
     isConditional?: boolean,
     validationRules?: any,
     defaultValue?: string,
@@ -260,18 +257,16 @@ export async function addFormFieldToTemplate({
     fieldGroup?: string,
     priority?: number,
     realTimeValidation?: boolean,
-    sectionId?: string
+    sectionId?: string,
+    propertyId?: string
 }) {
     if (!templateId || !name || !type) {
         throw new Error('Template ID, name ve type zorunludur.');
     }
     try {
-        // Mevcut alan sayısını bul
         const count = await db.formField.count({ where: { templateId } });
-        // Debug için type mapping sonucunu loglayalım
         const mappedType = mapToFormFieldType(type);
         console.log(`🔍 Debug addFormFieldToTemplate - Input type: "${type}", Mapped type: "${mappedType}"`);
-        
         const formField = await db.formField.create({
             data: {
                 templateId,
@@ -291,7 +286,6 @@ export async function addFormFieldToTemplate({
                 dependsOn,
                 dependsOnValue,
                 helpText,
-                // Sprint 2: Enhanced validation and rules
                 isConditional: isConditional || false,
                 validationRules: validationRules || undefined,
                 defaultValue,
@@ -306,7 +300,8 @@ export async function addFormFieldToTemplate({
                 fieldGroup,
                 priority: priority || 0,
                 realTimeValidation: realTimeValidation || false,
-                sectionId: sectionId || undefined
+                sectionId: sectionId || undefined,
+                propertyId: propertyId || undefined
             }
         });
         return { success: true, formFieldId: formField.id };
@@ -356,5 +351,145 @@ export async function addSectionToLaunchForm({
     } catch (error) {
         console.error('Section eklenirken hata:', error);
         return { success: false, message: 'Server Error: Section eklenemedi.' };
+    }
+}
+
+export async function linkPropertyToForm({
+    templateId,
+    propertyDefinitionId,
+    sectionId
+}: {
+    templateId: string,
+    propertyDefinitionId: string,
+    sectionId?: string
+}) {
+    if (!templateId || !propertyDefinitionId) {
+        throw new Error('Template ID ve Property Definition ID zorunludur.');
+    }
+    
+    try {
+        // 1. Seçilen property'yi bul
+        const sourceProperty = await db.formField.findUnique({
+            where: { id: propertyDefinitionId },
+            select: {
+                label: true,
+                apiKey: true,
+                type: true,
+                helpText: true,
+                isRequired: true,
+                options: true,
+                placeholder: true,
+                minLength: true,
+                maxLength: true,
+                minValue: true,
+                maxValue: true,
+                pattern: true,
+                customError: true,
+                dependsOn: true,
+                dependsOnValue: true,
+                isConditional: true,
+                validationRules: true,
+                defaultValue: true,
+                isReadOnly: true,
+                isHidden: true,
+                showWhen: true,
+                hideWhen: true,
+                validateWhen: true,
+                errorMessage: true,
+                warningMessage: true,
+                successMessage: true,
+                fieldGroup: true,
+                priority: true,
+                realTimeValidation: true
+            }
+        });
+
+        if (!sourceProperty) {
+            throw new Error('Seçilen özellik bulunamadı.');
+        }
+
+        // 2. Mevcut alan sayısını bul
+        const count = await db.formField.count({ where: { templateId } });
+
+        // 3. Yeni FormField oluştur (kopya)
+        const newFormField = await db.formField.create({
+            data: {
+                templateId,
+                label: sourceProperty.label,
+                apiKey: sourceProperty.apiKey,
+                type: sourceProperty.type,
+                isRequired: sourceProperty.isRequired,
+                placeholder: sourceProperty.placeholder,
+                options: sourceProperty.options || undefined,
+                order: count + 1,
+                minLength: sourceProperty.minLength,
+                maxLength: sourceProperty.maxLength,
+                minValue: sourceProperty.minValue,
+                maxValue: sourceProperty.maxValue,
+                pattern: sourceProperty.pattern,
+                customError: sourceProperty.customError,
+                dependsOn: sourceProperty.dependsOn,
+                dependsOnValue: sourceProperty.dependsOnValue,
+                helpText: sourceProperty.helpText,
+                isConditional: sourceProperty.isConditional,
+                validationRules: sourceProperty.validationRules || undefined,
+                defaultValue: sourceProperty.defaultValue,
+                isReadOnly: sourceProperty.isReadOnly,
+                isHidden: sourceProperty.isHidden,
+                showWhen: sourceProperty.showWhen || undefined,
+                hideWhen: sourceProperty.hideWhen || undefined,
+                validateWhen: sourceProperty.validateWhen || undefined,
+                errorMessage: sourceProperty.errorMessage,
+                warningMessage: sourceProperty.warningMessage,
+                successMessage: sourceProperty.successMessage,
+                fieldGroup: sourceProperty.fieldGroup,
+                priority: sourceProperty.priority,
+                realTimeValidation: sourceProperty.realTimeValidation,
+                sectionId: sectionId || undefined
+            }
+        });
+
+        // 4. Layout'a ekle
+        const template = await db.workflowTemplate.findUnique({
+            where: { id: templateId },
+            select: { launchFormLayout: true }
+        });
+        
+        let layout: any;
+        if (typeof template?.launchFormLayout === 'string') {
+            layout = JSON.parse(template.launchFormLayout);
+        } else {
+            layout = template?.launchFormLayout || { fieldOrder: [] };
+        }
+        
+        if (!Array.isArray(layout.fieldOrder)) {
+            layout.fieldOrder = [];
+        }
+        
+        // FormField'in ID'sini layout'a ekle
+        if (!layout.fieldOrder.includes(newFormField.id)) {
+            layout.fieldOrder.push(newFormField.id);
+        }
+        
+        await db.workflowTemplate.update({
+            where: { id: templateId },
+            data: { launchFormLayout: layout }
+        });
+
+        revalidatePath(`/dashboard/admin/workflows/${templateId}`);
+        
+        return { 
+            success: true, 
+            formFieldId: newFormField.id,
+            message: `${sourceProperty.label} başarıyla forma eklendi.`
+        };
+        
+    } catch (error) {
+        console.error('Property form\'a eklenirken hata:', error);
+        return { 
+            success: false, 
+            message: 'Server Error: Property forma eklenemedi.',
+            error: error instanceof Error ? error.message : String(error)
+        };
     }
 } 

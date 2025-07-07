@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import LaunchFormRenderer from './LaunchFormRenderer';
 import { PropertyEditorModal } from './PropertyEditorModal';
-import { addFormFieldToTemplate, addSectionToLaunchForm } from '../../src/lib/actions/workflow-template-actions';
+import { addFormFieldToTemplate, addSectionToLaunchForm, linkPropertyToForm } from '../../src/lib/actions/workflow-template-actions';
 import { PropertiesAndConditions } from './PropertiesAndConditions';
+import { PropertySelector } from './PropertySelector';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
@@ -21,6 +22,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { 
   FormSection, 
   SectionDisplayMode, 
@@ -33,9 +35,12 @@ interface AddFieldModalProps {
   sectionId?: string;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  properties: any[];
+  formFields: any[];
+  refreshForm?: () => void;
 }
 
-const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded, sectionId, isOpen, setIsOpen }) => {
+const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded, sectionId, isOpen, setIsOpen, properties, formFields, refreshForm }) => {
   const [fieldData, setFieldData] = useState({
     name: '',
     type: 'TEXT',
@@ -52,9 +57,19 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
     userFilter: '',
     step: '',
     minDate: '',
-    maxDate: ''
+    maxDate: '',
+    propertyId: ''
   });
   const [optionInput, setOptionInput] = useState('');
+  const [propertySearch, setPropertySearch] = useState('');
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
+  const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
+  const [isPropertyFromLibrary, setIsPropertyFromLibrary] = useState(false);
+  
+  // PropertySelector için state
+  const [isPropertySelectorOpen, setIsPropertySelectorOpen] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [creationMode, setCreationMode] = useState<'new' | 'library'>('new');
 
   const fieldTypes = [
     { value: 'TEXT', label: 'Metin (Kısa)' },
@@ -72,9 +87,53 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
     { value: 'USER_PICKER', label: 'Kullanıcı Seçici' }
   ];
 
+  // Property seçilirse formu doldur
+  useEffect(() => {
+    if (!selectedPropertyId) {
+      setIsPropertyFromLibrary(false);
+      setFieldData(prev => ({ ...prev, propertyId: '' }));
+      return;
+    }
+    setFieldData(prev => ({ ...prev, propertyId: selectedPropertyId }));
+    setIsPropertyFromLibrary(true);
+  }, [selectedPropertyId]);
+
+  // Property seçimi temizlendiğinde formu sıfırla
+  const handlePropertyChange = (value: string) => {
+    setSelectedPropertyId(value);
+    if (!value) {
+      setFieldData({
+        name: '',
+        type: 'TEXT',
+        description: '',
+        options: [],
+        minSelect: '',
+        maxSelect: '',
+        accept: '',
+        maxFileSize: '',
+        multiple: false,
+        defaultChecked: false,
+        multiUser: false,
+        userFilter: '',
+        step: '',
+        minDate: '',
+        maxDate: '',
+        propertyId: ''
+      });
+      setIsPropertyFromLibrary(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (fieldData.propertyId) {
+        const alreadyExists = (formFields || []).some(f => f.propertyId === fieldData.propertyId);
+        if (alreadyExists) {
+          alert('Bu property zaten forma eklenmiş.');
+          return;
+        }
+      }
       const response = await fetch(`/api/workflow-templates/${templateId}/form-fields`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,7 +154,8 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
           step: fieldData.step,
           minDate: fieldData.minDate,
           maxDate: fieldData.maxDate,
-          sectionId: sectionId || undefined
+          sectionId: sectionId || undefined,
+          propertyId: fieldData.propertyId
         })
       });
       const result = await response.json();
@@ -116,7 +176,8 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
           userFilter: '',
           step: '',
           minDate: '',
-          maxDate: ''
+          maxDate: '',
+          propertyId: ''
         });
         onFieldAdded();
       } else {
@@ -144,6 +205,41 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
     }));
   };
 
+  // PropertySelector'dan seçilen property'yi işle
+  const handlePropertySelect = async (property: any) => {
+    try {
+      // Property'yi form field olarak ekle
+      const response = await fetch(`/api/workflow-templates/${templateId}/form-fields`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: property.label || property.name,
+          type: property.type.toUpperCase(),
+          description: property.description || property.helpText,
+          propertyId: property.id,
+          property: {
+            id: property.id,
+            label: property.label || property.name,
+            type: property.type,
+            description: property.description || property.helpText
+          }
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setIsPropertySelectorOpen(false);
+        onFieldAdded();
+        refreshForm?.();
+      } else {
+        alert(result.message || 'Property eklenirken hata oluştu');
+      }
+    } catch (error) {
+      console.error('Property eklenirken hata:', error);
+      alert('Server error: Property eklenemedi');
+    }
+  };
+
   // Alan tipine göre ek inputlar
   const needsOptions = ['SINGLE_SELECT', 'MULTI_SELECT', 'USER_PICKER'].includes(fieldData.type);
 
@@ -151,8 +247,9 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Yeni Form Alanı Ekle</DialogTitle>
+          <DialogTitle>Form Alanı Ekle</DialogTitle>
         </DialogHeader>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="name">Alan Adı *</Label>
@@ -188,6 +285,55 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
               placeholder="Bu alan hakkında açıklama (opsiyonel)"
               rows={2}
             />
+          </div>
+
+          {/* Kütüphaneden Özellik Seç Dropdown */}
+          <div>
+            <Label htmlFor="property">Kütüphaneden Özellik Seç</Label>
+            <Select
+              open={propertyDropdownOpen}
+              onOpenChange={setPropertyDropdownOpen}
+              value={selectedPropertyId}
+              onValueChange={(value) => handlePropertyChange(value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Bir özellik seçin veya boş bırakın" />
+              </SelectTrigger>
+              <SelectContent>
+                <Input
+                  placeholder="Ara..."
+                  value={propertySearch}
+                  onChange={(e) => setPropertySearch(e.target.value)}
+                  className="m-2"
+                />
+                {properties
+                  .filter((p) =>
+                    p.label?.toLowerCase().includes(propertySearch.toLowerCase()) ||
+                    p.name?.toLowerCase().includes(propertySearch.toLowerCase()) ||
+                    p.apiKey?.toLowerCase().includes(propertySearch.toLowerCase()) ||
+                    p.description?.toLowerCase().includes(propertySearch.toLowerCase()) ||
+                    p.helpText?.toLowerCase().includes(propertySearch.toLowerCase())
+                  )
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{p.label || p.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {p.apiKey} • {p.type}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {isPropertyFromLibrary && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-blue-700">
+                  <strong>Kütüphaneden seçildi:</strong> Bu alan merkezi kütüphaneden seçildi. 
+                  İsterseniz aşağıdaki alanları düzenleyebilirsiniz.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Alan tipine özel inputlar */}
@@ -341,6 +487,14 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ templateId, onFieldAdded,
             </Button>
           </div>
         </form>
+        
+        {/* PropertySelector Modal */}
+        <PropertySelector
+          templateId={templateId}
+          onPropertySelect={handlePropertySelect}
+          isOpen={isPropertySelectorOpen}
+          setIsOpen={setIsPropertySelectorOpen}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -564,8 +718,21 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
   const [tableForm, setTableForm] = useState({ name: '', description: '', columns: [{ name: '', type: 'text', required: false }] });
   const [workflowSchema, setWorkflowSchema] = useState<any>(null);
   
+  // PropertySelector için state
+  const [isPropertySelectorOpen, setIsPropertySelectorOpen] = useState(false);
+  
   // Düzenleme modu için state
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [conditionalRules, setConditionalRules] = useState<any[]>([]);
+  const [enableRealTimeValidation, setEnableRealTimeValidation] = useState(false);
+  const [validationMode, setValidationMode] = useState<'SUBMIT' | 'BLUR' | 'CHANGE' | 'REAL_TIME'>('SUBMIT');
+  const [showValidationSummary, setShowValidationSummary] = useState(true);
+  const [sectionLayout, setSectionLayout] = useState<any>(null);
+  const onValidationChange = (v: any) => {};
+
+  const [properties, setProperties] = useState<any[]>([]);
 
   const doRefreshForm = () => {
     setLoading(true);
@@ -612,6 +779,25 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
   useEffect(() => {
     if (!templateId) return;
     doRefreshForm();
+  }, [templateId]);
+
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        // templateId varsa ona göre, yoksa fallback
+        if (!templateId) return;
+        const res = await fetch(`/api/workflow-templates/properties?templateId=${templateId}&libraryOnly=true`);
+        const data = await res.json();
+        if (data.success) {
+          setProperties(data.properties || []);
+        } else {
+          setProperties([]);
+        }
+      } catch (error) {
+        setProperties([]);
+      }
+    };
+    fetchProperties();
   }, [templateId]);
 
   const handleAddField = async (field: any) => {
@@ -738,42 +924,57 @@ export const LaunchFormDesigner: React.FC<{ templateId: string; refreshForm?: ()
                 sectionId={selectedSectionId || undefined}
                 isOpen={isAddFieldModalOpen}
                 setIsOpen={setIsAddFieldModalOpen}
+                properties={properties}
+                formFields={formFields}
+                refreshForm={doRefreshForm}
               />
-              <LaunchFormRenderer 
-                formFields={formFields} 
-                layout={layout} 
-                displayConditions={displayConditions} 
-                onDeleteField={handleDeleteField} 
+              <LaunchFormRenderer
+                formFields={formFields}
+                layout={layout}
+                formData={formData}
+                setFormData={setFormData}
+                displayConditions={displayConditions}
+                conditionalRules={conditionalRules}
+                enableRealTimeValidation={enableRealTimeValidation}
+                validationMode={validationMode}
+                showValidationSummary={showValidationSummary}
+                onValidationChange={onValidationChange}
+                onDeleteField={handleDeleteField}
                 onDeleteSection={handleDeleteSection}
-                sections={sections}
                 onAddQuestionToSection={openAddQuestionModalForSection}
+                sections={sections}
+                sectionLayout={sectionLayout}
                 editingFieldId={editingFieldId}
                 onStartEditing={handleStartEditing}
                 onSaveField={handleSaveField}
                 onCancelEditing={handleCancelEditing}
+                properties={properties}
               />
-              <div className="flex gap-4 justify-center mt-12">
-                <button
-                  className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white font-medium py-1.5 px-3 rounded-md shadow-xs text-sm transition-all focus:ring-2 focus:ring-green-200 min-h-0 min-w-0"
-                  onClick={() => setIsAddFieldModalOpen(true)}
-                  type="button"
-                >
-                  <span className="text-base">✚</span> Add question to form
-                </button>
-                <button
-                  className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-1.5 px-3 rounded-md border border-gray-200 shadow-xs text-sm transition-all focus:ring-2 focus:ring-blue-100 min-h-0 min-w-0"
-                  onClick={() => setIsAddSectionModalOpen(true)}
-                  type="button"
-                >
-                  <span className="text-base">➕</span> Add section to form
-                </button>
-                <button
-                  className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded-md shadow-xs text-sm transition-all focus:ring-2 focus:ring-blue-200 min-h-0 min-w-0"
-                  onClick={() => setIsAddTableModalOpen(true)}
-                  type="button"
-                >
-                  <span className="text-base">📋</span> Add table to form
-                </button>
+              <div className="flex flex-col gap-4 justify-center mt-12">
+                {/* Ana butonlar */}
+                <div className="flex gap-4 justify-center">
+                  <button
+                    className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white font-medium py-1.5 px-3 rounded-md shadow-xs text-sm transition-all focus:ring-2 focus:ring-green-200 min-h-0 min-w-0"
+                    onClick={() => setIsAddFieldModalOpen(true)}
+                    type="button"
+                  >
+                    <span className="text-base">✚</span> Add question to form
+                  </button>
+                  <button
+                    className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-1.5 px-3 rounded-md border border-gray-200 shadow-xs text-sm transition-all focus:ring-2 focus:ring-blue-100 min-h-0 min-w-0"
+                    onClick={() => setIsAddSectionModalOpen(true)}
+                    type="button"
+                  >
+                    <span className="text-base">➕</span> Add section to form
+                  </button>
+                  <button
+                    className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded-md shadow-xs text-sm transition-all focus:ring-2 focus:ring-blue-200 min-h-0 min-w-0"
+                    onClick={() => setIsAddTableModalOpen(true)}
+                    type="button"
+                  >
+                    <span className="text-base">📋</span> Add table to form
+                  </button>
+                </div>
               </div>
               {/* Section Modal */}
               {isAddSectionModalOpen && (

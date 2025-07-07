@@ -722,6 +722,9 @@ model WorkflowTemplate {
   showValidationSummary   Boolean @default(true)     // Validation özeti gösterilsin mi?
   allowPartialSave        Boolean @default(false)    // Kısmi kaydetmeye izin ver
   formRules               Json?   // Form seviyesinde genel kurallar
+  
+  // Review Settings
+  reviewSettings          Json?   // Review ayarları (onay süreci, koşullar, vb.)
 
   @@index([name])
   @@index([createdAt])
@@ -773,6 +776,11 @@ model FormField {
   placeholder String?
   options     Json?    // SINGLE_SELECT veya MULTI_SELECT için seçenekleri (örn: ['Opsiyon A', 'Opsiyon B']) JSON olarak saklar
   order       Int      // Formdaki sırası
+
+  // Property ile eşleşme
+  propertyId  String?  // YENİ: Bağlı olduğu merkezi property'nin id'si
+  property    FormField? @relation("PropertyReference", fields: [propertyId], references: [id])
+  propertyRefs FormField[] @relation("PropertyReference")
 
   // Validation kuralları
   minLength      Int?
