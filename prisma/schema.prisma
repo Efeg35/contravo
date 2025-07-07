@@ -708,7 +708,7 @@ model WorkflowTemplate {
   templateFileUrl String?
   documentHtml    String?
   documentProperties Json? // Dokümanda kullanılan property/tag id'leri (dizi olarak)
-  formFields FormField[]
+  formFields      FormField[]
   validationRules FormValidationRule[]
   
   // Sprint 4: Section/Grup Desteği
@@ -762,12 +762,13 @@ model Condition {
   value     String
   step      WorkflowTemplateStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
   stepId    String
-
-  displayConditionForFieldId String?   @unique
-  displayConditionForField   FormField? @relation(name: "DisplayConditions", fields: [displayConditionForFieldId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  formField FormField? @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  fieldId   String?
+  displayConditionForFieldId String?
 }
 
 model FormField {
+<<<<<<< HEAD
   id          String   @id @default(cuid())
   label       String   // Kullanıcının gördüğü soru, örn: "Sözleşme Değeri"
   apiKey      String   // Arka plandaki benzersiz anahtar, örn: "contractValue"
@@ -818,9 +819,51 @@ model FormField {
 
   // Bu alanın gösterilmesi için gereken koşullar
   displayConditions Condition[] @relation("DisplayConditions")
+=======
+  id                  String             @id @default(cuid())
+  label               String
+  apiKey              String
+  type                FormFieldType
+  isRequired          Boolean            @default(false)
+  placeholder         String?
+  options             Json?
+  order               Int                @default(1)
+  minLength           Int?
+  maxLength           Int?
+  minValue            Float?
+  maxValue            Float?
+  pattern             String?
+  customError         String?
+  dependsOn           String?
+  dependsOnValue      String?
+  helpText            String?
+  isConditional       Boolean            @default(false)
+  validationRules     Json?
+  defaultValue        String?
+  isReadOnly          Boolean            @default(false)
+  isHidden            Boolean            @default(false)
+  showWhen            Json?
+  hideWhen            Json?
+  validateWhen        Json?
+  errorMessage        String?
+  warningMessage      String?
+  successMessage      String?
+  fieldGroup          String?
+  priority            Int                @default(0)
+  realTimeValidation  Boolean            @default(false)
+  sectionId           String?
+  templateId          String
+  template            WorkflowTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  section             FormSection?       @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  conditions          Condition[]
+  
+  @@index([templateId])
+  @@index([sectionId])
+  @@index([order])
+  @@index([apiKey])
+>>>>>>> fd722c6d850f0d5d7d62aeb37c0b5eec79283180
 }
 
-// Sprint 2: Form seviyesinde validation kuralları
 model FormValidationRule {
   id              String   @id @default(cuid())
   name            String   // Kural adı, örn: "Email Match Validation"
@@ -845,7 +888,6 @@ model FormValidationRule {
   @@index([priority])
 }
 
-// Sprint 4: Form Section/Grup Desteği (Ironclad Seviyesinde)
 model FormSection {
   id              String   @id @default(cuid())
   name            String   // Section adı, örn: "Counterparty Information", "Contract Terms"
@@ -883,17 +925,9 @@ model FormSection {
   // İlişkiler
   templateId      String
   template        WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  
-  // Section'a ait alanlar (FormField'larda sectionId ile bağlanacak)
-  fields          FormField[] @relation("SectionFields")
-
-  @@index([templateId])
-  @@index([order])
-  @@index([isHidden])
-  @@index([isRequired])
+  fields          FormField[]
 }
 
-// Yeni Approver Sistemi
 model WorkflowApprover {
   id             String               @id @default(cuid())
   templateId     String
@@ -934,3 +968,5 @@ model ApproverCondition {
   @@index([approverId])
   @@index([type])
 }
+
+

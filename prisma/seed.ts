@@ -44,6 +44,20 @@ async function main() {
           });
         }
 
+        // User için duplicate email'leri atla
+        if (modelName === 'User') {
+          const seen = new Set();
+          processedData = processedData.filter((record: any) => {
+            if (seen.has(record.email)) return false;
+            seen.add(record.email);
+            return true;
+          });
+          
+          // Veritabanındaki mevcut email'leri de kontrol et
+          const existingEmails = (await prisma.user.findMany({ select: { email: true } })).map(u => u.email);
+          processedData = processedData.filter((record: any) => !existingEmails.includes(record.email));
+        }
+
         // @ts-ignore
         await prisma[modelKey].createMany({
           data: processedData
